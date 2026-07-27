@@ -8,7 +8,6 @@ export const metadata = {
     description: "Organizá torneos de truco en tu bar. Sorteo automático, cuadro en vivo, anotador por código.",
     url: "https://torneotruco.com.ar/presentacion",
     siteName: "Torneo de Truco",
-    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
     locale: "es_AR",
     type: "website",
   },
@@ -16,7 +15,6 @@ export const metadata = {
     card: "summary_large_image",
     title: "Torneo de Truco — presentación",
     description: "Organizá torneos de truco en tu bar. Sorteo automático, cuadro en vivo, anotador por código.",
-    images: ["/og-image.png"],
   },
 };
 
