@@ -74,6 +74,14 @@ export default function Home() {
         >
           Anotador
         </Link>
+
+        <Link
+          href="/presentacion"
+          className="block text-center mt-6 text-xs font-semibold underline underline-offset-2 opacity-70 hover:opacity-100 transition-opacity duration-200"
+          style={{ color: T.inkDim }}
+        >
+          ¿Qué es esto? Ver presentación →
+        </Link>
       </div>
     </div>
   );
