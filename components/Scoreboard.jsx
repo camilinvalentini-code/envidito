@@ -82,9 +82,9 @@ function NombreEquipo({ label, editable, onRename, className, style }) {
    el <input> viejo y ponga uno nuevo — perdiendo el foco a cada tecla. ---- */
 
 function Team({ label, score, onPlus, onMinus, onRename, editableNames, disabled, marks, maxScore, T }) {
-  const conCorte = maxScore % 10 === 0; // 20/30/40 se dividen en malas/buenas; 15 no
+  const conCorte = maxScore >= 20; // 20/24/30/40 se dividen en malas/buenas; 15 y 18 no
   const mitad = maxScore / 2;
-  const numGrupos = maxScore / 5;
+  const numGrupos = Math.ceil(maxScore / 5); // si no da justo (18, 24), el último grupo queda incompleto
   return (
     <div
       onClick={() => !disabled && onPlus()}
@@ -106,9 +106,9 @@ function Team({ label, score, onPlus, onMinus, onRename, editableNames, disabled
       />
       {conCorte ? (
         <div className="flex items-start">
-          <SectionApilado label="Malas" count={Math.min(mitad, score)} marks={marks} T={T} grupos={mitad / 5} />
+          <SectionApilado label="Malas" count={Math.min(mitad, score)} marks={marks} T={T} grupos={Math.ceil(mitad / 5)} />
           <div className="w-px self-stretch mx-2" style={{ background: T.line }} />
-          <SectionApilado label="Buenas" count={Math.max(0, score - mitad)} marks={marks} T={T} grupos={mitad / 5} />
+          <SectionApilado label="Buenas" count={Math.max(0, score - mitad)} marks={marks} T={T} grupos={Math.ceil(mitad / 5)} />
         </div>
       ) : (
         <div className="flex justify-center gap-2 flex-wrap">
@@ -173,9 +173,16 @@ function LayoutApilado({ nameA, nameB, scoreA, scoreB, marks, T, onChange, disab
 }
 
 function Col({ label, score, onPlus, onMinus, onRename, editableNames, disabled, marks, maxScore, T }) {
-  const numGroups = maxScore / 5;
-  const conCorte = maxScore % 10 === 0;
-  const grupoDeCorte = maxScore / 10; // después de este grupo va la línea de la mitad
+  const numGroups = Math.ceil(maxScore / 5); // si no da justo (18, 24), el último grupo queda incompleto
+  const conCorte = maxScore >= 20; // 20/24/30/40 se dividen en malas/buenas; 15 y 18 no
+  const mitad = maxScore / 2;
+  // La línea de la mitad solo se puede dibujar prolija justo entre dos
+  // grupos completos — para 20/30/40 la mitad cae justo ahí. Para 24
+  // (mitad=12) cae a mitad de un grupo, así que en esta columna
+  // compacta directamente no se dibuja la línea (el conteo de puntos
+  // sigue siendo correcto igual; el corte 12/12 sí se ve bien en el
+  // layout Apilado, que no tiene esta limitación).
+  const grupoDeCorte = mitad % 5 === 0 ? mitad / 5 : null;
   return (
     <div
       onClick={() => !disabled && onPlus()}
@@ -192,7 +199,7 @@ function Col({ label, score, onPlus, onMinus, onRename, editableNames, disabled,
       <div className="flex flex-col gap-2 items-center">
         {Array.from({ length: numGroups }, (_, g) => (
           <React.Fragment key={g}>
-            {conCorte && g === grupoDeCorte && (
+            {conCorte && grupoDeCorte !== null && g === grupoDeCorte && (
               <div className="w-full flex items-center gap-2 my-1">
                 <div style={{ flex: 1, borderTop: `2px solid ${T.gold}` }} />
                 <span className="text-[9px] font-bold" style={{ color: T.inkDim }}>{maxScore / 2}</span>
