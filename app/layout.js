@@ -1,6 +1,6 @@
 import "./globals.css";
 import { ThemeProvider } from "../lib/theme";
-import SiteFooter from "../components/SiteFooter";
+import ConditionalFooter from "../components/ConditionalFooter";
 import RotatingFavicon from "../components/RotatingFavicon";
 
 export const metadata = {
@@ -32,7 +32,7 @@ export default function RootLayout({ children }) {
         <RotatingFavicon />
         <ThemeProvider>
           {children}
-          <SiteFooter />
+          <ConditionalFooter />
         </ThemeProvider>
       </body>
     </html>

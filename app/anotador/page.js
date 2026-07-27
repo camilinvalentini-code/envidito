@@ -122,12 +122,12 @@ export default function AnotadorLibre() {
                 ))}
               </div>
             </div>
-            <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: T.gold }}>
-              {[15, 20, 30, 40].map((p) => (
+            <div className="grid grid-cols-3 rounded-xl overflow-hidden border" style={{ borderColor: T.gold }}>
+              {[15, 18, 20, 24, 30, 40].map((p) => (
                 <button
                   key={p}
                   onClick={() => setPuntosMax(p)}
-                  className="flex-1 py-1.5 text-xs font-bold"
+                  className="py-1.5 text-xs font-bold"
                   style={{ background: puntosMax === p ? T.gold : "transparent", color: puntosMax === p ? T.ink : T.inkDim }}
                 >
                   {p} puntos
