@@ -516,9 +516,6 @@ export default function PresentacionClient() {
             </div>
           </div>
         </div>
-        <div className="price reveal d3">$0</div>
-        <div className="price-caption reveal d3">Costo para el bar</div>
-        <p className="price-fine reveal d4">Sin licencias. Sin abonos. Sin letra chica.</p>
       </section>
 
       <section id="close">
