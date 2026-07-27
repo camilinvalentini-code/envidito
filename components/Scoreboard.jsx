@@ -34,12 +34,53 @@ function GroupFosforo({ value, T }) {
     </svg>
   );
 }
-function Group({ value, marks, T }) {
+
+/* ---- dibujo de un grupo de 3, en forma de triángulo (para 18 puntos) ---- */
+function GroupTriPalito({ value, T }) {
+  const c = (n) => (value >= n ? T.ink : T.line);
+  const w = (n) => (value >= n ? 3.2 : 1.8);
+  return (
+    <svg width="34" height="34" viewBox="0 0 20 20">
+      <line x1="10" y1="2" x2="18" y2="17" stroke={c(1)} strokeWidth={w(1)} strokeLinecap="round" />
+      <line x1="18" y1="17" x2="2" y2="17" stroke={c(2)} strokeWidth={w(2)} strokeLinecap="round" />
+      <line x1="2" y1="17" x2="10" y2="2" stroke={c(3)} strokeWidth={w(3)} strokeLinecap="round" />
+    </svg>
+  );
+}
+function GroupTriFosforo({ value, T }) {
+  const c = (n) => (value >= n ? T.gold : T.line);
+  const head = (n) => (value >= n ? "#E2523F" : T.line);
+  return (
+    <svg width="34" height="34" viewBox="0 0 20 20">
+      <line x1="10" y1="2" x2="18" y2="17" stroke={c(1)} strokeWidth="1.8" strokeLinecap="round" />
+      <ellipse cx="18" cy="17" rx="1.6" ry="1.4" fill={head(1)} transform="rotate(30 18 17)" />
+      <line x1="18" y1="17" x2="2" y2="17" stroke={c(2)} strokeWidth="1.8" strokeLinecap="round" />
+      <ellipse cx="2" cy="17" rx="1.6" ry="1.4" fill={head(2)} transform="rotate(-30 2 17)" />
+      <line x1="2" y1="17" x2="10" y2="2" stroke={c(3)} strokeWidth="1.8" strokeLinecap="round" />
+      <ellipse cx="10" cy="2" rx="1.4" ry="1.6" fill={head(3)} />
+    </svg>
+  );
+}
+
+function Group({ value, marks, T, unitSize = 5 }) {
+  if (unitSize === 3) {
+    return marks === "fosforo" ? <GroupTriFosforo value={value} T={T} /> : <GroupTriPalito value={value} T={T} />;
+  }
   return marks === "fosforo" ? <GroupFosforo value={value} T={T} /> : <GroupPalito value={value} T={T} />;
 }
 
+/* ---- a cuántos puntos se juega, ¿se corta en malas/buenas? y en
+   grupos de cuánto se dibuja cada mitad. El de 18 es el único caso raro:
+   se corta igual que un torneo "grande" pero con grupos de 3 en
+   triángulo en vez de grupos de 5. ---- */
+function getScoreLayout(maxScore) {
+  if (maxScore === 18 || maxScore === 24) return { conCorte: true, unitSize: 3 };
+  if (maxScore === 15) return { conCorte: false, unitSize: 5 };
+  return { conCorte: maxScore >= 20, unitSize: 5 };
+}
+
 /* ---- apilado: malas | buenas lado a lado, dentro de cada equipo ---- */
-function SectionApilado({ label, count, marks, T, grupos = 3 }) {
+function SectionApilado({ label, count, marks, T, grupos = 3, unitSize = 5 }) {
   return (
     <div className="flex-1 text-center">
       <div className="text-[10px] uppercase tracking-wide font-bold mb-1.5" style={{ color: T.inkDim }}>
@@ -47,7 +88,13 @@ function SectionApilado({ label, count, marks, T, grupos = 3 }) {
       </div>
       <div className="flex gap-2 flex-wrap justify-center">
         {Array.from({ length: grupos }, (_, g) => (
-          <Group key={g} value={Math.max(0, Math.min(5, count - g * 5))} marks={marks} T={T} />
+          <Group
+            key={g}
+            value={Math.max(0, Math.min(unitSize, count - g * unitSize))}
+            marks={marks}
+            T={T}
+            unitSize={unitSize}
+          />
         ))}
       </div>
     </div>
@@ -82,9 +129,9 @@ function NombreEquipo({ label, editable, onRename, className, style }) {
    el <input> viejo y ponga uno nuevo — perdiendo el foco a cada tecla. ---- */
 
 function Team({ label, score, onPlus, onMinus, onRename, editableNames, disabled, marks, maxScore, T }) {
-  const conCorte = maxScore % 10 === 0; // 20/30/40 se dividen en malas/buenas; 15 no
+  const { conCorte, unitSize } = getScoreLayout(maxScore);
   const mitad = maxScore / 2;
-  const numGrupos = maxScore / 5;
+  const numGrupos = Math.ceil(maxScore / unitSize); // si no da justo (24), el último grupo queda incompleto
   return (
     <div
       onClick={() => !disabled && onPlus()}
@@ -106,14 +153,34 @@ function Team({ label, score, onPlus, onMinus, onRename, editableNames, disabled
       />
       {conCorte ? (
         <div className="flex items-start">
-          <SectionApilado label="Malas" count={Math.min(mitad, score)} marks={marks} T={T} grupos={mitad / 5} />
+          <SectionApilado
+            label="Malas"
+            count={Math.min(mitad, score)}
+            marks={marks}
+            T={T}
+            grupos={Math.ceil(mitad / unitSize)}
+            unitSize={unitSize}
+          />
           <div className="w-px self-stretch mx-2" style={{ background: T.line }} />
-          <SectionApilado label="Buenas" count={Math.max(0, score - mitad)} marks={marks} T={T} grupos={mitad / 5} />
+          <SectionApilado
+            label="Buenas"
+            count={Math.max(0, score - mitad)}
+            marks={marks}
+            T={T}
+            grupos={Math.ceil(mitad / unitSize)}
+            unitSize={unitSize}
+          />
         </div>
       ) : (
         <div className="flex justify-center gap-2 flex-wrap">
           {Array.from({ length: numGrupos }, (_, g) => (
-            <Group key={g} value={Math.max(0, Math.min(5, score - g * 5))} marks={marks} T={T} />
+            <Group
+              key={g}
+              value={Math.max(0, Math.min(unitSize, score - g * unitSize))}
+              marks={marks}
+              T={T}
+              unitSize={unitSize}
+            />
           ))}
         </div>
       )}
@@ -173,9 +240,16 @@ function LayoutApilado({ nameA, nameB, scoreA, scoreB, marks, T, onChange, disab
 }
 
 function Col({ label, score, onPlus, onMinus, onRename, editableNames, disabled, marks, maxScore, T }) {
-  const numGroups = maxScore / 5;
-  const conCorte = maxScore % 10 === 0;
-  const grupoDeCorte = maxScore / 10; // después de este grupo va la línea de la mitad
+  const { conCorte, unitSize } = getScoreLayout(maxScore);
+  const numGroups = Math.ceil(maxScore / unitSize); // si no da justo (24), el último grupo queda incompleto
+  const mitad = maxScore / 2;
+  // La línea de la mitad solo se puede dibujar prolija justo entre dos
+  // grupos completos — para 18/20/30/40 la mitad cae justo ahí. Para 24
+  // (mitad=12, grupos de 5) cae a mitad de un grupo, así que en esta
+  // columna compacta directamente no se dibuja la línea (el conteo de
+  // puntos sigue siendo correcto igual; el corte 12/12 sí se ve bien en
+  // el layout Apilado, que no tiene esta limitación).
+  const grupoDeCorte = mitad % unitSize === 0 ? mitad / unitSize : null;
   return (
     <div
       onClick={() => !disabled && onPlus()}
@@ -192,14 +266,14 @@ function Col({ label, score, onPlus, onMinus, onRename, editableNames, disabled,
       <div className="flex flex-col gap-2 items-center">
         {Array.from({ length: numGroups }, (_, g) => (
           <React.Fragment key={g}>
-            {conCorte && g === grupoDeCorte && (
+            {conCorte && grupoDeCorte !== null && g === grupoDeCorte && (
               <div className="w-full flex items-center gap-2 my-1">
                 <div style={{ flex: 1, borderTop: `2px solid ${T.gold}` }} />
                 <span className="text-[9px] font-bold" style={{ color: T.inkDim }}>{maxScore / 2}</span>
                 <div style={{ flex: 1, borderTop: `2px solid ${T.gold}` }} />
               </div>
             )}
-            <Group value={Math.max(0, Math.min(5, score - g * 5))} marks={marks} T={T} />
+            <Group value={Math.max(0, Math.min(unitSize, score - g * unitSize))} marks={marks} T={T} unitSize={unitSize} />
           </React.Fragment>
         ))}
       </div>
