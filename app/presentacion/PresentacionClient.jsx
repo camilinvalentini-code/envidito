@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const CSS = `
   :root{
@@ -125,20 +125,37 @@ const CSS = `
   #presentacion-root .anotador-text b{ color:var(--gold-bright); }
 
   #presentacion-root .bracket{ margin-top:48px; display:flex; flex-direction:column; align-items:center; gap:14px; }
+  #presentacion-root .bracket-hint{ font-family:var(--mono); font-size:11px; letter-spacing:.05em; color:var(--cream-dim); margin-bottom:8px; }
   #presentacion-root .bracket-row{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; justify-content:center; }
   #presentacion-root .bracket-pair{ display:flex; flex-direction:column; border:1px solid var(--line); border-radius:12px; overflow:hidden; width:170px; }
-  #presentacion-root .bracket-pair span{ padding:10px 14px; font-family:var(--serif); font-size:14px; font-weight:600; text-align:left; color:var(--cream); }
-  #presentacion-root .bracket-pair span:first-child{ border-bottom:1px solid var(--line); }
+  #presentacion-root .bp-team{
+    all:unset; cursor:pointer; display:block; width:100%; padding:10px 14px;
+    font-family:var(--serif); font-size:14px; font-weight:600; text-align:left;
+    color:var(--cream); transition:color .2s ease, opacity .2s ease;
+  }
+  #presentacion-root .bp-team:hover{ color:var(--gold-bright); }
+  #presentacion-root .bp-team.won{ color:var(--gold-bright); font-weight:700; }
+  #presentacion-root .bp-team.lost{ color:var(--cream-dim); opacity:.4; text-decoration:line-through; text-decoration-thickness:1px; }
+  #presentacion-root .bp-team:first-child{ border-bottom:1px solid var(--line); }
   #presentacion-root .bracket-vs{ font-family:var(--mono); font-size:11px; color:var(--cream-dim); font-weight:700; }
   #presentacion-root .bracket-down{ font-size:18px; color:var(--cream-dim); }
+  #presentacion-root .bracket-final-label{ font-family:var(--mono); font-size:11px; letter-spacing:.15em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
   #presentacion-root .bracket-winner{ font-family:var(--serif); display:flex; align-items:center; gap:8px; font-size:20px; font-weight:700; color:var(--gold-bright); margin-top:4px; }
-  #presentacion-root .live-dot{ display:inline-flex; align-items:center; gap:8px; margin-top:20px; font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.12em; color:var(--rose); }
-  #presentacion-root .live-dot i{ width:8px; height:8px; border-radius:50%; background:var(--rose); animation:pt-blink 1.6s ease-in-out infinite; }
+  #presentacion-root .live-dot{ display:inline-flex; align-items:center; gap:8px; margin-top:20px; font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.12em; }
+  #presentacion-root .live-dot i{ width:8px; height:8px; border-radius:50%; animation:pt-blink 1.6s ease-in-out infinite; }
+  #presentacion-root .bracket-reset{
+    margin-top:22px; font-family:var(--mono); font-size:11px; letter-spacing:.05em; color:var(--cream-dim);
+    background:none; border:1px solid var(--line); border-radius:999px; padding:8px 16px; cursor:pointer;
+    transition:color .2s ease, border-color .2s ease;
+  }
+  #presentacion-root .bracket-reset:hover{ color:var(--gold-bright); border-color:var(--gold); }
   @keyframes pt-blink{ 0%,100%{opacity:1;} 50%{opacity:.25;} }
+  @keyframes pt-appear{ from{ opacity:0; transform:translateY(12px); } to{ opacity:1; transform:translateY(0); } }
+  #presentacion-root .bracket-appear{ animation:pt-appear .5s ease both; }
 
   #presentacion-root .quote-solved{ margin-top:36px; display:inline-flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:center; }
-  #presentacion-root .quote-solved span{ font-family:var(--serif); font-size:18px; font-style:italic; color:var(--cream-dim); text-decoration:line-through; text-decoration-thickness:1.5px; }
-  #presentacion-root .solved-tag{ font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.05em; color:var(--gold-bright); border:1px solid var(--line); padding:6px 12px; border-radius:999px; }
+  #presentacion-root .quote-solved .quote-text{ font-family:var(--serif); font-size:18px; font-style:italic; color:var(--cream-dim); text-decoration:line-through; text-decoration-thickness:1.5px; }
+  #presentacion-root .solved-tag{ font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.05em; color:var(--gold-bright); border:1px solid var(--line); padding:6px 12px; border-radius:999px; text-decoration:none; }
 
   #presentacion-root .chip-group{ margin-top:40px; }
   #presentacion-root .chip-group-label{ font-family:var(--mono); font-size:11px; font-weight:700; color:var(--cream-dim); text-transform:uppercase; letter-spacing:.15em; margin-bottom:12px; }
@@ -166,6 +183,82 @@ const CSS = `
 `;
 
 const SECTIONS = ["hero", "problema", "solucion", "anotador", "cuadro", "jugador", "config", "beneficios", "close"];
+
+function BracketPairRow({ teamA, teamB, winner, onPick }) {
+  return (
+    <div className="bracket-pair">
+      <button
+        className={`bp-team ${winner === teamA ? "won" : winner ? "lost" : ""}`}
+        onClick={() => onPick(teamA)}
+      >
+        {teamA}
+      </button>
+      <button
+        className={`bp-team ${winner === teamB ? "won" : winner ? "lost" : ""}`}
+        onClick={() => onPick(teamB)}
+      >
+        {teamB}
+      </button>
+    </div>
+  );
+}
+
+function CuadroDemo() {
+  const [winner1, setWinner1] = useState(null);
+  const [winner2, setWinner2] = useState(null);
+  const [campeon, setCampeon] = useState(null);
+
+  function pick1(name) {
+    setWinner1(name);
+    setCampeon(null);
+  }
+  function pick2(name) {
+    setWinner2(name);
+    setCampeon(null);
+  }
+  function reiniciar() {
+    setWinner1(null);
+    setWinner2(null);
+    setCampeon(null);
+  }
+
+  return (
+    <div className="bracket">
+      <div className="bracket-hint">tocá un equipo para que gane, como en el panel real</div>
+      <div className="bracket-row">
+        <BracketPairRow teamA="Jenni y Braian" teamB="Las Winx" winner={winner1} onPick={pick1} />
+        <div className="bracket-vs">VS</div>
+        <BracketPairRow teamA="Los Mentirosos" teamB="Rio Platenses" winner={winner2} onPick={pick2} />
+      </div>
+
+      {winner1 && winner2 && (
+        <div className="bracket-appear" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div className="bracket-down">↓</div>
+          <div className="bracket-final-label">Final</div>
+          <BracketPairRow teamA={winner1} teamB={winner2} winner={campeon} onPick={setCampeon} />
+        </div>
+      )}
+
+      {campeon && (
+        <div className="bracket-appear" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div className="bracket-down">↓</div>
+          <div className="bracket-winner">🏆 {campeon}</div>
+        </div>
+      )}
+
+      <div className="live-dot" style={{ color: campeon ? "var(--gold-bright)" : "var(--rose)" }}>
+        <i style={{ background: campeon ? "var(--gold-bright)" : "var(--rose)" }}></i>
+        {campeon ? "CAMPEÓN" : "EN VIVO"}
+      </div>
+
+      {(winner1 || winner2) && (
+        <button className="bracket-reset" onClick={reiniciar}>
+          ↺ reiniciar demo
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function PresentacionClient() {
   useEffect(() => {
@@ -422,24 +515,7 @@ export default function PresentacionClient() {
         <h2 className="reveal">El cuadro, en vivo</h2>
         <p className="sub reveal d1">Se ve desde cualquier celular, o en una pantalla del bar. Se actualiza solo.</p>
 
-        <div className="bracket reveal d2">
-          <div className="bracket-row">
-            <div className="bracket-pair">
-              <span>Jenni y Braian</span>
-              <span>Las Winx</span>
-            </div>
-            <div className="bracket-vs">VS</div>
-            <div className="bracket-pair">
-              <span>Los Mentirosos</span>
-              <span>Rio Platenses</span>
-            </div>
-          </div>
-          <div className="bracket-down">↓</div>
-          <div className="bracket-winner">🏆 Rio Platenses</div>
-          <div className="live-dot">
-            <i></i>EN VIVO
-          </div>
-        </div>
+        <CuadroDemo />
       </section>
 
       <section id="jugador">
@@ -449,7 +525,7 @@ export default function PresentacionClient() {
           Después, la plataforma encuentra sola tu próximo partido — sin tener que preguntarle todo al organizador.
         </p>
         <div className="quote-solved reveal d2">
-          <span>"¿y ahora contra quién jugamos?"</span>
+          <span className="quote-text">"¿y ahora contra quién jugamos?"</span>
           <span className="solved-tag">✓ resuelto</span>
         </div>
       </section>

@@ -74,7 +74,7 @@ function Group({ value, marks, T, unitSize = 5 }) {
    se corta igual que un torneo "grande" pero con grupos de 3 en
    triángulo en vez de grupos de 5. ---- */
 function getScoreLayout(maxScore) {
-  if (maxScore === 18) return { conCorte: true, unitSize: 3 };
+  if (maxScore === 18 || maxScore === 24) return { conCorte: true, unitSize: 3 };
   if (maxScore === 15) return { conCorte: false, unitSize: 5 };
   return { conCorte: maxScore >= 20, unitSize: 5 };
 }
