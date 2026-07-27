@@ -126,18 +126,19 @@ const CSS = `
 
   #presentacion-root .bracket{ margin-top:48px; display:flex; flex-direction:column; align-items:center; gap:14px; }
   #presentacion-root .bracket-hint{ font-family:var(--mono); font-size:11px; letter-spacing:.05em; color:var(--cream-dim); margin-bottom:8px; }
-  #presentacion-root .bracket-row{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; justify-content:center; }
-  #presentacion-root .bracket-pair{ display:flex; flex-direction:column; border:1px solid var(--line); border-radius:12px; overflow:hidden; width:170px; }
+  #presentacion-root .bracket-row{ display:flex; gap:10px; align-items:center; justify-content:center; width:100%; max-width:420px; }
+  #presentacion-root .bracket-pair{ flex:1 1 0; min-width:0; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
   #presentacion-root .bp-team{
-    all:unset; cursor:pointer; display:block; width:100%; padding:10px 14px;
-    font-family:var(--serif); font-size:14px; font-weight:600; text-align:left;
+    all:unset; cursor:pointer; display:block; width:100%; padding:10px 12px;
+    font-family:var(--serif); font-size:clamp(11px, 3.2vw, 14px); font-weight:600; text-align:left;
     color:var(--cream); transition:color .2s ease, opacity .2s ease;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
   #presentacion-root .bp-team:hover{ color:var(--gold-bright); }
   #presentacion-root .bp-team.won{ color:var(--gold-bright); font-weight:700; }
   #presentacion-root .bp-team.lost{ color:var(--cream-dim); opacity:.4; text-decoration:line-through; text-decoration-thickness:1px; }
   #presentacion-root .bp-team:first-child{ border-bottom:1px solid var(--line); }
-  #presentacion-root .bracket-vs{ font-family:var(--mono); font-size:11px; color:var(--cream-dim); font-weight:700; }
+  #presentacion-root .bracket-vs{ font-family:var(--mono); font-size:11px; color:var(--cream-dim); font-weight:700; flex-shrink:0; }
   #presentacion-root .bracket-down{ font-size:18px; color:var(--cream-dim); }
   #presentacion-root .bracket-final-label{ font-family:var(--mono); font-size:11px; letter-spacing:.15em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
   #presentacion-root .bracket-winner{ font-family:var(--serif); display:flex; align-items:center; gap:8px; font-size:20px; font-weight:700; color:var(--gold-bright); margin-top:4px; }
