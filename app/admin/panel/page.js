@@ -16,8 +16,14 @@ export default function PanelAdmin() {
   const [organizadores, setOrganizadores] = useState([]);
   const [torneos, setTorneos] = useState([]);
   const [perfilesPorId, setPerfilesPorId] = useState({});
+  const [pagosEsteMes, setPagosEsteMes] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [confirmarBorrar, setConfirmarBorrar] = useState(null);
+
+  function inicioMes() {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+  }
 
   const load = useCallback(async () => {
     const { data: pend } = await supabase.from("profiles").select("*").eq("status", "pendiente").order("created_at");
@@ -29,14 +35,25 @@ export default function PanelAdmin() {
       .order("nombre");
     const { data: todos } = await supabase.from("profiles").select("id, nombre, email");
     const { data: ts } = await supabase.from("tournaments").select("*").order("created_at", { ascending: false });
+    const { data: pagos } = await supabase.from("payments").select("organizador_id").gte("paid_at", inicioMes());
     const mapa = {};
     (todos || []).forEach((p) => (mapa[p.id] = p));
     setPendientes(pend || []);
     setOrganizadores(aprob || []);
     setTorneos(ts || []);
     setPerfilesPorId(mapa);
+    setPagosEsteMes(new Set((pagos || []).map((p) => p.organizador_id)));
     setLoading(false);
   }, []);
+
+  async function marcarPagado(organizadorId) {
+    await supabase.from("payments").insert({ organizador_id: organizadorId });
+    load();
+  }
+  async function marcarPendiente(organizadorId) {
+    await supabase.from("payments").delete().eq("organizador_id", organizadorId).gte("paid_at", inicioMes());
+    load();
+  }
 
   useEffect(() => {
     if (!authLoading && !session) router.push("/organizador/acceso");
@@ -148,16 +165,46 @@ export default function PanelAdmin() {
         <h2 className="font-bold mb-3 text-sm" style={{ color: T.gold }}>
           Organizadores activos ({organizadores.length})
         </h2>
-        <div className="flex flex-wrap gap-2 mb-6">
-          {organizadores.map((o) => (
-            <span
-              key={o.id}
-              className="text-xs px-3 py-1.5 rounded-full"
-              style={{ background: T.panelLight, color: T.ink }}
-            >
-              {o.nombre || o.email}
-            </span>
-          ))}
+        <p className="text-xs mb-3" style={{ color: T.inkDim }}>
+          El pago se maneja por transferencia, aparte. Acá solo marcás a mano cuándo te pagó cada bar.
+        </p>
+        <div className="flex flex-col gap-2 mb-6">
+          {organizadores.map((o) => {
+            const pago = pagosEsteMes.has(o.id);
+            return (
+              <div
+                key={o.id}
+                className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl flex-wrap"
+                style={{ background: T.panelLight }}
+              >
+                <span className="text-sm font-semibold truncate" style={{ color: T.ink }}>
+                  {o.nombre || o.email}
+                </span>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span
+                    className="text-xs font-bold px-2.5 py-1 rounded-full"
+                    style={{
+                      background: pago ? T.gold : T.redDim,
+                      color: pago ? T.ink : "#FFFFFF",
+                    }}
+                  >
+                    {pago ? "Pagó este mes" : "Debe"}
+                  </span>
+                  <button
+                    onClick={() => (pago ? marcarPendiente(o.id) : marcarPagado(o.id))}
+                    className="text-xs font-bold px-3 py-1.5 rounded-full"
+                    style={
+                      pago
+                        ? { background: "transparent", color: T.inkDim, border: `1px solid ${T.line}` }
+                        : { background: T.gold, color: T.ink }
+                    }
+                  >
+                    {pago ? "Marcar como pendiente" : "✓ Marcar como pagado"}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <h2 className="font-bold mb-3 text-sm" style={{ color: T.gold }}>
