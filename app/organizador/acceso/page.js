@@ -17,10 +17,19 @@ export default function AccesoOrganizador() {
   const [clave, setClave] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
+  const [aceptaPrivacidad, setAceptaPrivacidad] = useState(false);
+
+  const TERMS_VERSION = "1.0";
+  const PRIVACY_VERSION = "1.0";
 
   async function enviarLink() {
     if (!email.trim()) {
       setError("Ingresá tu email.");
+      return;
+    }
+    if (!aceptaTerminos || !aceptaPrivacidad) {
+      setError("Tenés que aceptar los Términos y Condiciones y la Política de Privacidad para continuar.");
       return;
     }
     setError("");
@@ -28,7 +37,18 @@ export default function AccesoOrganizador() {
     const redirectTo = `${window.location.origin}/organizador/panel`;
     const { error: err } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { shouldCreateUser: true, data: { nombre: nombre.trim() }, emailRedirectTo: redirectTo },
+      options: {
+        shouldCreateUser: true,
+        data: {
+          nombre: nombre.trim(),
+          acceptedTerms: true,
+          acceptedPrivacy: true,
+          acceptedAt: new Date().toISOString(),
+          termsVersion: TERMS_VERSION,
+          privacyVersion: PRIVACY_VERSION,
+        },
+        emailRedirectTo: redirectTo,
+      },
     });
     setLoading(false);
     if (err) {
@@ -115,9 +135,37 @@ export default function AccesoOrganizador() {
                     className="px-3 py-2 rounded-xl text-sm"
                     style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
                   />
+                  <label className="flex items-start gap-2 text-xs" style={{ color: T.inkDim }}>
+                    <input
+                      type="checkbox"
+                      checked={aceptaTerminos}
+                      onChange={(e) => setAceptaTerminos(e.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      He leído y acepto los{" "}
+                      <Link href="/terminos-y-condiciones" target="_blank" className="underline font-semibold" style={{ color: T.gold }}>
+                        Términos y Condiciones
+                      </Link>
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2 text-xs" style={{ color: T.inkDim }}>
+                    <input
+                      type="checkbox"
+                      checked={aceptaPrivacidad}
+                      onChange={(e) => setAceptaPrivacidad(e.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      He leído y acepto la{" "}
+                      <Link href="/politica-de-privacidad" target="_blank" className="underline font-semibold" style={{ color: T.gold }}>
+                        Política de Privacidad
+                      </Link>
+                    </span>
+                  </label>
                   <button
                     onClick={enviarLink}
-                    disabled={loading}
+                    disabled={loading || !aceptaTerminos || !aceptaPrivacidad}
                     className="py-2 rounded-xl font-bold text-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-60"
                     style={{ background: T.gold, color: T.ink }}
                   >
