@@ -1,4 +1,4 @@
-# Torneo de Truco
+# Envidito
 
 Organizá torneos de truco sin lápiz ni papel. Armás el cuadro, sorteás, y cada mesa anota sus propios puntos desde el celular. El cuadro se completa solo hasta el campeón.
 
