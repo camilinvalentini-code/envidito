@@ -19,9 +19,29 @@ export default function AccesoOrganizador() {
   const [error, setError] = useState("");
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [aceptaPrivacidad, setAceptaPrivacidad] = useState(false);
+  const [recuperando, setRecuperando] = useState(false);
+  const [recuperoMsg, setRecuperoMsg] = useState("");
 
   const TERMS_VERSION = "1.0";
   const PRIVACY_VERSION = "1.0";
+
+  async function recuperarClave() {
+    if (!email.trim()) {
+      setError("Ingresá tu email arriba, así te mandamos el link para poner una contraseña nueva.");
+      return;
+    }
+    setError("");
+    setRecuperando(true);
+    setRecuperoMsg("");
+    const redirectTo = `${window.location.origin}/organizador/recuperar`;
+    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+    setRecuperando(false);
+    if (err) {
+      setError("No se pudo enviar el mail de recuperación. Probá de nuevo en un minuto.");
+      return;
+    }
+    setRecuperoMsg(`Te mandamos un mail a ${email.trim()} para poner una contraseña nueva. Revisá spam si no te llega.`);
+  }
 
   async function enviarLink() {
     if (!email.trim()) {
@@ -211,6 +231,19 @@ export default function AccesoOrganizador() {
                 >
                   {loading ? "Entrando…" : "Entrar"}
                 </button>
+                <button
+                  onClick={recuperarClave}
+                  disabled={recuperando}
+                  className="text-center text-xs underline mt-1 disabled:opacity-60"
+                  style={{ color: T.inkDim }}
+                >
+                  {recuperando ? "Enviando…" : "¿Olvidaste tu contraseña?"}
+                </button>
+                {recuperoMsg && (
+                  <p className="text-xs text-center" style={{ color: T.goldBright }}>
+                    {recuperoMsg}
+                  </p>
+                )}
               </div>
             </div>
           </>

@@ -8,13 +8,13 @@ export default function SiteFooter() {
   return (
     <footer className="max-w-3xl mx-auto px-4 pb-10 pt-6 text-center" style={{ background: T.bg }}>
       <a
-        href="https://instagram.com/truco.cordoba"
+        href="https://instagram.com/torneos.envidito"
         target="_blank"
         rel="noreferrer"
         className="block text-sm font-semibold mb-2"
         style={{ color: T.inkDim }}
       >
-        📸 @truco.cordoba
+        📸 @torneos.envidito
       </a>
       <div className="flex items-center justify-center gap-3 mb-2 text-xs">
         <Link href="/terminos-y-condiciones" className="underline" style={{ color: T.inkDim }}>

@@ -614,8 +614,8 @@ export default function PresentacionClient() {
           >
             💬 Escribinos por WhatsApp
           </a>
-          <a href="https://instagram.com/truco.cordoba" target="_blank" rel="noreferrer">
-            📸 @truco.cordoba
+          <a href="https://instagram.com/torneos.envidito" target="_blank" rel="noreferrer">
+            📸 @torneos.envidito
           </a>
         </div>
       </section>

@@ -215,6 +215,16 @@ export default function PanelOrganizador() {
           )}
         </div>
 
+        <div className="text-center mb-8">
+          <a
+            href="mailto:torneotruco.cba+envidito@gmail.com?subject=Solicito%20eliminar%20mi%20cuenta%20de%20Envidito&body=Hola%2C%20quiero%20eliminar%20mi%20cuenta%20y%20mis%20datos.%20Mi%20email%20de%20organizador%20es%3A%20"
+            className="text-xs underline"
+            style={{ color: T.inkDim }}
+          >
+            Solicitar eliminar mi cuenta
+          </a>
+        </div>
+
         {(() => {
           const enVivo = misTorneos.filter((t) => t.started && !t.champion_id && !t.cerrado);
           const pendientes = misTorneos.filter((t) => !t.started);

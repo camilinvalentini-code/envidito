@@ -32,4 +32,4 @@ Next.js + Supabase. Las variables de entorno necesarias están en `.env.example`
 Los `.sql` de este repo se corren en el SQL Editor de Supabase. Empezá por `supabase-schema.sql`, seguí con `supabase-schema-v2-roles.sql` y `supabase-schema-v3-jugadores.sql`, y después el resto de los `supabase-patch-*.sql` — cada uno lleva el nombre de lo que agrega o arregla.
 
 ---
-🎴 Instagram: [@truco.cordoba](https://instagram.com/truco.cordoba)
+🎴 Instagram: [@torneos.envidito](https://instagram.com/torneos.envidito)
