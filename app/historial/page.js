@@ -20,10 +20,16 @@ export default function HistorialPage() {
       const champIds = (torneos || []).map((t) => t.champion_id).filter(Boolean);
       let teamsById = {};
       if (champIds.length) {
-        const { data: ts } = await supabase.from("teams").select("id, name").in("id", champIds);
+        const { data: ts } = await supabase.from("teams").select("id, name, players").in("id", champIds);
         (ts || []).forEach((t) => (teamsById[t.id] = t));
       }
-      setRows((torneos || []).map((t) => ({ ...t, campeonNombre: teamsById[t.champion_id]?.name })));
+      setRows(
+        (torneos || []).map((t) => ({
+          ...t,
+          campeonNombre: teamsById[t.champion_id]?.name,
+          campeonJugadores: teamsById[t.champion_id]?.players,
+        }))
+      );
       setLoading(false);
     }
     load();
@@ -54,6 +60,11 @@ export default function HistorialPage() {
                 <div className="text-sm font-bold" style={{ color: T.ink }}>
                   {t.campeonNombre} <span style={{ color: T.inkDim, fontWeight: "normal" }}>({t.categoria})</span>
                 </div>
+                {t.campeonJugadores && (
+                  <div className="text-xs" style={{ color: T.inkDim }}>
+                    {t.campeonJugadores}
+                  </div>
+                )}
                 <div className="text-xs" style={{ color: T.inkDim }}>
                   {t.nombre}
                   {t.ubicacion && ` — ${t.ubicacion}`}

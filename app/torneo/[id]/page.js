@@ -108,7 +108,7 @@ export default function TorneoPublico({ params, searchParams }) {
           <SuitIcon suit="copa" size={20} />
         </div>
         <h1 className="text-3xl font-black text-center" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
-          {tournament.nombre || "Torneo de Truco"}
+          {tournament.nombre || "Torneo sin nombre"}
         </h1>
         <p className="text-center text-sm mb-6" style={{ color: T.goldBright }}>
           {[tournament.ubicacion, tournament.fecha, tournament.categoria].filter(Boolean).join(" · ")}
@@ -125,6 +125,11 @@ export default function TorneoPublico({ params, searchParams }) {
             <div className="text-2xl font-black mt-1" style={{ color: "#33453E" }}>
               {teamsById[tournament.champion_id]?.name}
             </div>
+            {teamsById[tournament.champion_id]?.players && (
+              <div className="text-sm mt-0.5" style={{ color: "#33453E" }}>
+                {teamsById[tournament.champion_id].players}
+              </div>
+            )}
             <div className="text-xs mt-1 italic" style={{ color: "#B85C55" }}>
               {fraseCampeonAlAzar()}
             </div>
@@ -160,6 +165,11 @@ export default function TorneoPublico({ params, searchParams }) {
                     <div className="text-2xl font-black mt-1" style={{ color: "#33453E" }}>
                       {teamsById[tournament.repechaje_champion_id]?.name}
                     </div>
+                    {teamsById[tournament.repechaje_champion_id]?.players && (
+                      <div className="text-sm mt-0.5" style={{ color: "#33453E" }}>
+                        {teamsById[tournament.repechaje_champion_id].players}
+                      </div>
+                    )}
                     <div className="text-xs mt-1 italic" style={{ color: "#B85C55" }}>
                       {fraseCampeonAlAzar()}
                     </div>

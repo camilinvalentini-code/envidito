@@ -27,7 +27,7 @@ export default function Home() {
           className="text-3xl font-black text-center tracking-tight mb-2"
           style={{ color: T.ink, fontFamily: "Georgia, serif" }}
         >
-          Torneo de Truco
+          Envidito
         </h1>
         <p className="text-center text-sm mb-8" style={{ color: T.inkDim }}>
           Armá el cuadro, sorteá, y que cada mesa cargue sus propios puntos desde el celular.

@@ -185,6 +185,10 @@ export default function AdminPage({ params }) {
     await supabase.from("teams").update({ paid }).eq("id", teamId);
     load();
   }
+  async function editarJugadores(teamId, players) {
+    await supabase.from("teams").update({ players }).eq("id", teamId);
+    load();
+  }
 
   async function generarCuadroPrincipal(teamIds) {
     if (tournament.modo === "vidon") {
@@ -604,7 +608,7 @@ export default function AdminPage({ params }) {
           <SuitIcon suit="copa" size={20} />
         </div>
         <h1 className="text-2xl font-black text-center" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
-          {tournament.nombre || "Torneo de Truco"} · Panel del organizador
+          {tournament.nombre || "Torneo sin nombre"} · Panel del organizador
           {tournament.cerrado && !tournament.champion_id && (
             <span className="block text-xs font-bold mt-1" style={{ color: T.redDim }}>
               🏁 Cerrado sin campeón
@@ -706,6 +710,11 @@ export default function AdminPage({ params }) {
             <div className="text-2xl font-black mt-1" style={{ color: "#33453E" }}>
               {teamsById[tournament.champion_id]?.name}
             </div>
+            {teamsById[tournament.champion_id]?.players && (
+              <div className="text-sm mt-0.5" style={{ color: "#33453E" }}>
+                {teamsById[tournament.champion_id].players}
+              </div>
+            )}
             <div className="text-xs mt-1 italic" style={{ color: "#B85C55" }}>
               {fraseCampeonAlAzar()}
             </div>
@@ -822,6 +831,7 @@ export default function AdminPage({ params }) {
                         editable
                         onTogglePaid={togglePaid}
                         onRemove={removeTeam}
+                        onEditPlayers={editarJugadores}
                       />
                     </div>
                   )}
@@ -870,7 +880,9 @@ export default function AdminPage({ params }) {
                   />
                   <TeamList
                     teams={teams.filter((t) => t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()))}
+                    editable
                     onTogglePaid={togglePaid}
+                    onEditPlayers={editarJugadores}
                     twoColumns
                   />
                 </div>

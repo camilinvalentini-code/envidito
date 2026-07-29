@@ -1,19 +1,19 @@
 import PresentacionClient from "./PresentacionClient";
 
 export const metadata = {
-  title: "Torneo de Truco — presentación",
+  title: "Envidito — presentación",
   description: "Organizá torneos de truco en tu bar. Sorteo automático, cuadro en vivo, anotador por código.",
   openGraph: {
-    title: "Torneo de Truco — presentación",
+    title: "Envidito — presentación",
     description: "Organizá torneos de truco en tu bar. Sorteo automático, cuadro en vivo, anotador por código.",
-    url: "https://torneotruco.com.ar/presentacion",
-    siteName: "Torneo de Truco",
+    url: "https://www.envidito.com/presentacion",
+    siteName: "Envidito",
     locale: "es_AR",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Torneo de Truco — presentación",
+    title: "Envidito — presentación",
     description: "Organizá torneos de truco en tu bar. Sorteo automático, cuadro en vivo, anotador por código.",
   },
 };

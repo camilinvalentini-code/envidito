@@ -21,6 +21,17 @@ export default function PanelOrganizador() {
   const [slugNuevo, setSlugNuevo] = useState("");
   const [slugMsg, setSlugMsg] = useState("");
   const [slugLoading, setSlugLoading] = useState(false);
+  const [mailCopiado, setMailCopiado] = useState(false);
+
+  const EMAIL_SOPORTE = "torneotruco.cba+envidito@gmail.com";
+
+  async function copiarMailSoporte() {
+    try {
+      await navigator.clipboard.writeText(EMAIL_SOPORTE);
+      setMailCopiado(true);
+      setTimeout(() => setMailCopiado(false), 2000);
+    } catch (e) {}
+  }
 
   async function guardarSlug() {
     const limpio = slugNuevo.trim().toLowerCase();
@@ -36,7 +47,7 @@ export default function PanelOrganizador() {
       setSlugMsg(error.message?.includes("duplicate") ? "Ese link ya lo usa otro organizador, probá otro." : "No se pudo guardar. Probá de nuevo.");
       return;
     }
-    setSlugMsg(`Listo — torneotruco.com.ar/t/${limpio}`);
+    setSlugMsg(`Listo — envidito.com/t/${limpio}`);
   }
 
   async function guardarClave() {
@@ -217,12 +228,18 @@ export default function PanelOrganizador() {
 
         <div className="text-center mb-8">
           <a
-            href="mailto:torneotruco.cba+envidito@gmail.com?subject=Solicito%20eliminar%20mi%20cuenta%20de%20Envidito&body=Hola%2C%20quiero%20eliminar%20mi%20cuenta%20y%20mis%20datos.%20Mi%20email%20de%20organizador%20es%3A%20"
+            href={`mailto:${EMAIL_SOPORTE}?subject=Solicito%20eliminar%20mi%20cuenta%20de%20Envidito&body=Hola%2C%20quiero%20eliminar%20mi%20cuenta%20y%20mis%20datos.%20Mi%20email%20de%20organizador%20es%3A%20`}
+            onClick={copiarMailSoporte}
             className="text-xs underline"
             style={{ color: T.inkDim }}
           >
             Solicitar eliminar mi cuenta
           </a>
+          <p className="text-xs mt-1" style={{ color: mailCopiado ? T.goldBright : T.inkDim }}>
+            {mailCopiado
+              ? `¡Copiado! Pegalo en un mail a ${EMAIL_SOPORTE}`
+              : `Si no se abrió tu mail, escribí a ${EMAIL_SOPORTE} (ya copiado)`}
+          </p>
         </div>
 
         {(() => {

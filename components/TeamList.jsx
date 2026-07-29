@@ -1,10 +1,22 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import { useTheme } from "../lib/theme";
 import { INK_ON_LIGHT } from "../lib/theme";
 
-export default function TeamList({ teams, onTogglePaid, onRemove, editable, twoColumns }) {
+export default function TeamList({ teams, onTogglePaid, onRemove, onEditPlayers, editable, twoColumns }) {
   const { T } = useTheme();
+  const [editandoId, setEditandoId] = useState(null);
+  const [valorEdit, setValorEdit] = useState("");
+
+  function empezarEdicion(t) {
+    setEditandoId(t.id);
+    setValorEdit(t.players || "");
+  }
+  function guardarEdicion(teamId) {
+    onEditPlayers(teamId, valorEdit.trim());
+    setEditandoId(null);
+  }
+
   return (
     <div className={twoColumns ? "grid grid-cols-2 gap-2" : "flex flex-col gap-2"}>
       {teams.map((t, i) => (
@@ -23,9 +35,42 @@ export default function TeamList({ teams, onTogglePaid, onRemove, editable, twoC
             <div className="text-sm font-semibold truncate" style={{ color: T.ink }}>
               {t.name}
             </div>
-            {t.players && (
-              <div className="text-xs truncate" style={{ color: T.inkDim }}>
-                {t.players}
+            {editandoId === t.id ? (
+              <div className="flex items-center gap-1 mt-1">
+                <input
+                  value={valorEdit}
+                  onChange={(e) => setValorEdit(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && guardarEdicion(t.id)}
+                  placeholder="Nombres de los jugadores"
+                  autoFocus
+                  className="flex-1 min-w-0 px-2 py-1 rounded-lg text-xs"
+                  style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+                />
+                <button
+                  onClick={() => guardarEdicion(t.id)}
+                  className="text-xs font-bold px-2 py-1 rounded-lg flex-shrink-0"
+                  style={{ background: T.gold, color: INK_ON_LIGHT }}
+                >
+                  OK
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                {t.players && (
+                  <div className="text-xs truncate" style={{ color: T.inkDim }}>
+                    {t.players}
+                  </div>
+                )}
+                {editable && onEditPlayers && (
+                  <button
+                    onClick={() => empezarEdicion(t)}
+                    className="text-xs flex-shrink-0"
+                    style={{ color: T.inkDim }}
+                    title={t.players ? "Editar jugadores" : "Agregar jugadores"}
+                  >
+                    ✏️
+                  </button>
+                )}
               </div>
             )}
             {t.codigo && (

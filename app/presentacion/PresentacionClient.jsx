@@ -413,9 +413,9 @@ export default function PresentacionClient() {
       <section id="hero">
         <div className="suitrow" id="suitrow"></div>
         <div className="eyebrow">Para organizadores de truco</div>
-        <h1>Torneo de Truco</h1>
+        <h1>Envidito</h1>
         <p className="sub">Organizá torneos de truco en tu bar.</p>
-        <a className="hero-cta" href="https://torneotruco.com.ar/organizador/acceso" target="_blank" rel="noreferrer">
+        <a className="hero-cta" href="https://www.envidito.com/organizador/acceso" target="_blank" rel="noreferrer">
           Quiero armar mi torneo →
         </a>
         <div className="scroll-hint">
@@ -602,8 +602,8 @@ export default function PresentacionClient() {
       <section id="close">
         <div className="eyebrow">Entrá cuando quieras</div>
         <h2 className="reveal">Probalo en tu próximo torneo</h2>
-        <a className="domain reveal d1" href="https://torneotruco.com.ar/organizador/acceso" target="_blank" rel="noreferrer">
-          torneotruco.com.ar
+        <a className="domain reveal d1" href="https://www.envidito.com/organizador/acceso" target="_blank" rel="noreferrer">
+          envidito.com
         </a>
         <p className="sub reveal d2">Armamos tu primer torneo juntos, sin costo y sin compromiso.</p>
         <div className="close-links reveal d3">
