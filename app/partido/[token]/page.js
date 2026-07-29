@@ -30,7 +30,17 @@ export default function PartidoPage({ params }) {
   const [codigoInput, setCodigoInput] = useState("");
   const [codigoError, setCodigoError] = useState(null);
   const [verificando, setVerificando] = useState(false);
+  const [accionError, setAccionError] = useState(null);
   const desbloqueado = !!codigo;
+
+  // Distingue un código realmente rechazado (el RPC lo valida y tira esta
+  // excepción puntual) de cualquier otro error — típicamente una conexión
+  // lenta o caída. Antes cualquier error de red se trataba como "código
+  // inválido" y borraba el código guardado sin necesidad, dejando el
+  // marcador trabado pidiendo el código de nuevo.
+  function esErrorDeCodigo(error) {
+    return !!error?.message && error.message.includes("código inválido");
+  }
 
   const load = useCallback(async () => {
     const { data: m } = await supabase.from("matches").select("*").eq("match_token", token).single();
@@ -109,16 +119,22 @@ export default function PartidoPage({ params }) {
   async function onChange(side, delta) {
     if (!match || busy || match.winner_id || match.confirmacion_pendiente || !desbloqueado) return;
     const field = side === "A" ? "score_a" : "score_b";
-    const proyectado = Math.max(0, Math.min(puntosMax, match[field] + delta));
+    const original = match[field];
+    const proyectado = Math.max(0, Math.min(puntosMax, original + delta));
+    setAccionError(null);
     if (delta > 0 && proyectado >= puntosMax) {
       // No lo confirmamos solo en este celular — lo proponemos (eso ya
       // cuenta como la primera confirmación), y falta que la otra mesa
       // confirme también para que se cierre de verdad.
       setBusy(true);
       const { data, error } = await supabase.rpc("proponer_cierre", { p_match_token: token, p_lado: side, p_codigo: codigo });
-      if (!error && data) setMatch(data);
-      else if (error) onCodigoRechazado();
-      setYaConfirmeLocal(true);
+      if (!error && data) {
+        setMatch(data);
+        setYaConfirmeLocal(true);
+      } else if (error) {
+        if (esErrorDeCodigo(error)) onCodigoRechazado();
+        else setAccionError("No se pudo guardar. Probá de nuevo.");
+      }
       setBusy(false);
       return;
     }
@@ -130,28 +146,43 @@ export default function PartidoPage({ params }) {
       p_delta: delta,
       p_codigo: codigo,
     });
-    if (!error && data) setMatch(data);
-    else if (error) onCodigoRechazado();
+    if (!error && data) {
+      setMatch(data);
+    } else if (error) {
+      setMatch((m) => ({ ...m, [field]: original })); // se cae el pedido: deshacemos el optimismo
+      if (esErrorDeCodigo(error)) onCodigoRechazado();
+      else setAccionError("No se pudo guardar ese punto. Probá de nuevo.");
+    }
     setBusy(false);
   }
 
   async function confirmarCierre() {
     if (!desbloqueado) return;
     setBusy(true);
+    setAccionError(null);
     const { data, error } = await supabase.rpc("confirmar_cierre", { p_match_token: token, p_codigo: codigo });
-    if (!error && data) setMatch(data);
-    else if (error) onCodigoRechazado();
-    setYaConfirmeLocal(true);
+    if (!error && data) {
+      setMatch(data);
+      setYaConfirmeLocal(true);
+    } else if (error) {
+      if (esErrorDeCodigo(error)) onCodigoRechazado();
+      else setAccionError("No se pudo confirmar. Probá de nuevo.");
+    }
     setBusy(false);
   }
 
   async function cancelarCierre() {
     if (!desbloqueado) return;
     setBusy(true);
+    setAccionError(null);
     const { data, error } = await supabase.rpc("cancelar_cierre", { p_match_token: token, p_codigo: codigo });
-    if (!error && data) setMatch(data);
-    else if (error) onCodigoRechazado();
-    setYaConfirmeLocal(false);
+    if (!error && data) {
+      setMatch(data);
+      setYaConfirmeLocal(false);
+    } else if (error) {
+      if (esErrorDeCodigo(error)) onCodigoRechazado();
+      else setAccionError("No se pudo cancelar. Probá de nuevo.");
+    }
     setBusy(false);
   }
 
@@ -207,6 +238,45 @@ export default function PartidoPage({ params }) {
             <div className="text-xs mt-1 italic" style={{ color: "#B85C55" }}>
               {fraseCampeonAlAzar()}
             </div>
+          </div>
+        )}
+
+        {!desbloqueado && !match.winner_id && (
+          <div
+            className="rounded-2xl p-4 mb-5 text-center border shadow-sm"
+            style={{ background: T.panel, borderColor: T.line }}
+          >
+            <p className="text-sm font-bold mb-1" style={{ color: T.ink }}>
+              🔒 Este partido está protegido
+            </p>
+            <p className="text-xs mb-3" style={{ color: T.inkDim }}>
+              Para anotar puntos hace falta el código de {nameA} o de {nameB}. Podés seguir el marcador igual, sin
+              código — solo hace falta para tocar los botones.
+            </p>
+            <div className="flex gap-2 justify-center">
+              <input
+                value={codigoInput}
+                onChange={(e) => setCodigoInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && verificarCodigo()}
+                placeholder="Código de tu equipo"
+                inputMode="numeric"
+                className="px-3 py-2 rounded-xl text-sm text-center w-40"
+                style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+              />
+              <button
+                onClick={verificarCodigo}
+                disabled={verificando || !codigoInput.trim()}
+                className="px-4 py-2 rounded-xl font-bold text-sm disabled:opacity-40"
+                style={{ background: T.gold, color: T.ink }}
+              >
+                {verificando ? "..." : "Desbloquear"}
+              </button>
+            </div>
+            {codigoError && (
+              <p className="text-xs mt-2" style={{ color: "#B85C55" }}>
+                {codigoError}
+              </p>
+            )}
           </div>
         )}
 
@@ -269,7 +339,7 @@ export default function PartidoPage({ params }) {
             </p>
             <p className="text-xs mb-3" style={{ color: "#B85C55" }}>
               {!desbloqueado
-                ? "Necesitás el código de tu equipo (más abajo) para confirmar o cancelar."
+                ? "Necesitás el código de tu equipo (arriba) para confirmar o cancelar."
                 : yaConfirmeLocal
                 ? "Ya confirmaste desde este celular — falta que confirmen desde el otro."
                 : "Hace falta que confirmen las dos mesas."}
@@ -309,43 +379,15 @@ export default function PartidoPage({ params }) {
           maxScore={puntosMax}
         />
 
-        {!desbloqueado && !match.winner_id && (
-          <div
-            className="rounded-2xl p-4 mt-4 mb-2 text-center border shadow-sm"
-            style={{ background: T.panel, borderColor: T.line }}
-          >
-            <p className="text-sm font-bold mb-1" style={{ color: T.ink }}>
-              🔒 Este partido está protegido
-            </p>
-            <p className="text-xs mb-3" style={{ color: T.inkDim }}>
-              Para anotar puntos hace falta el código de {nameA} o de {nameB}. Podés seguir el marcador igual, sin
-              código — solo hace falta para tocar los botones.
-            </p>
-            <div className="flex gap-2 justify-center">
-              <input
-                value={codigoInput}
-                onChange={(e) => setCodigoInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && verificarCodigo()}
-                placeholder="Código de tu equipo"
-                inputMode="numeric"
-                className="px-3 py-2 rounded-xl text-sm text-center w-40"
-                style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
-              />
-              <button
-                onClick={verificarCodigo}
-                disabled={verificando || !codigoInput.trim()}
-                className="px-4 py-2 rounded-xl font-bold text-sm disabled:opacity-40"
-                style={{ background: T.gold, color: T.ink }}
-              >
-                {verificando ? "..." : "Desbloquear"}
-              </button>
-            </div>
-            {codigoError && (
-              <p className="text-xs mt-2" style={{ color: "#B85C55" }}>
-                {codigoError}
-              </p>
-            )}
-          </div>
+        {busy && (
+          <p className="text-center text-xs mt-2" style={{ color: T.inkDim }}>
+            Guardando…
+          </p>
+        )}
+        {accionError && (
+          <p className="text-center text-xs mt-2 font-semibold" style={{ color: "#B85C55" }}>
+            {accionError}
+          </p>
         )}
 
         <Link

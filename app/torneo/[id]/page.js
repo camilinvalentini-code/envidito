@@ -132,7 +132,7 @@ export default function TorneoPublico({ params, searchParams }) {
         )}
 
         {tournament.started && (
-          <MiEquipoPanel tournament={tournament} teams={teams} matches={mainMatchesTodos} teamsById={teamsById} />
+          <MiEquipoPanel tournament={tournament} teams={teams} matches={mainMatches} teamsById={teamsById} />
         )}
 
         {!tournament.started ? (

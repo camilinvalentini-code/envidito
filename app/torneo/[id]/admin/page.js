@@ -810,7 +810,19 @@ export default function AdminPage({ params }) {
                         🔑 = el código de ese equipo. Dáselo cuando se anoten — lo van a necesitar para anotar
                         puntos en sus partidos.
                       </p>
-                      <TeamList teams={teams} editable onTogglePaid={togglePaid} onRemove={removeTeam} />
+                      <input
+                        value={busquedaEquipos}
+                        onChange={(e) => setBusquedaEquipos(e.target.value)}
+                        placeholder="Buscar equipo..."
+                        className="w-full px-3 py-2 rounded-xl text-sm mb-3"
+                        style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+                      />
+                      <TeamList
+                        teams={teams.filter((t) => t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()))}
+                        editable
+                        onTogglePaid={togglePaid}
+                        onRemove={removeTeam}
+                      />
                     </div>
                   )}
                 </div>
