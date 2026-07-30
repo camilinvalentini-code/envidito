@@ -221,7 +221,7 @@ export default function PanelAdmin() {
               >
                 <Link href={`/torneo/${t.id}/admin`} className="flex-1 min-w-0" style={{ color: T.ink }}>
                   <div className="truncate">
-                    🎴 {t.nombre} <span style={{ color: T.inkDim }}>({t.categoria} · {t.ubicacion})</span>
+                    {t.nombre} <span style={{ color: T.inkDim }}>({t.categoria} · {t.ubicacion})</span>
                     {t.champion_id && <span className="ml-2">🏆</span>}
                   </div>
                   <div className="text-xs mt-0.5" style={{ color: T.inkDim }}>

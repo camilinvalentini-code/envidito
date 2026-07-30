@@ -615,7 +615,7 @@ export default function AdminPage({ params }) {
           {tournament.nombre || "Torneo sin nombre"} · Panel del organizador
           {tournament.cerrado && !tournament.champion_id && (
             <span className="block text-xs font-bold mt-1" style={{ color: T.redDim }}>
-              🏁 Cerrado sin campeón
+              Cerrado sin campeón
             </span>
           )}
         </h1>
@@ -630,7 +630,7 @@ export default function AdminPage({ params }) {
             className="text-xs font-bold px-3 py-1.5 rounded-full"
             style={{ background: T.panelLight, color: T.inkDim }}
           >
-            ✏️ Editar datos
+            Editar datos
           </button>
           {!tournament.champion_id &&
             (tournament.cerrado ? (
@@ -647,7 +647,7 @@ export default function AdminPage({ params }) {
                 className="text-xs font-bold px-3 py-1.5 rounded-full"
                 style={{ background: T.panelLight, color: T.inkDim }}
               >
-                🏁 Finalizar torneo
+                Finalizar torneo
               </button>
             ))}
         </div>
@@ -714,7 +714,7 @@ export default function AdminPage({ params }) {
               className="inline-block text-sm font-bold px-4 py-2 rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
               style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
             >
-              🔴 Seguí el torneo en vivo acá
+              Seguí el torneo en vivo acá
             </a>
           </div>
         )}
@@ -942,7 +942,7 @@ export default function AdminPage({ params }) {
                 className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
                 style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.gold}` }}
               >
-                🔄 Resortear {roundLabel(cantidad)} (todavía no se jugó nada ahí)
+                Resortear {roundLabel(cantidad)} (todavía no se jugó nada ahí)
               </button>
             ))}
 
@@ -952,7 +952,7 @@ export default function AdminPage({ params }) {
                 className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
                 style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.gold}` }}
               >
-                🔄 Resortear (todavía no se jugó nada)
+                Resortear (todavía no se jugó nada)
               </button>
             )}
 
@@ -1030,7 +1030,7 @@ export default function AdminPage({ params }) {
                 className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-60"
                 style={{ background: T.panelLight, color: T.redDim, border: `1px solid ${T.line}` }}
               >
-                {simulando ? "Simulando…" : "🎲 Simular resultados al azar (solo para test)"}
+                {simulando ? "Simulando…" : "Simular resultados al azar (solo para test)"}
               </button>
             )}
 
@@ -1040,7 +1040,7 @@ export default function AdminPage({ params }) {
                 className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
                 style={{ background: "transparent", color: T.redDim, border: `1px solid ${T.redDim}` }}
               >
-                🗑 Eliminar torneo de prueba
+                Eliminar torneo de prueba
               </button>
             )}
 
@@ -1050,14 +1050,14 @@ export default function AdminPage({ params }) {
                 className="flex-1 py-2.5 rounded-lg text-sm font-bold transition-colors duration-200"
                 style={{ background: vista === "mesas" ? T.gold : "transparent", color: vista === "mesas" ? T.ink : T.inkDim }}
               >
-                🎲 Mesas
+                Mesas
               </button>
               <button
                 onClick={() => setVista("cuadro")}
                 className="flex-1 py-2.5 rounded-lg text-sm font-bold transition-colors duration-200"
                 style={{ background: vista === "cuadro" ? T.gold : "transparent", color: vista === "cuadro" ? T.ink : T.inkDim }}
               >
-                🏆 Cuadro completo
+                Cuadro completo
               </button>
             </div>
 

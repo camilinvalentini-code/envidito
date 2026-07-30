@@ -344,7 +344,7 @@ export default function CrearTorneo() {
 
         <details className="rounded-2xl border mt-6 overflow-hidden" style={{ background: T.panel, borderColor: T.line }}>
           <summary className="px-4 py-3.5 text-xs font-bold cursor-pointer select-none" style={{ color: T.inkDim }}>
-            🧪 Modo prueba (interno, para testear)
+            Modo prueba (interno, para testear)
           </summary>
           <div className="px-4 pb-4">
             <p className="text-xs mb-3" style={{ color: T.inkDim }}>
@@ -403,7 +403,7 @@ export default function CrearTorneo() {
                 className="py-2.5 rounded-xl font-bold text-sm mt-1 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-60"
                 style={{ background: T.redDim, color: "#FFFFFF" }}
               >
-                {testLoading ? "Generando…" : "🎲 Generar y anotar equipos ya"}
+                {testLoading ? "Generando…" : "Generar y anotar equipos ya"}
               </button>
             </div>
           </div>

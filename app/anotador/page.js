@@ -175,7 +175,7 @@ export default function AnotadorLibre() {
           className="w-full mt-4 py-2.5 rounded-xl font-bold text-sm"
           style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
         >
-          🔄 Reiniciar marcador
+          Reiniciar marcador
         </button>
       </div>
     </div>

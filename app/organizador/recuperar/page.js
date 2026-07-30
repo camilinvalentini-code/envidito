@@ -6,7 +6,7 @@ import { useTheme } from "../../../lib/theme";
 import { useAuth } from "../../../lib/useAuth";
 import { supabase } from "../../../lib/supabaseClient";
 import ThemeToggleButton from "../../../components/ThemeToggleButton";
-import SuitIcon from "../../../components/SuitIcon";
+import { IconAtras } from "../../../components/LineIcons";
 
 export default function RecuperarClave() {
   const { T } = useTheme();
@@ -65,7 +65,7 @@ export default function RecuperarClave() {
       <div className="min-h-screen flex items-center justify-center px-4" style={{ background: T.bg }}>
         <div className="text-center max-w-sm">
           <p className="text-sm mb-4" style={{ color: T.ink }}>
-            ✅ Contraseña actualizada. Ya podés usarla junto con tu email para entrar.
+            Contraseña actualizada. Ya podés usarla junto con tu email para entrar.
           </p>
           <button
             onClick={() => router.push("/organizador/panel")}
@@ -80,16 +80,17 @@ export default function RecuperarClave() {
   }
 
   return (
-    <div className="min-h-screen transition-colors duration-500" style={{ background: T.bg }}>
+    <div className="transition-colors duration-500" style={{ background: T.bg }}>
       <div className="max-w-md mx-auto px-4 py-8">
-        <div className="flex justify-between mb-4">
-          <Link href="/" className="text-xs underline" style={{ color: T.inkDim }}>
-            ← Inicio
+        <div className="flex justify-between items-center mb-4">
+          <Link
+            href="/"
+            className="w-8 h-8 rounded-xl flex items-center justify-center"
+            style={{ background: T.panel, border: `1px solid ${T.line}` }}
+          >
+            <IconAtras color={T.ink} />
           </Link>
           <ThemeToggleButton />
-        </div>
-        <div className="flex justify-center mb-2">
-          <SuitIcon suit="espada" size={22} />
         </div>
         <h1 className="text-2xl font-black text-center mb-1" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
           Nueva contraseña
