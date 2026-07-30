@@ -78,6 +78,7 @@ export default function PanelOrganizador() {
       .from("tournaments")
       .select("*")
       .neq("organizador_id", session.user.id)
+      .eq("es_prueba", false)
       .order("created_at", { ascending: false })
       .limit(30);
     setMisTorneos(mios || []);

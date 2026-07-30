@@ -15,6 +15,7 @@ export default function EnVivo() {
       const { data } = await supabase
         .from("tournaments")
         .select("*")
+        .eq("es_prueba", false)
         .order("created_at", { ascending: false })
         .limit(50);
       setTorneos(data || []);

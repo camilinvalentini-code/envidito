@@ -16,6 +16,7 @@ export default function HistorialPage() {
         .from("tournaments")
         .select("*")
         .not("champion_id", "is", null)
+        .eq("es_prueba", false)
         .order("created_at", { ascending: false });
       const champIds = (torneos || []).map((t) => t.champion_id).filter(Boolean);
       let teamsById = {};

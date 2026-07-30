@@ -424,6 +424,12 @@ export default function AdminPage({ params }) {
     load();
   }
 
+  async function eliminarTorneoPrueba() {
+    if (!window.confirm("¿Eliminar este torneo de prueba? Se borra junto con sus equipos y partidos, no se puede deshacer.")) return;
+    await supabase.from("tournaments").delete().eq("id", id);
+    router.push("/organizador/panel");
+  }
+
   const esDueño = session && tournament && (tournament.organizador_id === session.user.id || profile?.role === "admin");
 
   if (loading || authLoading) {
@@ -1007,6 +1013,16 @@ export default function AdminPage({ params }) {
                 style={{ background: T.panelLight, color: T.redDim, border: `1px solid ${T.line}` }}
               >
                 {simulando ? "Simulando…" : "🎲 Simular resultados al azar (solo para test)"}
+              </button>
+            )}
+
+            {tournament.es_prueba && (
+              <button
+                onClick={eliminarTorneoPrueba}
+                className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
+                style={{ background: "transparent", color: T.redDim, border: `1px solid ${T.redDim}` }}
+              >
+                🗑 Eliminar torneo de prueba
               </button>
             )}
 
