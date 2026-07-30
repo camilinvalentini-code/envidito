@@ -103,7 +103,7 @@ export default function Home() {
   const panelHref = profile?.role === "admin" ? "/admin/panel" : "/organizador/panel";
 
   return (
-    <div className="min-h-screen transition-colors duration-500" style={{ background: T.bg }}>
+    <div className="transition-colors duration-500" style={{ background: T.bg }}>
       <div className="max-w-md mx-auto px-4 py-10">
         <div className="flex justify-end mb-4">
           <ThemeToggleButton />
