@@ -100,6 +100,33 @@ export function IconAbajo({ color, size = 12 }) {
     </svg>
   );
 }
+export function IconLuna({ color, size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path
+        d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"
+        stroke={color}
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+export function IconSol({ color, size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="4.5" stroke={color} strokeWidth="1.6" />
+      <line x1="12" y1="2" x2="12" y2="4.5" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+      <line x1="12" y1="19.5" x2="12" y2="22" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+      <line x1="2" y1="12" x2="4.5" y2="12" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+      <line x1="19.5" y1="12" x2="22" y2="12" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+      <line x1="4.6" y1="4.6" x2="6.3" y2="6.3" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+      <line x1="17.7" y1="17.7" x2="19.4" y2="19.4" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+      <line x1="4.6" y1="19.4" x2="6.3" y2="17.7" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+      <line x1="17.7" y1="6.3" x2="19.4" y2="4.6" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
 export function IconUsuario({ color, size = 15 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
