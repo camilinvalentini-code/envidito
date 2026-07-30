@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "../../../lib/theme";
 import { supabase } from "../../../lib/supabaseClient";
 import ThemeToggleButton from "../../../components/ThemeToggleButton";
-import SuitIcon from "../../../components/SuitIcon";
 
 export default function AccesoOrganizador() {
   const { T } = useTheme();
@@ -98,32 +97,35 @@ export default function AccesoOrganizador() {
   }
 
   return (
-    <div className="min-h-screen transition-colors duration-500" style={{ background: T.bg }}>
+    <div className="transition-colors duration-500" style={{ background: T.bg }}>
       <div className="max-w-md mx-auto px-4 py-8">
-        <div className="flex justify-between mb-4">
-          <Link href="/" className="text-xs underline" style={{ color: T.inkDim }}>
-            ← Inicio
+        <div className="flex justify-between mb-5">
+          <Link
+            href="/"
+            className="w-8 h-8 rounded-xl flex items-center justify-center"
+            style={{ background: T.panel, border: `1px solid ${T.line}` }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M15 18l-6-6 6-6" stroke={T.ink} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </Link>
           <ThemeToggleButton />
         </div>
-        <div className="flex justify-center mb-2">
-          <SuitIcon suit="espada" size={22} />
-        </div>
-        <h1 className="text-2xl font-black text-center mb-1" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
+        <h1 className="text-2xl font-black text-center mb-4" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
           Acceso organizadores
         </h1>
 
-        <div className="flex rounded-2xl overflow-hidden border my-4" style={{ borderColor: T.gold }}>
+        <div className="flex rounded-xl p-0.5 gap-0.5 mb-4" style={{ background: T.panelLight }}>
           <button
             onClick={() => { setModo("link"); setError(""); }}
-            className="flex-1 py-2.5 text-sm font-bold transition-colors duration-200"
+            className="flex-1 py-2.5 rounded-lg text-sm font-bold transition-colors duration-200"
             style={{ background: modo === "link" ? T.gold : "transparent", color: modo === "link" ? T.ink : T.inkDim }}
           >
             Con link (mail)
           </button>
           <button
             onClick={() => { setModo("clave"); setError(""); }}
-            className="flex-1 py-2.5 text-sm font-bold transition-colors duration-200"
+            className="flex-1 py-2.5 rounded-lg text-sm font-bold transition-colors duration-200"
             style={{ background: modo === "clave" ? T.gold : "transparent", color: modo === "clave" ? T.ink : T.inkDim }}
           >
             Con contraseña
@@ -139,12 +141,12 @@ export default function AccesoOrganizador() {
             </p>
             {!enviado && (
               <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2.5">
                   <input
                     value={nombre}
                     onChange={(e) => setNombre(e.target.value)}
                     placeholder="Nombre del bar / organizador"
-                    className="px-3 py-2 rounded-xl text-sm"
+                    className="px-3 py-2.5 rounded-xl text-sm"
                     style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
                   />
                   <input
@@ -152,7 +154,7 @@ export default function AccesoOrganizador() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="tu@email.com"
                     type="email"
-                    className="px-3 py-2 rounded-xl text-sm"
+                    className="px-3 py-2.5 rounded-xl text-sm"
                     style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
                   />
                   <label className="flex items-start gap-2 text-xs" style={{ color: T.inkDim }}>
@@ -164,7 +166,7 @@ export default function AccesoOrganizador() {
                     />
                     <span>
                       He leído y acepto los{" "}
-                      <Link href="/terminos-y-condiciones" target="_blank" className="underline font-semibold" style={{ color: T.gold }}>
+                      <Link href="/terminos-y-condiciones" target="_blank" className="underline font-semibold" style={{ color: T.goldBright }}>
                         Términos y Condiciones
                       </Link>
                     </span>
@@ -178,7 +180,7 @@ export default function AccesoOrganizador() {
                     />
                     <span>
                       He leído y acepto la{" "}
-                      <Link href="/politica-de-privacidad" target="_blank" className="underline font-semibold" style={{ color: T.gold }}>
+                      <Link href="/politica-de-privacidad" target="_blank" className="underline font-semibold" style={{ color: T.goldBright }}>
                         Política de Privacidad
                       </Link>
                     </span>
@@ -186,8 +188,12 @@ export default function AccesoOrganizador() {
                   <button
                     onClick={enviarLink}
                     disabled={loading || !aceptaTerminos || !aceptaPrivacidad}
-                    className="py-2 rounded-xl font-bold text-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-60"
-                    style={{ background: T.gold, color: T.ink }}
+                    className="py-2.5 rounded-xl font-black text-sm mt-1 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                    style={{
+                      background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`,
+                      color: T.ink,
+                      boxShadow: `0 6px 16px ${T.gold}44`,
+                    }}
                   >
                     {loading ? "Enviando…" : "Enviarme el link"}
                   </button>
@@ -206,13 +212,13 @@ export default function AccesoOrganizador() {
               Para varios dispositivos en el mismo bar, sin depender del mail cada vez. La contraseña se configura desde "Mi panel", después de entrar la primera vez con el link.
             </p>
             <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2.5">
                 <input
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="tu@email.com"
                   type="email"
-                  className="px-3 py-2 rounded-xl text-sm"
+                  className="px-3 py-2.5 rounded-xl text-sm"
                   style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
                 />
                 <input
@@ -220,14 +226,18 @@ export default function AccesoOrganizador() {
                   onChange={(e) => setClave(e.target.value)}
                   placeholder="Contraseña"
                   type="password"
-                  className="px-3 py-2 rounded-xl text-sm"
+                  className="px-3 py-2.5 rounded-xl text-sm"
                   style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
                 />
                 <button
                   onClick={entrarConClave}
                   disabled={loading}
-                  className="py-2 rounded-xl font-bold text-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-60"
-                  style={{ background: T.gold, color: T.ink }}
+                  className="py-2.5 rounded-xl font-black text-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                  style={{
+                    background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`,
+                    color: T.ink,
+                    boxShadow: `0 6px 16px ${T.gold}44`,
+                  }}
                 >
                   {loading ? "Entrando…" : "Entrar"}
                 </button>
