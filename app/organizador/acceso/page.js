@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "../../../lib/theme";
 import { supabase } from "../../../lib/supabaseClient";
 import ThemeToggleButton from "../../../components/ThemeToggleButton";
+import { IconAtras } from "../../../components/LineIcons";
 
 export default function AccesoOrganizador() {
   const { T } = useTheme();
@@ -105,9 +106,7 @@ export default function AccesoOrganizador() {
             className="w-8 h-8 rounded-xl flex items-center justify-center"
             style={{ background: T.panel, border: `1px solid ${T.line}` }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M15 18l-6-6 6-6" stroke={T.ink} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <IconAtras color={T.ink} />
           </Link>
           <ThemeToggleButton />
         </div>

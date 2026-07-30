@@ -6,7 +6,18 @@ import { useTheme } from "../../../lib/theme";
 import { useAuth } from "../../../lib/useAuth";
 import { supabase } from "../../../lib/supabaseClient";
 import ThemeToggleButton from "../../../components/ThemeToggleButton";
-import SuitIcon from "../../../components/SuitIcon";
+import {
+  IconEspada,
+  IconBasto,
+  IconOro,
+  IconCopa,
+  IconDoc,
+  IconOjo,
+  IconAtras,
+  IconAdelante,
+  IconAbajo,
+  IconUsuario,
+} from "../../../components/LineIcons";
 
 export default function PanelOrganizador() {
   const { T } = useTheme();
@@ -22,6 +33,9 @@ export default function PanelOrganizador() {
   const [slugMsg, setSlugMsg] = useState("");
   const [slugLoading, setSlugLoading] = useState(false);
   const [mailCopiado, setMailCopiado] = useState(false);
+  const [activeTab, setActiveTab] = useState("enVivo");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
 
   const EMAIL_SOPORTE = "torneotruco.cba+envidito@gmail.com";
 
@@ -160,25 +174,68 @@ export default function PanelOrganizador() {
     );
   }
 
+  const enVivo = misTorneos.filter((t) => t.started && !t.champion_id && !t.cerrado);
+  const pendientes = misTorneos.filter((t) => !t.started);
+  const finalizados = misTorneos.filter((t) => !!t.champion_id || t.cerrado);
+  const TABS = [
+    { key: "enVivo", label: "En vivo", list: enVivo, empty: "Ninguno corriendo ahora.", dot: T.redDim },
+    { key: "pendientes", label: "Pendientes", list: pendientes, empty: "No hay ninguno esperando el sorteo.", dot: T.inkDim },
+    { key: "finalizados", label: "Finalizados", list: finalizados, empty: "Todavía ninguno terminado.", dot: T.inkDim },
+  ];
+  const tabActual = TABS.find((t) => t.key === activeTab) || TABS[0];
+
   return (
-    <div className="min-h-screen transition-colors duration-500" style={{ background: T.bg }}>
-      <div className="max-w-3xl mx-auto px-4 py-6">
-        <div className="flex justify-between mb-2">
-          <Link href="/" className="text-xs underline" style={{ color: T.inkDim }}>
-            ← Inicio
+    <div className="transition-colors duration-500" style={{ background: T.bg }}>
+      <div className="max-w-md mx-auto px-4 py-6">
+        <div className="flex justify-between items-center mb-5">
+          <Link
+            href="/"
+            className="w-8 h-8 rounded-xl flex items-center justify-center"
+            style={{ background: T.panel, border: `1px solid ${T.line}` }}
+          >
+            <IconAtras color={T.ink} />
           </Link>
-          <div className="flex gap-3 items-center">
-            <button onClick={salir} className="text-xs underline" style={{ color: T.inkDim }}>
-              Cerrar sesión
-            </button>
+          <div className="flex gap-2 items-center relative">
             <ThemeToggleButton />
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="w-8 h-8 rounded-xl flex items-center justify-center"
+              style={{ background: T.panel, border: `1px solid ${T.line}` }}
+            >
+              <IconUsuario color={T.ink} />
+            </button>
+            {menuOpen && (
+              <div
+                className="absolute top-10 right-0 rounded-2xl border shadow-lg py-1.5 z-20"
+                style={{ background: T.panel, borderColor: T.line, minWidth: 170 }}
+              >
+                <button
+                  onClick={() => { setConfigOpen(true); setMenuOpen(false); }}
+                  className="block w-full text-left px-4 py-2.5 text-sm font-semibold"
+                  style={{ color: T.ink }}
+                >
+                  Configuración
+                </button>
+                <button
+                  onClick={salir}
+                  className="block w-full text-left px-4 py-2.5 text-sm font-semibold"
+                  style={{ color: T.redDim }}
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-2 justify-center mb-1">
-          <SuitIcon suit="espada" size={20} />
-          <SuitIcon suit="basto" size={20} />
-          <SuitIcon suit="oro" size={20} />
-          <SuitIcon suit="copa" size={20} />
+
+        <div className="flex items-center gap-2.5 justify-center mb-1">
+          <IconEspada color={T.goldBright} size={17} />
+          <IconBasto color={T.goldBright} size={17} />
+          <span className="font-black text-lg" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
+            Envidito
+          </span>
+          <IconOro color={T.goldBright} size={17} />
+          <IconCopa color={T.goldBright} size={17} />
         </div>
         <h1 className="text-2xl font-black text-center" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
           Hola, {profile.nombre || profile.email}
@@ -189,122 +246,70 @@ export default function PanelOrganizador() {
 
         <Link
           href="/crear"
-          className="block text-center py-3 rounded-2xl font-black text-base mb-6 transition-all duration-200 hover:scale-105 active:scale-95"
-          style={{ background: T.gold, color: T.ink }}
+          className="flex items-center justify-center gap-2 py-3.5 rounded-2xl font-black text-base mb-6 transition-all duration-200 hover:scale-105 active:scale-95"
+          style={{
+            background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`,
+            color: T.ink,
+            boxShadow: `0 6px 16px ${T.gold}44`,
+          }}
         >
-          🎴 Crear torneo nuevo
+          <IconDoc color={T.ink} />
+          Crear torneo nuevo
         </Link>
 
-        <div className="rounded-2xl p-4 mb-8 border" style={{ background: T.panel, borderColor: T.line }}>
-          <h2 className="font-bold mb-1 text-sm" style={{ color: T.gold }}>
-            🔑 Contraseña para tu equipo
-          </h2>
-          <p className="text-xs mb-3" style={{ color: T.inkDim }}>
-            Si en el bar varias personas usan esta cuenta desde celus distintos, configurá una contraseña acá — así entran directo con tu email + esta clave, sin necesitar el mail cada vez.
-          </p>
-          <div className="flex gap-2">
-            <input
-              value={claveNueva}
-              onChange={(e) => setClaveNueva(e.target.value)}
-              type="password"
-              placeholder="Nueva contraseña (mín. 6 caracteres)"
-              className="flex-1 px-3 py-2 rounded-xl text-sm"
-              style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
-            />
+        <div className="flex rounded-xl p-0.5 gap-0.5 mb-4" style={{ background: T.panelLight }}>
+          {TABS.map((t) => (
             <button
-              onClick={guardarClave}
-              disabled={claveLoading}
-              className="px-4 py-2 rounded-xl font-bold text-sm disabled:opacity-60"
-              style={{ background: T.gold, color: T.ink }}
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              className="flex-1 py-2.5 rounded-lg text-sm font-bold transition-colors duration-200"
+              style={{ background: activeTab === t.key ? T.gold : "transparent", color: activeTab === t.key ? T.ink : T.inkDim }}
             >
-              {claveLoading ? "..." : "Guardar"}
+              {t.label} <span className="font-semibold opacity-70">({t.list.length})</span>
             </button>
-          </div>
-          {claveMsg && (
-            <p className="text-xs mt-2" style={{ color: T.goldBright }}>
-              {claveMsg}
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-2 mb-8">
+          {tabActual.list.length === 0 && (
+            <p className="text-sm text-center py-4" style={{ color: T.inkDim }}>
+              {tabActual.empty}
             </p>
           )}
-        </div>
-
-        <div className="text-center mb-8">
-          <a
-            href={`mailto:${EMAIL_SOPORTE}?subject=Solicito%20eliminar%20mi%20cuenta%20de%20Envidito&body=Hola%2C%20quiero%20eliminar%20mi%20cuenta%20y%20mis%20datos.%20Mi%20email%20de%20organizador%20es%3A%20`}
-            onClick={copiarMailSoporte}
-            className="text-xs underline"
-            style={{ color: T.inkDim }}
-          >
-            Solicitar eliminar mi cuenta
-          </a>
-          <p className="text-xs mt-1" style={{ color: mailCopiado ? T.goldBright : T.inkDim }}>
-            {mailCopiado
-              ? `¡Copiado! Pegalo en un mail a ${EMAIL_SOPORTE}`
-              : `Si no se abrió tu mail, escribí a ${EMAIL_SOPORTE} (ya copiado)`}
-          </p>
-        </div>
-
-        {(() => {
-          const enVivo = misTorneos.filter((t) => t.started && !t.champion_id && !t.cerrado);
-          const pendientes = misTorneos.filter((t) => !t.started);
-          const finalizados = misTorneos.filter((t) => !!t.champion_id || t.cerrado);
-          const Fila = (t) => (
+          {tabActual.list.map((t) => (
             <Link
               key={t.id}
               href={`/torneo/${t.id}/admin`}
-              className="px-4 py-3 rounded-xl font-semibold text-sm transition-colors duration-200"
-              style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
+              className="flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 hover:scale-[1.02] active:scale-95"
+              style={{ background: T.panel, border: `1px solid ${T.line}` }}
             >
-              🎴 {t.nombre} <span style={{ color: T.inkDim, fontWeight: "normal" }}>({t.categoria} · {t.fecha})</span>
-              {t.encargado && <span style={{ color: T.inkDim, fontWeight: "normal" }}> · {t.encargado}</span>}
-              {t.champion_id && <span className="ml-2">🏆</span>}
-              {!t.champion_id && t.cerrado && <span className="ml-2">🏁</span>}
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: tabActual.dot }} />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold truncate" style={{ color: T.ink }}>
+                  {t.nombre}
+                </div>
+                <div className="text-xs" style={{ color: T.inkDim }}>
+                  {t.categoria} · {t.fecha}
+                  {t.encargado && ` · ${t.encargado}`}
+                </div>
+              </div>
+              {t.champion_id && (
+                <span
+                  className="text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0"
+                  style={{ background: T.panelLight, color: T.goldBright }}
+                >
+                  🏆 Campeón
+                </span>
+              )}
+              <IconAdelante color={T.inkDim} />
             </Link>
-          );
-          return (
-            <>
-              <h2 className="font-bold mb-3 text-sm" style={{ color: T.gold }}>
-                🔴 En vivo ({enVivo.length})
-              </h2>
-              <div className="flex flex-col gap-2 mb-6">
-                {enVivo.length === 0 && (
-                  <p className="text-sm" style={{ color: T.inkDim }}>
-                    Ninguno corriendo ahora.
-                  </p>
-                )}
-                {enVivo.map(Fila)}
-              </div>
+          ))}
+        </div>
 
-              <h2 className="font-bold mb-3 text-sm" style={{ color: T.gold }}>
-                🕓 Pendientes ({pendientes.length})
-              </h2>
-              <div className="flex flex-col gap-2 mb-6">
-                {pendientes.length === 0 && (
-                  <p className="text-sm" style={{ color: T.inkDim }}>
-                    No hay ninguno esperando el sorteo.
-                  </p>
-                )}
-                {pendientes.map(Fila)}
-              </div>
-
-              <h2 className="font-bold mb-3 text-sm" style={{ color: T.gold }}>
-                ✅ Finalizados ({finalizados.length})
-              </h2>
-              <div className="flex flex-col gap-2 mb-8">
-                {finalizados.length === 0 && (
-                  <p className="text-sm" style={{ color: T.inkDim }}>
-                    Todavía ninguno terminado.
-                  </p>
-                )}
-                {finalizados.map(Fila)}
-              </div>
-            </>
-          );
-        })()}
-
-        <h2 className="font-bold mb-3 text-sm" style={{ color: T.gold }}>
-          Otros torneos en vivo (solo podés mirar)
+        <h2 className="text-xs font-black uppercase tracking-wide mb-3 pt-4 border-t" style={{ color: T.inkDim, borderColor: T.line }}>
+          Otros torneos en vivo
         </h2>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 mb-6">
           {otros.length === 0 && (
             <p className="text-sm" style={{ color: T.inkDim }}>
               No hay otros torneos todavía.
@@ -314,12 +319,112 @@ export default function PanelOrganizador() {
             <Link
               key={t.id}
               href={`/torneo/${t.id}`}
-              className="px-4 py-3 rounded-xl text-sm transition-colors duration-200"
+              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-colors duration-200"
               style={{ background: T.panelLight, color: T.ink }}
             >
-              👁 {t.nombre} <span style={{ color: T.inkDim }}>({t.categoria} · {t.ubicacion})</span>
+              <IconOjo color={T.inkDim} />
+              <span className="flex-1 truncate font-semibold">{t.nombre}</span>
+              <span className="text-xs flex-shrink-0" style={{ color: T.inkDim }}>
+                {t.categoria}
+              </span>
             </Link>
           ))}
+        </div>
+
+        <div className="rounded-2xl border overflow-hidden" style={{ background: T.panel, borderColor: T.line }}>
+          <button
+            onClick={() => setConfigOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-4 py-3.5"
+          >
+            <span className="text-sm font-black" style={{ color: T.ink }}>
+              Configuración
+            </span>
+            <span style={{ transform: configOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+              <IconAbajo color={T.inkDim} />
+            </span>
+          </button>
+          {configOpen && (
+            <div className="px-4 pb-4 flex flex-col gap-5">
+              <div>
+                <div className="text-xs font-bold mb-1" style={{ color: T.ink }}>
+                  Link corto de tu torneo
+                </div>
+                <p className="text-xs mb-2" style={{ color: T.inkDim }}>
+                  envidito.com/t/tu-nombre — siempre apunta a tu torneo más reciente.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    value={slugNuevo}
+                    onChange={(e) => setSlugNuevo(e.target.value)}
+                    placeholder="tu-nombre"
+                    className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm"
+                    style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+                  />
+                  <button
+                    onClick={guardarSlug}
+                    disabled={slugLoading}
+                    className="px-4 py-2 rounded-xl font-bold text-sm disabled:opacity-60 flex-shrink-0"
+                    style={{ background: T.gold, color: T.ink }}
+                  >
+                    {slugLoading ? "..." : "Guardar"}
+                  </button>
+                </div>
+                {slugMsg && (
+                  <p className="text-xs mt-2" style={{ color: T.goldBright }}>
+                    {slugMsg}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <div className="text-xs font-bold mb-1" style={{ color: T.ink }}>
+                  Contraseña para tu equipo
+                </div>
+                <p className="text-xs mb-2" style={{ color: T.inkDim }}>
+                  Para que varias personas del bar entren con el mismo email desde celus distintos.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    value={claveNueva}
+                    onChange={(e) => setClaveNueva(e.target.value)}
+                    type="password"
+                    placeholder="Nueva contraseña (mín. 6 caracteres)"
+                    className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm"
+                    style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+                  />
+                  <button
+                    onClick={guardarClave}
+                    disabled={claveLoading}
+                    className="px-4 py-2 rounded-xl font-bold text-sm disabled:opacity-60 flex-shrink-0"
+                    style={{ background: T.gold, color: T.ink }}
+                  >
+                    {claveLoading ? "..." : "Guardar"}
+                  </button>
+                </div>
+                {claveMsg && (
+                  <p className="text-xs mt-2" style={{ color: T.goldBright }}>
+                    {claveMsg}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <a
+                  href={`mailto:${EMAIL_SOPORTE}?subject=Solicito%20eliminar%20mi%20cuenta%20de%20Envidito&body=Hola%2C%20quiero%20eliminar%20mi%20cuenta%20y%20mis%20datos.%20Mi%20email%20de%20organizador%20es%3A%20`}
+                  onClick={copiarMailSoporte}
+                  className="text-xs font-semibold"
+                  style={{ color: T.redDim }}
+                >
+                  Solicitar eliminar mi cuenta
+                </a>
+                {mailCopiado && (
+                  <p className="text-xs mt-1" style={{ color: T.goldBright }}>
+                    ¡Copiado! Pegalo en un mail a {EMAIL_SOPORTE}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
