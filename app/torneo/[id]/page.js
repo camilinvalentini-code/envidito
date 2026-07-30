@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTheme } from "../../../lib/theme";
 import { supabase } from "../../../lib/supabaseClient";
 import { fraseCampeonAlAzar } from "../../../lib/champFrases";
@@ -13,6 +14,7 @@ export default function TorneoPublico({ params, searchParams }) {
   const { id } = params;
   const volverToken = searchParams?.volver;
   const { T } = useTheme();
+  const router = useRouter();
   const [tournament, setTournament] = useState(null);
   const [teams, setTeams] = useState([]);
   const [matches, setMatches] = useState([]);
@@ -96,13 +98,19 @@ export default function TorneoPublico({ params, searchParams }) {
     <div className="transition-colors duration-500" style={{ background: T.bg }}>
       <div className="max-w-3xl lg:max-w-[92vw] xl:max-w-[1500px] mx-auto px-4 py-6">
         <div className="flex justify-between items-center mb-4">
-          <Link
-            href="/"
+          <button
+            onClick={() => {
+              // Si llegaron con un link compartido (WhatsApp, etc.) no hay
+              // historial previo en esta pestaña — ahí volvemos a Inicio
+              // en vez de dejar el botón sin hacer nada.
+              if (typeof window !== "undefined" && window.history.length > 1) router.back();
+              else router.push("/");
+            }}
             className="w-8 h-8 rounded-xl flex items-center justify-center"
             style={{ background: T.panel, border: `1px solid ${T.line}` }}
           >
             <IconAtras color={T.ink} />
-          </Link>
+          </button>
           <ThemeToggleButton />
         </div>
         <h1 className="text-3xl font-black text-center" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>

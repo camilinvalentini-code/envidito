@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useTheme } from "../../lib/theme";
 import { supabase } from "../../lib/supabaseClient";
 import ThemeToggleButton from "../../components/ThemeToggleButton";
+import { IconAtras } from "../../components/LineIcons";
 
 export default function EnVivo() {
   const { T } = useTheme();
@@ -16,6 +17,8 @@ export default function EnVivo() {
         .from("tournaments")
         .select("*")
         .eq("es_prueba", false)
+        .is("champion_id", null)
+        .eq("cerrado", false)
         .order("created_at", { ascending: false })
         .limit(50);
       setTorneos(data || []);
@@ -25,16 +28,20 @@ export default function EnVivo() {
   }, []);
 
   return (
-    <div className="min-h-screen transition-colors duration-500" style={{ background: T.bg }}>
+    <div className="transition-colors duration-500" style={{ background: T.bg }}>
       <div className="max-w-md mx-auto px-4 py-8">
-        <div className="flex justify-between mb-4">
-          <Link href="/" className="text-xs underline" style={{ color: T.inkDim }}>
-            ← Inicio
+        <div className="flex justify-between items-center mb-4">
+          <Link
+            href="/"
+            className="w-8 h-8 rounded-xl flex items-center justify-center"
+            style={{ background: T.panel, border: `1px solid ${T.line}` }}
+          >
+            <IconAtras color={T.ink} />
           </Link>
           <ThemeToggleButton />
         </div>
         <h1 className="text-2xl font-black text-center mb-6" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
-          🎲 Torneos
+          Torneos en vivo
         </h1>
 
         {loading ? (

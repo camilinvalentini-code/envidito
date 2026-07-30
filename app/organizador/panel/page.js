@@ -29,9 +29,6 @@ export default function PanelOrganizador() {
   const [claveNueva, setClaveNueva] = useState("");
   const [claveMsg, setClaveMsg] = useState("");
   const [claveLoading, setClaveLoading] = useState(false);
-  const [slugNuevo, setSlugNuevo] = useState("");
-  const [slugMsg, setSlugMsg] = useState("");
-  const [slugLoading, setSlugLoading] = useState(false);
   const [mailCopiado, setMailCopiado] = useState(false);
   const [activeTab, setActiveTab] = useState("enVivo");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -45,23 +42,6 @@ export default function PanelOrganizador() {
       setMailCopiado(true);
       setTimeout(() => setMailCopiado(false), 2000);
     } catch (e) {}
-  }
-
-  async function guardarSlug() {
-    const limpio = slugNuevo.trim().toLowerCase();
-    if (!/^[a-z0-9-]{3,30}$/.test(limpio)) {
-      setSlugMsg("Solo letras minúsculas, números y guiones, entre 3 y 30 caracteres.");
-      return;
-    }
-    setSlugLoading(true);
-    setSlugMsg("");
-    const { error } = await supabase.rpc("actualizar_mi_slug", { nuevo_slug: limpio });
-    setSlugLoading(false);
-    if (error) {
-      setSlugMsg(error.message?.includes("duplicate") ? "Ese link ya lo usa otro organizador, probá otro." : "No se pudo guardar. Probá de nuevo.");
-      return;
-    }
-    setSlugMsg(`Listo — envidito.com/t/${limpio}`);
   }
 
   async function guardarClave() {
@@ -103,7 +83,6 @@ export default function PanelOrganizador() {
   useEffect(() => {
     if (!authLoading && !session) router.push("/organizador/acceso");
     if (!authLoading && profile && profile.status !== "aprobado") router.push("/organizador/pendiente");
-    if (profile?.slug) setSlugNuevo((prev) => prev || profile.slug);
   }, [authLoading, session, profile, router]);
 
   useEffect(() => {
@@ -345,37 +324,6 @@ export default function PanelOrganizador() {
           </button>
           {configOpen && (
             <div className="px-4 pb-4 flex flex-col gap-5">
-              <div>
-                <div className="text-xs font-bold mb-1" style={{ color: T.ink }}>
-                  Link corto de tu torneo
-                </div>
-                <p className="text-xs mb-2" style={{ color: T.inkDim }}>
-                  envidito.com/t/tu-nombre — siempre apunta a tu torneo más reciente.
-                </p>
-                <div className="flex gap-2">
-                  <input
-                    value={slugNuevo}
-                    onChange={(e) => setSlugNuevo(e.target.value)}
-                    placeholder="tu-nombre"
-                    className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm"
-                    style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
-                  />
-                  <button
-                    onClick={guardarSlug}
-                    disabled={slugLoading}
-                    className="px-4 py-2 rounded-xl font-bold text-sm disabled:opacity-60 flex-shrink-0"
-                    style={{ background: T.gold, color: T.ink }}
-                  >
-                    {slugLoading ? "..." : "Guardar"}
-                  </button>
-                </div>
-                {slugMsg && (
-                  <p className="text-xs mt-2" style={{ color: T.goldBright }}>
-                    {slugMsg}
-                  </p>
-                )}
-              </div>
-
               <div>
                 <div className="text-xs font-bold mb-1" style={{ color: T.ink }}>
                   Contraseña para tu equipo
