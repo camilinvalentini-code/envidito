@@ -5,7 +5,7 @@ import { useTheme } from "../../lib/theme";
 import { useSkin } from "../../lib/scoreboardSkin";
 import { fraseCampeonAlAzar } from "../../lib/champFrases";
 import ThemeToggleButton from "../../components/ThemeToggleButton";
-import SuitIcon from "../../components/SuitIcon";
+import { IconAtras } from "../../components/LineIcons";
 import Scoreboard from "../../components/Scoreboard";
 import { useWakeLock } from "../../lib/useWakeLock";
 
@@ -66,11 +66,15 @@ export default function AnotadorLibre() {
   if (!cargado) return null;
 
   return (
-    <div className="min-h-screen transition-colors duration-500" style={{ background: T.bg }}>
+    <div className="transition-colors duration-500" style={{ background: T.bg }}>
       <div className="max-w-md mx-auto px-4 py-8">
-        <div className="flex justify-between mb-4">
-          <Link href="/" className="text-xs underline" style={{ color: T.inkDim }}>
-            ← Inicio
+        <div className="flex justify-between items-center mb-4">
+          <Link
+            href="/"
+            className="w-8 h-8 rounded-xl flex items-center justify-center"
+            style={{ background: T.panel, border: `1px solid ${T.line}` }}
+          >
+            <IconAtras color={T.ink} />
           </Link>
           <div className="flex gap-2 items-center">
             <button
@@ -84,9 +88,6 @@ export default function AnotadorLibre() {
           </div>
         </div>
 
-        <div className="flex justify-center mb-2">
-          <SuitIcon suit="oro" size={22} />
-        </div>
         <h1 className="text-2xl font-black text-center mb-1" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
           Anotador
         </h1>

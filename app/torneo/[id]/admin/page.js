@@ -8,7 +8,7 @@ import { supabase } from "../../../../lib/supabaseClient";
 import TeamList from "../../../../components/TeamList";
 import BracketDisplay from "../../../../components/BracketDisplay";
 import ThemeToggleButton from "../../../../components/ThemeToggleButton";
-import SuitIcon from "../../../../components/SuitIcon";
+import { IconAtras } from "../../../../components/LineIcons";
 import { fraseCampeonAlAzar } from "../../../../lib/champFrases";
 import { roundLabel } from "../../../../lib/bracket";
 
@@ -599,19 +599,17 @@ export default function AdminPage({ params }) {
   }
 
   return (
-    <div className="min-h-screen transition-colors duration-500" style={{ background: T.bg }}>
+    <div className="transition-colors duration-500" style={{ background: T.bg }}>
       <div className="max-w-3xl lg:max-w-[92vw] xl:max-w-[1500px] mx-auto px-4 py-6">
-        <div className="flex justify-between mb-2">
-          <Link href="/organizador/panel" className="text-xs underline" style={{ color: T.inkDim }}>
-            ← Mi panel
+        <div className="flex justify-between items-center mb-4">
+          <Link
+            href="/organizador/panel"
+            className="w-8 h-8 rounded-xl flex items-center justify-center"
+            style={{ background: T.panel, border: `1px solid ${T.line}` }}
+          >
+            <IconAtras color={T.ink} />
           </Link>
           <ThemeToggleButton />
-        </div>
-        <div className="flex items-center gap-2 justify-center mb-1">
-          <SuitIcon suit="espada" size={20} />
-          <SuitIcon suit="basto" size={20} />
-          <SuitIcon suit="oro" size={20} />
-          <SuitIcon suit="copa" size={20} />
         </div>
         <h1 className="text-2xl font-black text-center" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
           {tournament.nombre || "Torneo sin nombre"} · Panel del organizador
@@ -855,8 +853,12 @@ export default function AdminPage({ params }) {
               <button
                 onClick={doSorteo}
                 disabled={teams.length < 3}
-                className="w-full py-3 rounded-2xl font-black text-lg transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
-                style={{ background: T.gold, color: T.ink }}
+                className="w-full py-3 rounded-2xl font-black text-lg transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                style={{
+                  background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`,
+                  color: T.ink,
+                  boxShadow: `0 6px 16px ${T.gold}44`,
+                }}
               >
                 ⚔️ Hacer los cruces
               </button>
@@ -1026,17 +1028,17 @@ export default function AdminPage({ params }) {
               </button>
             )}
 
-            <div className="flex rounded-2xl overflow-hidden border mb-4" style={{ borderColor: T.gold }}>
+            <div className="flex rounded-xl p-0.5 gap-0.5 mb-4" style={{ background: T.panelLight }}>
               <button
                 onClick={() => setVista("mesas")}
-                className="flex-1 py-2.5 text-sm font-bold transition-colors duration-200"
+                className="flex-1 py-2.5 rounded-lg text-sm font-bold transition-colors duration-200"
                 style={{ background: vista === "mesas" ? T.gold : "transparent", color: vista === "mesas" ? T.ink : T.inkDim }}
               >
                 🎲 Mesas
               </button>
               <button
                 onClick={() => setVista("cuadro")}
-                className="flex-1 py-2.5 text-sm font-bold transition-colors duration-200"
+                className="flex-1 py-2.5 rounded-lg text-sm font-bold transition-colors duration-200"
                 style={{ background: vista === "cuadro" ? T.gold : "transparent", color: vista === "cuadro" ? T.ink : T.inkDim }}
               >
                 🏆 Cuadro completo
@@ -1183,7 +1185,10 @@ function MesasPendientes({ matches, teamsById, origin, onDeclareWinner }) {
                     target="_blank"
                     rel="noreferrer"
                     className="mt-1 py-2 rounded-xl font-bold text-sm text-center transition-all duration-200 hover:scale-105 active:scale-95"
-                    style={{ background: T.gold, color: T.ink }}
+                    style={{
+                      background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`,
+                      color: T.ink,
+                    }}
                   >
                     Abrir anotador →
                   </a>

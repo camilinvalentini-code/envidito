@@ -6,7 +6,7 @@ import { supabase } from "../../../lib/supabaseClient";
 import { fraseCampeonAlAzar } from "../../../lib/champFrases";
 import BracketDisplay from "../../../components/BracketDisplay";
 import ThemeToggleButton from "../../../components/ThemeToggleButton";
-import SuitIcon from "../../../components/SuitIcon";
+import { IconAtras } from "../../../components/LineIcons";
 import MiEquipoPanel from "../../../components/MiEquipoPanel";
 
 export default function TorneoPublico({ params, searchParams }) {
@@ -93,19 +93,17 @@ export default function TorneoPublico({ params, searchParams }) {
   const hayFasesOcultas = mainMatchesTodos.length > mainMatches.length;
 
   return (
-    <div className="min-h-screen transition-colors duration-500" style={{ background: T.bg }}>
+    <div className="transition-colors duration-500" style={{ background: T.bg }}>
       <div className="max-w-3xl lg:max-w-[92vw] xl:max-w-[1500px] mx-auto px-4 py-6">
-        <div className="flex justify-between mb-2">
-          <Link href="/" className="text-xs underline" style={{ color: T.inkDim }}>
-            ← Inicio
+        <div className="flex justify-between items-center mb-4">
+          <Link
+            href="/"
+            className="w-8 h-8 rounded-xl flex items-center justify-center"
+            style={{ background: T.panel, border: `1px solid ${T.line}` }}
+          >
+            <IconAtras color={T.ink} />
           </Link>
           <ThemeToggleButton />
-        </div>
-        <div className="flex items-center gap-2 justify-center mb-1">
-          <SuitIcon suit="espada" size={20} />
-          <SuitIcon suit="basto" size={20} />
-          <SuitIcon suit="oro" size={20} />
-          <SuitIcon suit="copa" size={20} />
         </div>
         <h1 className="text-3xl font-black text-center" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
           {tournament.nombre || "Torneo sin nombre"}
@@ -195,7 +193,7 @@ export default function TorneoPublico({ params, searchParams }) {
         <Link
           href={`/partido/${volverToken}`}
           className="fixed bottom-5 left-1/2 -translate-x-1/2 px-5 py-3 rounded-full font-bold text-sm shadow-lg transition-transform duration-150 active:scale-95"
-          style={{ background: T.gold, color: T.ink }}
+          style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
         >
           ← Volver a mi partido
         </Link>

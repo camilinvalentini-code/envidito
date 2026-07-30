@@ -8,7 +8,7 @@ import { fraseCampeonAlAzar } from "../../../lib/champFrases";
 import { useWakeLock } from "../../../lib/useWakeLock";
 import Scoreboard from "../../../components/Scoreboard";
 import ThemeToggleButton from "../../../components/ThemeToggleButton";
-import SuitIcon from "../../../components/SuitIcon";
+import { IconAtras } from "../../../components/LineIcons";
 
 function claveCodigo(matchId) {
   return `torneotruco:codigo:${matchId}`;
@@ -206,16 +206,17 @@ export default function PartidoPage({ params }) {
   const winnerName = match.winner_id ? teams[match.winner_id]?.name : null;
 
   return (
-    <div className="min-h-screen transition-colors duration-500" style={{ background: T.bg }}>
+    <div className="transition-colors duration-500" style={{ background: T.bg }}>
       <div className="max-w-md mx-auto px-4 py-8">
-        <div className="flex justify-between mb-3">
-          <Link href="/" className="text-xs underline" style={{ color: T.inkDim }}>
-            ← Inicio
+        <div className="flex justify-between items-center mb-4">
+          <Link
+            href="/"
+            className="w-8 h-8 rounded-xl flex items-center justify-center"
+            style={{ background: T.panel, border: `1px solid ${T.line}` }}
+          >
+            <IconAtras color={T.ink} />
           </Link>
           <ThemeToggleButton />
-        </div>
-        <div className="flex justify-center mb-2">
-          <SuitIcon suit="espada" size={22} />
         </div>
         <h1 className="text-xl font-black text-center mb-1" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
           Anotador de partido
