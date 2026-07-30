@@ -619,28 +619,38 @@ export default function AdminPage({ params }) {
             </span>
           )}
         </h1>
-        <p className="text-center text-xs mb-1" style={{ color: T.inkDim }}>
+        <p className="text-center text-xs mb-3" style={{ color: T.inkDim }}>
           {[tournament.ubicacion, tournament.fecha, tournament.categoria].filter(Boolean).join(" · ")}
           {tournament.encargado && <> · Organiza: {tournament.encargado}</>}
-          {" · "}
-          <button onClick={() => setEditandoInfo((v) => !v)} className="underline" style={{ color: T.inkDim }}>
-            ✏️ Editar datos
-          </button>
         </p>
 
-        {!tournament.champion_id && (
-          <p className="text-center text-xs mb-3">
-            {tournament.cerrado ? (
-              <button onClick={reabrirTorneo} className="underline font-bold" style={{ color: T.goldBright }}>
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-5">
+          <button
+            onClick={() => setEditandoInfo((v) => !v)}
+            className="text-xs font-bold px-3 py-1.5 rounded-full"
+            style={{ background: T.panelLight, color: T.inkDim }}
+          >
+            ✏️ Editar datos
+          </button>
+          {!tournament.champion_id &&
+            (tournament.cerrado ? (
+              <button
+                onClick={reabrirTorneo}
+                className="text-xs font-bold px-3 py-1.5 rounded-full"
+                style={{ background: T.panelLight, color: T.goldBright }}
+              >
                 ↺ Reabrir torneo
               </button>
             ) : (
-              <button onClick={cerrarTorneo} className="underline" style={{ color: T.inkDim }}>
-                🏁 Finalizar torneo (sin terminar de jugar)
+              <button
+                onClick={cerrarTorneo}
+                className="text-xs font-bold px-3 py-1.5 rounded-full"
+                style={{ background: T.panelLight, color: T.inkDim }}
+              >
+                🏁 Finalizar torneo
               </button>
-            )}
-          </p>
-        )}
+            ))}
+        </div>
 
         {editandoInfo && (
           <div
@@ -696,11 +706,17 @@ export default function AdminPage({ params }) {
           </div>
         )}
         {origin && (
-          <p className="text-center text-sm mb-5">
-            <a href={publicUrl} target="_blank" rel="noreferrer" className="underline font-bold" style={{ color: T.gold }}>
-              Seguí el torneo en vivo acá
+          <div className="text-center mb-5">
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block text-sm font-bold px-4 py-2 rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
+              style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
+            >
+              🔴 Seguí el torneo en vivo acá
             </a>
-          </p>
+          </div>
         )}
 
         {tournament.champion_id && (
