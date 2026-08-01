@@ -172,216 +172,303 @@ export default function PanelOrganizador() {
   ];
   const tabActual = TABS.find((t) => t.key === activeTab) || TABS[0];
 
-  return (
-    <div className="transition-colors duration-500" style={{ background: T.bg }}>
-      <div className="max-w-md mx-auto px-4 py-6">
-        <div className="flex justify-between items-center mb-5">
-          <Link
-            href="/"
-            className="w-8 h-8 rounded-xl flex items-center justify-center"
-            style={{ background: T.panel, border: `1px solid ${T.line}` }}
+  function CrearBtn({ big }) {
+    return (
+      <Link
+        href="/crear"
+        className={
+          big
+            ? "flex items-center justify-center gap-2 py-3.5 rounded-2xl font-black text-base transition-all duration-200 hover:scale-105 active:scale-95"
+            : "h-10 px-4 flex items-center justify-center gap-2 rounded-xl font-black text-sm whitespace-nowrap transition-all duration-200 hover:scale-105 active:scale-95"
+        }
+        style={{
+          background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`,
+          color: T.ink,
+          boxShadow: `0 6px 16px ${T.gold}44`,
+        }}
+      >
+        <IconDoc color={T.ink} />
+        Crear torneo nuevo
+      </Link>
+    );
+  }
+
+  const cuentaMenu = (
+    <div className="relative">
+      <button
+        onClick={() => setMenuOpen((v) => !v)}
+        className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+        style={{ background: T.panel, border: `1px solid ${T.line}` }}
+      >
+        <IconUsuario color={T.ink} />
+      </button>
+      {menuOpen && (
+        <div
+          className="absolute top-11 right-0 rounded-2xl border shadow-lg py-1.5 z-20"
+          style={{ background: T.panel, borderColor: T.line, minWidth: 170 }}
+        >
+          <button
+            onClick={() => {
+              setConfigOpen(true);
+              setMenuOpen(false);
+            }}
+            className="block w-full text-left px-4 py-2.5 text-sm font-semibold"
+            style={{ color: T.ink }}
           >
-            <IconAtras color={T.ink} />
+            Configuración
+          </button>
+          <button onClick={salir} className="block w-full text-left px-4 py-2.5 text-sm font-semibold" style={{ color: T.redDim }}>
+            Cerrar sesión
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  function TorneoRow({ t }) {
+    return (
+      <Link
+        href={`/torneo/${t.id}/admin`}
+        className="flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 hover:scale-[1.02] active:scale-95"
+        style={{ background: T.panel, border: `1px solid ${T.line}` }}
+      >
+        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: tabActual.dot }} />
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-bold truncate" style={{ color: T.ink }}>
+            {t.nombre}
+          </div>
+          <div className="text-xs" style={{ color: T.inkDim }}>
+            {t.categoria} · {t.fecha}
+            {t.encargado && ` · ${t.encargado}`}
+          </div>
+        </div>
+        {t.champion_id && (
+          <span
+            className="text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0"
+            style={{ background: T.panelLight, color: T.goldBright }}
+          >
+            🏆 Campeón
+          </span>
+        )}
+        <IconAdelante color={T.inkDim} />
+      </Link>
+    );
+  }
+
+  const otrosSection = (
+    <div>
+      <h2 className="text-xs font-black uppercase tracking-wide mb-3" style={{ color: T.inkDim }}>
+        Otros torneos en vivo
+      </h2>
+      <div className="flex flex-col gap-2">
+        {otros.length === 0 && (
+          <p className="text-sm" style={{ color: T.inkDim }}>
+            No hay otros torneos todavía.
+          </p>
+        )}
+        {otros.map((t) => (
+          <Link
+            key={t.id}
+            href={`/torneo/${t.id}`}
+            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-colors duration-200"
+            style={{ background: T.panelLight, color: T.ink }}
+          >
+            <IconOjo color={T.inkDim} />
+            <span className="flex-1 truncate font-semibold">{t.nombre}</span>
+            <span className="text-xs flex-shrink-0" style={{ color: T.inkDim }}>
+              {t.categoria}
+            </span>
           </Link>
-          <div className="flex gap-2 items-center relative">
-            <ThemeToggleButton />
-            <button
-              onClick={() => setMenuOpen((v) => !v)}
-              className="w-8 h-8 rounded-xl flex items-center justify-center"
-              style={{ background: T.panel, border: `1px solid ${T.line}` }}
-            >
-              <IconUsuario color={T.ink} />
-            </button>
-            {menuOpen && (
-              <div
-                className="absolute top-10 right-0 rounded-2xl border shadow-lg py-1.5 z-20"
-                style={{ background: T.panel, borderColor: T.line, minWidth: 170 }}
+        ))}
+      </div>
+    </div>
+  );
+
+  const configPanel = (
+    <div className="rounded-2xl border overflow-hidden" style={{ background: T.panel, borderColor: T.line }}>
+      <button onClick={() => setConfigOpen((v) => !v)} className="w-full flex items-center justify-between px-4 py-3.5">
+        <span className="text-sm font-black" style={{ color: T.ink }}>
+          Configuración
+        </span>
+        <span style={{ transform: configOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+          <IconAbajo color={T.inkDim} />
+        </span>
+      </button>
+      {configOpen && (
+        <div className="px-4 pb-4 flex flex-col gap-5">
+          <div>
+            <div className="text-xs font-bold mb-1" style={{ color: T.ink }}>
+              Contraseña para tu equipo
+            </div>
+            <p className="text-xs mb-2" style={{ color: T.inkDim }}>
+              Para que varias personas del bar entren con el mismo email desde celus distintos.
+            </p>
+            <div className="flex gap-2">
+              <input
+                value={claveNueva}
+                onChange={(e) => setClaveNueva(e.target.value)}
+                type="password"
+                placeholder="Nueva contraseña (mín. 6 caracteres)"
+                className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm"
+                style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+              />
+              <button
+                onClick={guardarClave}
+                disabled={claveLoading}
+                className="px-4 py-2 rounded-xl font-bold text-sm disabled:opacity-60 flex-shrink-0"
+                style={{ background: T.gold, color: T.ink }}
               >
-                <button
-                  onClick={() => { setConfigOpen(true); setMenuOpen(false); }}
-                  className="block w-full text-left px-4 py-2.5 text-sm font-semibold"
-                  style={{ color: T.ink }}
-                >
-                  Configuración
-                </button>
-                <button
-                  onClick={salir}
-                  className="block w-full text-left px-4 py-2.5 text-sm font-semibold"
-                  style={{ color: T.redDim }}
-                >
-                  Cerrar sesión
-                </button>
-              </div>
+                {claveLoading ? "..." : "Guardar"}
+              </button>
+            </div>
+            {claveMsg && (
+              <p className="text-xs mt-2" style={{ color: T.goldBright }}>
+                {claveMsg}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <a
+              href={`mailto:${EMAIL_SOPORTE}?subject=Solicito%20eliminar%20mi%20cuenta%20de%20Envidito&body=Hola%2C%20quiero%20eliminar%20mi%20cuenta%20y%20mis%20datos.%20Mi%20email%20de%20organizador%20es%3A%20`}
+              onClick={copiarMailSoporte}
+              className="text-xs font-semibold"
+              style={{ color: T.redDim }}
+            >
+              Solicitar eliminar mi cuenta
+            </a>
+            {mailCopiado && (
+              <p className="text-xs mt-1" style={{ color: T.goldBright }}>
+                ¡Copiado! Pegalo en un mail a {EMAIL_SOPORTE}
+              </p>
             )}
           </div>
         </div>
+      )}
+    </div>
+  );
 
-        <div className="flex items-center gap-2.5 justify-center mb-1">
-          <IconEspada color={T.goldBright} size={17} />
-          <IconBasto color={T.goldBright} size={17} />
-          <span className="font-black text-lg" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
-            Envidito
-          </span>
-          <IconOro color={T.goldBright} size={17} />
-          <IconCopa color={T.goldBright} size={17} />
-        </div>
-        <h1 className="text-2xl font-black text-center" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
-          Hola, {profile.nombre || profile.email}
-        </h1>
-        <p className="text-center text-sm mb-6" style={{ color: T.inkDim }}>
-          Panel de organizador
-        </p>
-
-        <Link
-          href="/crear"
-          className="flex items-center justify-center gap-2 py-3.5 rounded-2xl font-black text-base mb-6 transition-all duration-200 hover:scale-105 active:scale-95"
-          style={{
-            background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`,
-            color: T.ink,
-            boxShadow: `0 6px 16px ${T.gold}44`,
-          }}
-        >
-          <IconDoc color={T.ink} />
-          Crear torneo nuevo
-        </Link>
-
-        <div className="flex rounded-xl p-0.5 gap-0.5 mb-4" style={{ background: T.panelLight }}>
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
-              className="flex-1 py-2.5 rounded-lg text-sm font-bold transition-colors duration-200"
-              style={{ background: activeTab === t.key ? T.gold : "transparent", color: activeTab === t.key ? T.ink : T.inkDim }}
-            >
-              {t.label} <span className="font-semibold opacity-70">({t.list.length})</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-col gap-2 mb-8">
-          {tabActual.list.length === 0 && (
-            <p className="text-sm text-center py-4" style={{ color: T.inkDim }}>
-              {tabActual.empty}
-            </p>
-          )}
-          {tabActual.list.map((t) => (
+  return (
+    <div className="transition-colors duration-500" style={{ background: T.bg }}>
+      <div className="max-w-md lg:max-w-[1160px] mx-auto px-4 lg:px-8 py-6 lg:py-7">
+        {/* ── Header móvil ── */}
+        <div className="lg:hidden">
+          <div className="flex justify-between items-center mb-5">
             <Link
-              key={t.id}
-              href={`/torneo/${t.id}/admin`}
-              className="flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 hover:scale-[1.02] active:scale-95"
+              href="/"
+              className="w-8 h-8 rounded-xl flex items-center justify-center"
               style={{ background: T.panel, border: `1px solid ${T.line}` }}
             >
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: tabActual.dot }} />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold truncate" style={{ color: T.ink }}>
-                  {t.nombre}
-                </div>
-                <div className="text-xs" style={{ color: T.inkDim }}>
-                  {t.categoria} · {t.fecha}
-                  {t.encargado && ` · ${t.encargado}`}
-                </div>
-              </div>
-              {t.champion_id && (
-                <span
-                  className="text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0"
-                  style={{ background: T.panelLight, color: T.goldBright }}
-                >
-                  🏆 Campeón
-                </span>
-              )}
-              <IconAdelante color={T.inkDim} />
+              <IconAtras color={T.ink} />
             </Link>
-          ))}
+            <div className="flex gap-2 items-center">
+              <ThemeToggleButton />
+              {cuentaMenu}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 justify-center mb-1">
+            <IconEspada color={T.goldBright} size={17} />
+            <IconBasto color={T.goldBright} size={17} />
+            <span className="font-black text-lg" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
+              Envidito
+            </span>
+            <IconOro color={T.goldBright} size={17} />
+            <IconCopa color={T.goldBright} size={17} />
+          </div>
+          <h1 className="text-2xl font-black text-center" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
+            Hola, {profile.nombre || profile.email}
+          </h1>
+          <p className="text-center text-sm mb-6" style={{ color: T.inkDim }}>
+            Panel de organizador
+          </p>
+
+          <div className="mb-6">
+            <CrearBtn big />
+          </div>
+
+          <div className="flex rounded-xl p-0.5 gap-0.5 mb-4" style={{ background: T.panelLight }}>
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                className="flex-1 py-2.5 rounded-lg text-sm font-bold transition-colors duration-200"
+                style={{ background: activeTab === t.key ? T.gold : "transparent", color: activeTab === t.key ? T.ink : T.inkDim }}
+              >
+                {t.label} <span className="font-semibold opacity-70">({t.list.length})</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-col gap-2 mb-8">
+            {tabActual.list.length === 0 && (
+              <p className="text-sm text-center py-4" style={{ color: T.inkDim }}>
+                {tabActual.empty}
+              </p>
+            )}
+            {tabActual.list.map((t) => (
+              <TorneoRow key={t.id} t={t} />
+            ))}
+          </div>
+
+          <div className="pt-4 border-t mb-6" style={{ borderColor: T.line }}>
+            {otrosSection}
+          </div>
+
+          {configPanel}
         </div>
 
-        <h2 className="text-xs font-black uppercase tracking-wide mb-3 pt-4 border-t" style={{ color: T.inkDim, borderColor: T.line }}>
-          Otros torneos en vivo
-        </h2>
-        <div className="flex flex-col gap-2 mb-6">
-          {otros.length === 0 && (
-            <p className="text-sm" style={{ color: T.inkDim }}>
-              No hay otros torneos todavía.
-            </p>
-          )}
-          {otros.map((t) => (
-            <Link
-              key={t.id}
-              href={`/torneo/${t.id}`}
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-colors duration-200"
-              style={{ background: T.panelLight, color: T.ink }}
-            >
-              <IconOjo color={T.inkDim} />
-              <span className="flex-1 truncate font-semibold">{t.nombre}</span>
-              <span className="text-xs flex-shrink-0" style={{ color: T.inkDim }}>
-                {t.categoria}
-              </span>
-            </Link>
-          ))}
-        </div>
-
-        <div className="rounded-2xl border overflow-hidden" style={{ background: T.panel, borderColor: T.line }}>
-          <button
-            onClick={() => setConfigOpen((v) => !v)}
-            className="w-full flex items-center justify-between px-4 py-3.5"
-          >
-            <span className="text-sm font-black" style={{ color: T.ink }}>
-              Configuración
-            </span>
-            <span style={{ transform: configOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
-              <IconAbajo color={T.inkDim} />
-            </span>
-          </button>
-          {configOpen && (
-            <div className="px-4 pb-4 flex flex-col gap-5">
+        {/* ── Header + layout desktop ── */}
+        <div className="hidden lg:block">
+          <div className="flex items-center justify-between mb-7">
+            <div className="flex items-center gap-3">
+              <IconEspada color={T.goldBright} size={20} />
               <div>
-                <div className="text-xs font-bold mb-1" style={{ color: T.ink }}>
-                  Contraseña para tu equipo
+                <div className="font-black text-xl" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
+                  Envidito
                 </div>
-                <p className="text-xs mb-2" style={{ color: T.inkDim }}>
-                  Para que varias personas del bar entren con el mismo email desde celus distintos.
-                </p>
-                <div className="flex gap-2">
-                  <input
-                    value={claveNueva}
-                    onChange={(e) => setClaveNueva(e.target.value)}
-                    type="password"
-                    placeholder="Nueva contraseña (mín. 6 caracteres)"
-                    className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm"
-                    style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
-                  />
-                  <button
-                    onClick={guardarClave}
-                    disabled={claveLoading}
-                    className="px-4 py-2 rounded-xl font-bold text-sm disabled:opacity-60 flex-shrink-0"
-                    style={{ background: T.gold, color: T.ink }}
-                  >
-                    {claveLoading ? "..." : "Guardar"}
-                  </button>
+                <div className="text-xs mt-0.5" style={{ color: T.inkDim }}>
+                  Hola, {profile.nombre || profile.email} · Panel de organizador
                 </div>
-                {claveMsg && (
-                  <p className="text-xs mt-2" style={{ color: T.goldBright }}>
-                    {claveMsg}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <a
-                  href={`mailto:${EMAIL_SOPORTE}?subject=Solicito%20eliminar%20mi%20cuenta%20de%20Envidito&body=Hola%2C%20quiero%20eliminar%20mi%20cuenta%20y%20mis%20datos.%20Mi%20email%20de%20organizador%20es%3A%20`}
-                  onClick={copiarMailSoporte}
-                  className="text-xs font-semibold"
-                  style={{ color: T.redDim }}
-                >
-                  Solicitar eliminar mi cuenta
-                </a>
-                {mailCopiado && (
-                  <p className="text-xs mt-1" style={{ color: T.goldBright }}>
-                    ¡Copiado! Pegalo en un mail a {EMAIL_SOPORTE}
-                  </p>
-                )}
               </div>
             </div>
-          )}
+            <div className="flex items-center gap-2.5">
+              <ThemeToggleButton />
+              {cuentaMenu}
+              <CrearBtn />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-[200px_1fr_280px] gap-6 items-start">
+            <div className="flex flex-col gap-1">
+              {TABS.map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setActiveTab(t.key)}
+                  className="text-left px-3.5 py-2.5 rounded-xl text-sm font-bold transition-colors duration-200"
+                  style={{ background: activeTab === t.key ? T.panelLight : "transparent", color: activeTab === t.key ? T.ink : T.inkDim }}
+                >
+                  {t.label} <span className="font-semibold opacity-70">({t.list.length})</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 content-start">
+              {tabActual.list.length === 0 && (
+                <p className="text-sm text-center py-4 col-span-2" style={{ color: T.inkDim }}>
+                  {tabActual.empty}
+                </p>
+              )}
+              {tabActual.list.map((t) => (
+                <TorneoRow key={t.id} t={t} />
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-4">
+              {otrosSection}
+              {configPanel}
+            </div>
+          </div>
         </div>
       </div>
     </div>
