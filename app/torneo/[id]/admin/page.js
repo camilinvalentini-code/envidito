@@ -8,7 +8,7 @@ import { supabase } from "../../../../lib/supabaseClient";
 import TeamList from "../../../../components/TeamList";
 import BracketDisplay from "../../../../components/BracketDisplay";
 import ThemeToggleButton from "../../../../components/ThemeToggleButton";
-import { IconAtras, IconAbajo } from "../../../../components/LineIcons";
+import { IconAtras, IconAbajo, IconPuntos, IconCopiar } from "../../../../components/LineIcons";
 import { fraseCampeonAlAzar } from "../../../../lib/champFrases";
 import { roundLabel } from "../../../../lib/bracket";
 
@@ -40,6 +40,8 @@ export default function AdminPage({ params }) {
   const [mostrarEquipos, setMostrarEquipos] = useState(false);
   const [busquedaEquipos, setBusquedaEquipos] = useState("");
   const [mostrarQuitarEquipo, setMostrarQuitarEquipo] = useState(false);
+  const [menuAbierto, setMenuAbierto] = useState(false);
+  const [sorteoAjustesAbierto, setSorteoAjustesAbierto] = useState(true);
   const [nombreNuevoEquipo, setNombreNuevoEquipo] = useState("");
   const [formatoElegido, setFormatoElegido] = useState("directa"); // "directa" | "grupos"
   const [cantidadGrupos, setCantidadGrupos] = useState(4);
@@ -671,16 +673,68 @@ export default function AdminPage({ params }) {
           >
             <IconAtras color={T.ink} />
           </Link>
-          <ThemeToggleButton />
+          <div className="flex items-center gap-2">
+            <ThemeToggleButton />
+            {tournament.es_prueba && (
+              <div className="relative">
+                <button
+                  onClick={() => setMenuAbierto((v) => !v)}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center"
+                  style={{ background: T.panel, border: `1px solid ${T.line}` }}
+                  title="Más opciones"
+                >
+                  <IconPuntos color={T.ink} />
+                </button>
+                {menuAbierto && (
+                  <div
+                    className="absolute right-0 mt-2 w-64 rounded-2xl border shadow-lg z-20 overflow-hidden"
+                    style={{ background: T.panel, borderColor: T.line }}
+                  >
+                    {!tournament.champion_id && (
+                      <button
+                        onClick={() => {
+                          setMenuAbierto(false);
+                          simularTorneoCompleto();
+                        }}
+                        disabled={simulando}
+                        className="w-full text-left px-4 py-3 text-sm font-bold disabled:opacity-60"
+                        style={{ color: T.redDim }}
+                      >
+                        {simulando ? "Simulando…" : "Simular resultados al azar (solo para test)"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setMenuAbierto(false);
+                        eliminarTorneoPrueba();
+                      }}
+                      className="w-full text-left px-4 py-3 text-sm font-bold"
+                      style={{ color: T.redDim, borderTop: `1px solid ${T.line}` }}
+                    >
+                      Eliminar torneo de prueba
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         <h1 className="text-2xl font-black text-center" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
-          {tournament.nombre || "Torneo sin nombre"} · Panel del organizador
-          {tournament.cerrado && !tournament.champion_id && (
-            <span className="block text-xs font-bold mt-1" style={{ color: T.redDim }}>
+          {tournament.nombre || "Torneo sin nombre"}
+        </h1>
+        <p className="text-center text-xs mb-1" style={{ color: T.inkDim }}>
+          Panel del organizador
+        </p>
+        {tournament.cerrado && !tournament.champion_id && (
+          <p className="text-center mb-1">
+            <span
+              className="inline-block text-xs font-bold px-3 py-1 rounded-full"
+              style={{ background: "rgba(214,102,102,0.15)", color: T.redDim }}
+            >
               Cerrado sin campeón
             </span>
-          )}
-        </h1>
+          </p>
+        )}
         <p className="text-center text-xs mb-3" style={{ color: T.inkDim }}>
           {[tournament.ubicacion, tournament.fecha, tournament.categoria].filter(Boolean).join(" · ")}
           {tournament.encargado && <> · Organiza: {tournament.encargado}</>}
@@ -776,7 +830,7 @@ export default function AdminPage({ params }) {
               className="inline-block text-sm font-bold px-4 py-2 rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
               style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
             >
-              Seguí el torneo en vivo acá
+              Seguí el torneo en vivo acá →
             </a>
           </div>
         )}
@@ -915,8 +969,8 @@ export default function AdminPage({ params }) {
                     style={{ color: T.gold }}
                   >
                     <span>Equipos anotados ({teams.length})</span>
-                    <span className="text-xs" style={{ color: T.inkDim }}>
-                      {mostrarEquipos ? "Ocultar ▲" : "Mostrar ▼"}
+                    <span style={{ transform: mostrarEquipos ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+                      <IconAbajo color={T.inkDim} />
                     </span>
                   </button>
                   {mostrarEquipos && (
@@ -1022,8 +1076,8 @@ export default function AdminPage({ params }) {
                 style={{ color: T.gold }}
               >
                 <span>Equipos ({teams.length})</span>
-                <span className="text-xs" style={{ color: T.inkDim }}>
-                  {mostrarEquipos ? "Ocultar ▲" : "Mostrar ▼"}
+                <span style={{ transform: mostrarEquipos ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+                  <IconAbajo color={T.inkDim} />
                 </span>
               </button>
               {mostrarEquipos && (
@@ -1058,122 +1112,125 @@ export default function AdminPage({ params }) {
                   </button>
                   <button
                     onClick={copiarCruces}
-                    className="px-4 py-2.5 rounded-2xl font-bold text-sm transition-all duration-200 hover:scale-105 active:scale-95"
+                    title="Copiar"
+                    className="w-11 flex-shrink-0 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95"
                     style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
                   >
-                    📋 Copiar
+                    <IconCopiar color={T.ink} />
                   </button>
                 </div>
               );
             })()}
 
-            {fasesListasParaResortear().map(({ idx, cantidad }) => (
-              <button
-                key={idx}
-                onClick={() => resortearFase(idx)}
-                className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.gold}` }}
-              >
-                Resortear {roundLabel(cantidad)} (todavía no se jugó nada ahí)
-              </button>
-            ))}
-
-            {sorteoSinJugar() && (
-              <button
-                onClick={resortear}
-                className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.gold}` }}
-              >
-                Resortear (todavía no se jugó nada)
-              </button>
-            )}
-
-            {sorteoSinJugar() && (
+            {(fasesListasParaResortear().length > 0 || sorteoSinJugar()) && (
               <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
                 <button
-                  onClick={() => setMostrarQuitarEquipo((v) => !v)}
-                  className="w-full flex items-center justify-between"
+                  onClick={() => setSorteoAjustesAbierto((v) => !v)}
+                  className="w-full flex items-center justify-between font-bold mb-1"
                   style={{ color: T.gold }}
                 >
-                  <span className="font-bold text-sm">Ajustar equipos antes de sortear</span>
-                  <span className="text-xs" style={{ color: T.inkDim }}>
-                    {mostrarQuitarEquipo ? "Ocultar ▲" : "Mostrar ▼"}
+                  <span>Sorteo y ajustes</span>
+                  <span style={{ transform: sorteoAjustesAbierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+                    <IconAbajo color={T.inkDim} />
                   </span>
                 </button>
-                {mostrarQuitarEquipo && (
-                  <>
-                    <p className="text-xs mb-2 mt-2" style={{ color: T.inkDim }}>
-                      ¿Se anotó tarde un equipo más? Agregalo acá — el cuadro se rearma con todos.
-                    </p>
-                    <div className="flex gap-2 mb-4">
-                      <input
-                        value={nombreNuevoEquipo}
-                        onChange={(e) => setNombreNuevoEquipo(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            agregarEquipoAlTorneo(nombreNuevoEquipo);
-                          }
-                        }}
-                        placeholder="Nombre del equipo nuevo"
-                        className="flex-1 px-3 py-2 rounded-xl text-sm"
-                        style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
-                      />
+                {sorteoAjustesAbierto && (
+                  <div className="mt-2">
+                    {fasesListasParaResortear().map(({ idx, cantidad }) => (
                       <button
-                        onClick={() => agregarEquipoAlTorneo(nombreNuevoEquipo)}
-                        className="px-4 py-2 rounded-xl font-bold text-sm"
-                        style={{ background: T.gold, color: T.ink }}
+                        key={idx}
+                        onClick={() => resortearFase(idx)}
+                        className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
+                        style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.gold}` }}
                       >
-                        + Agregar
+                        Resortear {roundLabel(cantidad)} (todavía no se jugó nada ahí)
                       </button>
-                    </div>
+                    ))}
 
-                    <p className="text-xs mb-2" style={{ color: T.inkDim }}>
-                      ¿Perdió un desempate, se bajó, etc.? Sacalo — el cuadro se rearma solo con los que queden.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {teams.map((t) => (
-                        <span
-                          key={t.id}
-                          className="text-xs pl-3 pr-1.5 py-1.5 rounded-full font-semibold flex items-center gap-1.5"
-                          style={{ background: T.panelLight, color: T.ink }}
+                    {sorteoSinJugar() && (
+                      <button
+                        onClick={resortear}
+                        className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
+                        style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.gold}` }}
+                      >
+                        Resortear (todavía no se jugó nada)
+                      </button>
+                    )}
+
+                    {sorteoSinJugar() && (
+                      <div className="rounded-xl p-3 border" style={{ background: T.panelLight, borderColor: T.line }}>
+                        <button
+                          onClick={() => setMostrarQuitarEquipo((v) => !v)}
+                          className="w-full flex items-center justify-between"
+                          style={{ color: T.gold }}
                         >
-                          {t.name}
-                          <button
-                            onClick={() => quitarEquipoDelTorneo(t.id)}
-                            className="w-5 h-5 rounded-full flex items-center justify-center"
-                            style={{ background: T.redDim, color: "#FFFFFF" }}
-                            title="Sacar del torneo"
+                          <span className="font-bold text-sm">Ajustar equipos antes de sortear</span>
+                          <span
+                            style={{
+                              transform: mostrarQuitarEquipo ? "rotate(180deg)" : "none",
+                              transition: "transform 0.15s",
+                            }}
                           >
-                            ✕
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  </>
+                            <IconAbajo color={T.inkDim} />
+                          </span>
+                        </button>
+                        {mostrarQuitarEquipo && (
+                          <>
+                            <p className="text-xs mb-2 mt-2" style={{ color: T.inkDim }}>
+                              ¿Se anotó tarde un equipo más? Agregalo acá — el cuadro se rearma con todos.
+                            </p>
+                            <div className="flex gap-2 mb-4">
+                              <input
+                                value={nombreNuevoEquipo}
+                                onChange={(e) => setNombreNuevoEquipo(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    agregarEquipoAlTorneo(nombreNuevoEquipo);
+                                  }
+                                }}
+                                placeholder="Nombre del equipo nuevo"
+                                className="flex-1 px-3 py-2 rounded-xl text-sm"
+                                style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+                              />
+                              <button
+                                onClick={() => agregarEquipoAlTorneo(nombreNuevoEquipo)}
+                                className="px-4 py-2 rounded-xl font-bold text-sm"
+                                style={{ background: T.gold, color: T.ink }}
+                              >
+                                + Agregar
+                              </button>
+                            </div>
+
+                            <p className="text-xs mb-2" style={{ color: T.inkDim }}>
+                              ¿Perdió un desempate, se bajó, etc.? Sacalo — el cuadro se rearma solo con los que queden.
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {teams.map((t) => (
+                                <span
+                                  key={t.id}
+                                  className="text-xs pl-3 pr-1.5 py-1.5 rounded-full font-semibold flex items-center gap-1.5"
+                                  style={{ background: T.panel, color: T.ink }}
+                                >
+                                  {t.name}
+                                  <button
+                                    onClick={() => quitarEquipoDelTorneo(t.id)}
+                                    className="w-5 h-5 rounded-full flex items-center justify-center"
+                                    style={{ background: T.redDim, color: "#FFFFFF" }}
+                                    title="Sacar del torneo"
+                                  >
+                                    ✕
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-
-            {tournament.es_prueba && !tournament.champion_id && (
-              <button
-                onClick={simularTorneoCompleto}
-                disabled={simulando}
-                className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-60"
-                style={{ background: T.panelLight, color: T.redDim, border: `1px solid ${T.line}` }}
-              >
-                {simulando ? "Simulando…" : "Simular resultados al azar (solo para test)"}
-              </button>
-            )}
-
-            {tournament.es_prueba && (
-              <button
-                onClick={eliminarTorneoPrueba}
-                className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{ background: "transparent", color: T.redDim, border: `1px solid ${T.redDim}` }}
-              >
-                Eliminar torneo de prueba
-              </button>
             )}
 
             <div className="flex rounded-xl p-0.5 gap-0.5 mb-4" style={{ background: T.panelLight }}>
@@ -1772,8 +1829,8 @@ function FaseDeGruposPanel({
             style={{ color: T.gold }}
           >
             <span>Equipos ({teams.length})</span>
-            <span className="text-xs" style={{ color: T.inkDim }}>
-              {mostrarEquipos ? "Ocultar ▲" : "Mostrar ▼"}
+            <span style={{ transform: mostrarEquipos ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+              <IconAbajo color={T.inkDim} />
             </span>
           </button>
           {mostrarEquipos && (

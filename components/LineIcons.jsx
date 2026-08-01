@@ -161,3 +161,20 @@ export function IconBasura({ color, size = 14 }) {
     </svg>
   );
 }
+export function IconPuntos({ color, size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <circle cx="12" cy="5" r="1.8" />
+      <circle cx="12" cy="12" r="1.8" />
+      <circle cx="12" cy="19" r="1.8" />
+    </svg>
+  );
+}
+export function IconCopiar({ color, size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <rect x="8" y="8" width="12" height="13" rx="2" stroke={color} strokeWidth="1.6" />
+      <path d="M5 15V5a2 2 0 012-2h9" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
