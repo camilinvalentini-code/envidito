@@ -47,6 +47,7 @@ export default function AdminPage({ params }) {
   const [formatoElegido, setFormatoElegido] = useState("directa"); // "directa" | "grupos"
   const [cantidadGrupos, setCantidadGrupos] = useState(4);
   const [clasificanPorGrupo, setClasificanPorGrupo] = useState(2);
+  const [oroHasta, setOroHasta] = useState(2); // de los que clasifican, cuántos van a la Copa de Oro (el resto, a Plata)
 
   useEffect(() => {
     if (typeof window !== "undefined") setOrigin(window.location.origin);
@@ -246,16 +247,17 @@ export default function AdminPage({ params }) {
   }
 
   async function cerrarFaseDeGrupos() {
-    if (
-      !window.confirm(
-        `¿Cerrar la fase de grupos? Clasifican los primeros ${clasificanPorGrupo} de cada grupo y se arma el cuadro con ellos.`
-      )
-    )
-      return;
+    const oroHastaFinal = Math.min(oroHasta, clasificanPorGrupo);
+    const hayPlata = oroHastaFinal < clasificanPorGrupo;
+    const mensaje = hayPlata
+      ? `¿Cerrar la fase de grupos? Clasifican los primeros ${clasificanPorGrupo} de cada grupo: del 1° al ${oroHastaFinal}° van a la Copa de Oro, y del ${oroHastaFinal + 1}° al ${clasificanPorGrupo}° van a la Copa de Plata.`
+      : `¿Cerrar la fase de grupos? Clasifican los primeros ${clasificanPorGrupo} de cada grupo y se arma el cuadro con ellos.`;
+    if (!window.confirm(mensaje)) return;
     setError("");
     const { error: err } = await supabase.rpc("cerrar_fase_grupos_simple", {
       p_tournament_id: id,
       p_top_n: clasificanPorGrupo,
+      p_oro_hasta: oroHastaFinal,
     });
     if (err) {
       setError("No se pudo cerrar la fase de grupos. Probá de nuevo.");
@@ -952,6 +954,8 @@ export default function AdminPage({ params }) {
             onForzarGanador={forzarGanador}
             clasificanPorGrupo={clasificanPorGrupo}
             setClasificanPorGrupo={setClasificanPorGrupo}
+            oroHasta={oroHasta}
+            setOroHasta={setOroHasta}
             onCerrarFase={cerrarFaseDeGrupos}
             error={error}
             origin={origin}
@@ -1537,6 +1541,8 @@ function FaseDeGruposPanel({
   onForzarGanador,
   clasificanPorGrupo,
   setClasificanPorGrupo,
+  oroHasta,
+  setOroHasta,
   onCerrarFase,
   error,
   origin,
@@ -2090,23 +2096,55 @@ function FaseDeGruposPanel({
             <p className="text-sm mb-3" style={{ color: T.ink }}>
               Todos los partidos de grupos están jugados. ¿Cuántos clasifican de cada grupo?
             </p>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2 mb-3">
               <input
                 type="number"
                 min={1}
                 value={clasificanPorGrupo}
-                onChange={(e) => setClasificanPorGrupo(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                onChange={(e) => {
+                  const v = Math.max(1, parseInt(e.target.value, 10) || 1);
+                  setClasificanPorGrupo(v);
+                  if (oroHasta > v) setOroHasta(v);
+                }}
                 className="w-20 px-3 py-2 rounded-xl text-sm text-center"
                 style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
               />
-              <button
-                onClick={onCerrarFase}
-                className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
-              >
-                Cerrar fase de grupos y armar cuadro
-              </button>
+              <span className="text-xs" style={{ color: T.inkDim }}>
+                clasifican por grupo
+              </span>
             </div>
+
+            {clasificanPorGrupo > 1 && (
+              <div className="mb-4">
+                <label className="text-xs block mb-1.5" style={{ color: T.inkDim }}>
+                  ¿Cuántos de esos van a la Copa de Oro? (el resto arma la Copa de Plata)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={clasificanPorGrupo}
+                  value={oroHasta}
+                  onChange={(e) =>
+                    setOroHasta(Math.min(clasificanPorGrupo, Math.max(1, parseInt(e.target.value, 10) || 1)))
+                  }
+                  className="w-20 px-3 py-2 rounded-xl text-sm text-center"
+                  style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                />
+                <p className="text-xs mt-1.5" style={{ color: T.inkDim }}>
+                  {oroHasta < clasificanPorGrupo
+                    ? `1° a ${oroHasta}° → Copa de Oro. ${oroHasta + 1}° a ${clasificanPorGrupo}° → Copa de Plata.`
+                    : "Todos los clasificados van a un solo cuadro (sin Copa de Plata)."}
+                </p>
+              </div>
+            )}
+
+            <button
+              onClick={onCerrarFase}
+              className="w-full py-2.5 rounded-xl font-bold text-sm transition-all duration-200 hover:scale-105 active:scale-95"
+              style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
+            >
+              Cerrar fase de grupos y armar cuadro
+            </button>
           </div>
         ) : (
           <p className="text-xs text-center" style={{ color: T.inkDim }}>
