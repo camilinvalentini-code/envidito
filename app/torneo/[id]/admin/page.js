@@ -8,7 +8,7 @@ import { supabase } from "../../../../lib/supabaseClient";
 import TeamList from "../../../../components/TeamList";
 import BracketDisplay from "../../../../components/BracketDisplay";
 import ThemeToggleButton from "../../../../components/ThemeToggleButton";
-import { IconAtras, IconAbajo, IconPuntos, IconCopiar } from "../../../../components/LineIcons";
+import { IconAtras, IconAbajo, IconPuntos, IconCopiar, IconWhatsApp } from "../../../../components/LineIcons";
 import { fraseCampeonAlAzar } from "../../../../lib/champFrases";
 import { roundLabel } from "../../../../lib/bracket";
 
@@ -41,7 +41,8 @@ export default function AdminPage({ params }) {
   const [busquedaEquipos, setBusquedaEquipos] = useState("");
   const [mostrarQuitarEquipo, setMostrarQuitarEquipo] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const [sorteoAjustesAbierto, setSorteoAjustesAbierto] = useState(true);
+  const [sorteoAjustesAbierto, setSorteoAjustesAbierto] = useState(false);
+  const [modoPruebaAbierto, setModoPruebaAbierto] = useState(false);
   const [nombreNuevoEquipo, setNombreNuevoEquipo] = useState("");
   const [formatoElegido, setFormatoElegido] = useState("directa"); // "directa" | "grupos"
   const [cantidadGrupos, setCantidadGrupos] = useState(4);
@@ -662,111 +663,202 @@ export default function AdminPage({ params }) {
     await marcarAvisados(matches);
   }
 
+  const badgeCerrado = tournament.cerrado && !tournament.champion_id;
+  const infoLinea = [tournament.ubicacion, tournament.fecha, tournament.categoria].filter(Boolean).join(" · ");
+
+  const kebab = tournament.es_prueba && (
+    <div className="relative">
+      <button
+        onClick={() => setMenuAbierto((v) => !v)}
+        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+        style={{ background: T.panel, border: `1px solid ${T.line}` }}
+        title="Más opciones"
+      >
+        <IconPuntos color={T.ink} />
+      </button>
+      {menuAbierto && (
+        <div
+          className="absolute right-0 mt-2 w-56 rounded-2xl border shadow-lg z-30 p-1.5"
+          style={{ background: T.panel, borderColor: T.line }}
+        >
+          <button
+            onClick={() => {
+              setMenuAbierto(false);
+              setModoPruebaAbierto((v) => !v);
+            }}
+            className="w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl"
+            style={{ color: T.inkDim }}
+          >
+            Herramientas de prueba
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  const editarDatosBtn = (
+    <button
+      onClick={() => setEditandoInfo((v) => !v)}
+      className="h-10 px-4 text-xs font-bold rounded-full flex-shrink-0 whitespace-nowrap"
+      style={{ background: "transparent", border: `1px solid ${T.line}`, color: T.ink }}
+    >
+      Editar datos
+    </button>
+  );
+  const reabrirFinalizarBtn = !tournament.champion_id && (
+    <button
+      onClick={tournament.cerrado ? reabrirTorneo : cerrarTorneo}
+      className="h-10 px-4 text-xs font-bold rounded-full flex-shrink-0 whitespace-nowrap flex items-center gap-1.5"
+      style={{ background: "transparent", border: `1px solid ${T.line}`, color: T.ink }}
+    >
+      {tournament.cerrado ? "↺ Reabrir torneo" : "Finalizar torneo"}
+    </button>
+  );
+
   return (
     <div className="transition-colors duration-500" style={{ background: T.bg }}>
-      <div className="max-w-3xl lg:max-w-[92vw] xl:max-w-[1500px] mx-auto px-4 py-6">
-        <div className="flex justify-between items-center mb-4">
-          <Link
-            href="/organizador/panel"
-            className="w-8 h-8 rounded-xl flex items-center justify-center"
-            style={{ background: T.panel, border: `1px solid ${T.line}` }}
-          >
-            <IconAtras color={T.ink} />
-          </Link>
-          <div className="flex items-center gap-2">
-            <ThemeToggleButton />
-            {tournament.es_prueba && (
-              <div className="relative">
-                <button
-                  onClick={() => setMenuAbierto((v) => !v)}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center"
-                  style={{ background: T.panel, border: `1px solid ${T.line}` }}
-                  title="Más opciones"
-                >
-                  <IconPuntos color={T.ink} />
-                </button>
-                {menuAbierto && (
+      <div className="max-w-[430px] lg:max-w-[1240px] mx-auto px-4 lg:px-8 py-[18px] lg:py-7">
+        {/* ── Header móvil ── */}
+        <div className="lg:hidden">
+          <div className="flex justify-between items-center mb-5">
+            <Link
+              href="/organizador/panel"
+              className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: T.panel, border: `1px solid ${T.line}` }}
+            >
+              <IconAtras color={T.ink} />
+            </Link>
+            <div className="flex items-center gap-2">
+              <ThemeToggleButton />
+              {kebab}
+            </div>
+          </div>
+
+          <div className="text-center mb-3.5">
+            <h1 className="font-bold text-xl mb-1" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
+              {tournament.nombre || "Torneo sin nombre"}
+            </h1>
+            <div className="text-xs mb-2" style={{ color: T.inkDim }}>
+              Panel del organizador
+            </div>
+            {badgeCerrado && (
+              <div
+                className="inline-block text-[11px] font-extrabold px-2.5 py-1 rounded-full mb-1.5"
+                style={{ background: "rgba(232,163,155,0.12)", color: T.redDim }}
+              >
+                Cerrado sin campeón
+              </div>
+            )}
+            <div className="text-xs" style={{ color: T.inkDim }}>
+              {infoLinea}
+              {tournament.encargado && <> · Organiza: {tournament.encargado}</>}
+            </div>
+          </div>
+
+          <div className="flex justify-center gap-2 mb-4.5">
+            {editarDatosBtn}
+            {reabrirFinalizarBtn}
+          </div>
+
+          {origin && (
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block text-center py-4 rounded-2xl font-extrabold text-sm mb-5"
+              style={{
+                background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`,
+                color: T.bg,
+                boxShadow: "0 8px 20px rgba(227,181,99,0.2)",
+              }}
+            >
+              Seguí el torneo en vivo acá →
+            </a>
+          )}
+        </div>
+
+        {/* ── Header desktop ── */}
+        <div className="hidden lg:flex items-center justify-between mb-7">
+          <div className="flex items-center gap-4">
+            <Link
+              href="/organizador/panel"
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: T.panel, border: `1px solid ${T.line}` }}
+            >
+              <IconAtras color={T.ink} />
+            </Link>
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h1 className="font-bold text-2xl" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
+                  {tournament.nombre || "Torneo sin nombre"}
+                </h1>
+                {badgeCerrado && (
                   <div
-                    className="absolute right-0 mt-2 w-64 rounded-2xl border shadow-lg z-20 overflow-hidden"
-                    style={{ background: T.panel, borderColor: T.line }}
+                    className="text-[11px] font-extrabold px-2.5 py-1 rounded-full"
+                    style={{ background: "rgba(232,163,155,0.12)", color: T.redDim }}
                   >
-                    {!tournament.champion_id && (
-                      <button
-                        onClick={() => {
-                          setMenuAbierto(false);
-                          simularTorneoCompleto();
-                        }}
-                        disabled={simulando}
-                        className="w-full text-left px-4 py-3 text-sm font-bold disabled:opacity-60"
-                        style={{ color: T.redDim }}
-                      >
-                        {simulando ? "Simulando…" : "Simular resultados al azar (solo para test)"}
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        setMenuAbierto(false);
-                        eliminarTorneoPrueba();
-                      }}
-                      className="w-full text-left px-4 py-3 text-sm font-bold"
-                      style={{ color: T.redDim, borderTop: `1px solid ${T.line}` }}
-                    >
-                      Eliminar torneo de prueba
-                    </button>
+                    Cerrado sin campeón
                   </div>
                 )}
               </div>
+              <div className="text-[13px] mt-1" style={{ color: T.inkDim }}>
+                {infoLinea} · Panel del organizador
+                {tournament.encargado && <> · Organiza: {tournament.encargado}</>}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5">
+            {editarDatosBtn}
+            {reabrirFinalizarBtn}
+            <ThemeToggleButton />
+            {kebab}
+            {origin && (
+              <a
+                href={publicUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="h-10 px-5 flex items-center rounded-xl font-extrabold text-sm whitespace-nowrap"
+                style={{
+                  background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`,
+                  color: T.bg,
+                  boxShadow: "0 6px 16px rgba(227,181,99,0.2)",
+                }}
+              >
+                Seguí el torneo en vivo →
+              </a>
             )}
           </div>
         </div>
-        <h1 className="text-2xl font-black text-center" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
-          {tournament.nombre || "Torneo sin nombre"}
-        </h1>
-        <p className="text-center text-xs mb-1" style={{ color: T.inkDim }}>
-          Panel del organizador
-        </p>
-        {tournament.cerrado && !tournament.champion_id && (
-          <p className="text-center mb-1">
-            <span
-              className="inline-block text-xs font-bold px-3 py-1 rounded-full"
-              style={{ background: "rgba(214,102,102,0.15)", color: T.redDim }}
-            >
-              Cerrado sin campeón
-            </span>
-          </p>
-        )}
-        <p className="text-center text-xs mb-3" style={{ color: T.inkDim }}>
-          {[tournament.ubicacion, tournament.fecha, tournament.categoria].filter(Boolean).join(" · ")}
-          {tournament.encargado && <> · Organiza: {tournament.encargado}</>}
-        </p>
 
-        <div className="flex flex-wrap items-center justify-center gap-2 mb-5">
-          <button
-            onClick={() => setEditandoInfo((v) => !v)}
-            className="text-xs font-bold px-3 py-1.5 rounded-full"
-            style={{ background: T.panelLight, color: T.inkDim }}
+        {modoPruebaAbierto && tournament.es_prueba && (
+          <div
+            className="rounded-2xl p-3.5 mb-5"
+            style={{ background: "rgba(232,163,155,0.06)", border: "1px dashed #5A3B37" }}
           >
-            Editar datos
-          </button>
-          {!tournament.champion_id &&
-            (tournament.cerrado ? (
+            <div className="text-[10.5px] font-extrabold uppercase tracking-wide mb-2" style={{ color: T.inkDim }}>
+              Modo prueba
+            </div>
+            <div className="flex flex-col gap-2">
+              {!tournament.champion_id && (
+                <button
+                  onClick={simularTorneoCompleto}
+                  disabled={simulando}
+                  className="text-left text-xs font-semibold disabled:opacity-60"
+                  style={{ color: "#C9A46B" }}
+                >
+                  {simulando ? "Simulando…" : "Simular resultados al azar"}
+                </button>
+              )}
               <button
-                onClick={reabrirTorneo}
-                className="text-xs font-bold px-3 py-1.5 rounded-full"
-                style={{ background: T.panelLight, color: T.goldBright }}
+                onClick={eliminarTorneoPrueba}
+                className="text-left text-xs font-semibold"
+                style={{ color: T.redDim }}
               >
-                ↺ Reabrir torneo
+                Eliminar torneo de prueba
               </button>
-            ) : (
-              <button
-                onClick={cerrarTorneo}
-                className="text-xs font-bold px-3 py-1.5 rounded-full"
-                style={{ background: T.panelLight, color: T.inkDim }}
-              >
-                Finalizar torneo
-              </button>
-            ))}
-        </div>
+            </div>
+          </div>
+        )}
 
         {editandoInfo && (
           <div
@@ -821,20 +913,6 @@ export default function AdminPage({ params }) {
             </div>
           </div>
         )}
-        {origin && (
-          <div className="text-center mb-5">
-            <a
-              href={publicUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-block text-sm font-bold px-4 py-2 rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
-              style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
-            >
-              Seguí el torneo en vivo acá →
-            </a>
-          </div>
-        )}
-
         {tournament.champion_id && (
           <div
             className="rounded-3xl p-5 mb-5 text-center border-2 shadow-md"
@@ -1068,8 +1146,9 @@ export default function AdminPage({ params }) {
             </div>
           </>
         ) : (
-          <>
-            <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+          <div className="lg:grid lg:grid-cols-[300px_1fr] lg:gap-6 lg:items-start">
+          <div className="flex flex-col gap-4">
+            <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
               <button
                 onClick={() => setMostrarEquipos((v) => !v)}
                 className="w-full flex items-center justify-between font-bold"
@@ -1102,19 +1181,20 @@ export default function AdminPage({ params }) {
             {(() => {
               const hayPendientes = crucesPendientes().length > 0;
               return (
-                <div className="flex gap-2 mb-4">
+                <div className="flex gap-2">
                   <button
                     onClick={compartirCruces}
-                    className="flex-1 py-2.5 rounded-2xl font-bold text-sm transition-all duration-200 hover:scale-105 active:scale-95"
-                    style={{ background: hayPendientes ? "#81C784" : T.panelLight, color: hayPendientes ? "#1F2937" : T.inkDim }}
+                    className="flex-1 py-2.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-105 active:scale-95"
+                    style={{ background: hayPendientes ? "#81C784" : T.panelLight, color: hayPendientes ? "#1B3A2A" : T.inkDim }}
                   >
-                    📲 {hayPendientes ? "Compartir cruces" : "Sin cruces nuevos"}
+                    {hayPendientes && <IconWhatsApp color="#1B3A2A" />}
+                    {hayPendientes ? "Compartir cruces" : "Sin cruces nuevos"}
                   </button>
                   <button
                     onClick={copiarCruces}
                     title="Copiar"
                     className="w-11 flex-shrink-0 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95"
-                    style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                    style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
                   >
                     <IconCopiar color={T.ink} />
                   </button>
@@ -1123,7 +1203,7 @@ export default function AdminPage({ params }) {
             })()}
 
             {(fasesListasParaResortear().length > 0 || sorteoSinJugar()) && (
-              <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+              <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
                 <button
                   onClick={() => setSorteoAjustesAbierto((v) => !v)}
                   className="w-full flex items-center justify-between font-bold mb-1"
@@ -1141,7 +1221,7 @@ export default function AdminPage({ params }) {
                         key={idx}
                         onClick={() => resortearFase(idx)}
                         className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
-                        style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.gold}` }}
+                        style={{ background: "transparent", color: T.goldBright, border: `1px solid ${T.gold}` }}
                       >
                         Resortear {roundLabel(cantidad)} (todavía no se jugó nada ahí)
                       </button>
@@ -1151,27 +1231,22 @@ export default function AdminPage({ params }) {
                       <button
                         onClick={resortear}
                         className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
-                        style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.gold}` }}
+                        style={{ background: "transparent", color: T.goldBright, border: `1px solid ${T.gold}` }}
                       >
                         Resortear (todavía no se jugó nada)
                       </button>
                     )}
 
                     {sorteoSinJugar() && (
-                      <div className="rounded-xl p-3 border" style={{ background: T.panelLight, borderColor: T.line }}>
+                      <div className="rounded-xl p-3 border" style={{ background: T.bg, borderColor: T.line }}>
                         <button
                           onClick={() => setMostrarQuitarEquipo((v) => !v)}
                           className="w-full flex items-center justify-between"
-                          style={{ color: T.gold }}
+                          style={{ color: T.ink }}
                         >
                           <span className="font-bold text-sm">Ajustar equipos antes de sortear</span>
-                          <span
-                            style={{
-                              transform: mostrarQuitarEquipo ? "rotate(180deg)" : "none",
-                              transition: "transform 0.15s",
-                            }}
-                          >
-                            <IconAbajo color={T.inkDim} />
+                          <span className="text-xs font-semibold" style={{ color: T.inkDim }}>
+                            {mostrarQuitarEquipo ? "Ocultar ›" : "Mostrar ›"}
                           </span>
                         </button>
                         {mostrarQuitarEquipo && (
@@ -1232,8 +1307,10 @@ export default function AdminPage({ params }) {
                 )}
               </div>
             )}
+          </div>
 
-            <div className="flex rounded-xl p-0.5 gap-0.5 mb-4" style={{ background: T.panelLight }}>
+          <div className="mt-4 lg:mt-0">
+            <div className="flex rounded-xl p-0.5 gap-0.5 mb-4 lg:max-w-[340px]" style={{ background: T.panelLight }}>
               <button
                 onClick={() => setVista("mesas")}
                 className="flex-1 py-2.5 rounded-lg text-sm font-bold transition-colors duration-200"
@@ -1319,7 +1396,8 @@ export default function AdminPage({ params }) {
                 )}
               </>
             )}
-          </>
+          </div>
+          </div>
         )}
       </div>
     </div>
@@ -2028,99 +2106,107 @@ function MesasPendientes({ matches, teamsById, origin, onDeclareWinner }) {
   }
 
   return (
-    <div>
+    <div className="lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
       {pendientes.length > 0 && (
-        <>
+        <div>
           <button
             onClick={() => setAbiertoPendientes((v) => !v)}
-            className="w-full flex items-center justify-between mb-3"
+            className="w-full flex items-center justify-between mb-2.5 lg:pointer-events-none"
           >
-            <h2 className="font-bold text-sm" style={{ color: T.gold }}>
+            <h2 className="text-xs font-extrabold uppercase tracking-wide" style={{ color: T.inkDim }}>
               Por jugar ({pendientes.length})
             </h2>
-            <span className="text-xs" style={{ color: T.gold }}>
+            <span className="text-xs lg:hidden" style={{ color: T.gold }}>
               {abiertoPendientes ? "▲" : "▼"}
             </span>
           </button>
-          {abiertoPendientes && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-              {pendientes.map((m) => (
-                <div
-                  key={m.id}
-                  className="rounded-2xl border p-3 shadow-sm flex flex-col gap-2"
-                  style={{ background: T.panel, borderColor: T.line }}
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <button
-                      onClick={() => onDeclareWinner(m, m.team1_id)}
-                      className="text-sm font-semibold text-right px-2 py-1.5 rounded-lg transition-colors duration-150 flex-1 truncate"
-                      style={{ color: T.ink }}
-                    >
-                      {teamsById[m.team1_id]?.name}
-                    </button>
-                    <span className="text-xs flex-shrink-0" style={{ color: T.inkDim }}>
-                      vs
-                    </span>
-                    <button
-                      onClick={() => onDeclareWinner(m, m.team2_id)}
-                      className="text-sm font-semibold text-left px-2 py-1.5 rounded-lg transition-colors duration-150 flex-1 truncate"
-                      style={{ color: T.ink }}
-                    >
-                      {teamsById[m.team2_id]?.name}
-                    </button>
-                  </div>
-                  <a
-                    href={`${origin}/partido/${m.match_token}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-1 py-2 rounded-xl font-bold text-sm text-center transition-all duration-200 hover:scale-105 active:scale-95"
-                    style={{
-                      background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`,
-                      color: T.ink,
-                    }}
-                  >
-                    Abrir anotador →
-                  </a>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {jugados.length > 0 && (
-        <>
-          <button
-            onClick={() => setAbiertoJugados((v) => !v)}
-            className="w-full flex items-center justify-between mb-3"
-          >
-            <h2 className="font-bold text-sm" style={{ color: T.gold }}>
-              Ya jugados ({jugados.length})
-            </h2>
-            <span className="text-xs" style={{ color: T.gold }}>
-              {abiertoJugados ? "▲" : "▼"}
-            </span>
-          </button>
-          {abiertoJugados && (
-          <div className="flex flex-col gap-1.5">
-            {jugados.map((m) => (
+          <div className={`${abiertoPendientes ? "flex" : "hidden"} lg:flex flex-col gap-2.5 mb-6 lg:mb-0`}>
+            {pendientes.map((m) => (
               <div
                 key={m.id}
-                className="px-3 py-2 rounded-xl text-sm"
-                style={{ background: T.panelLight, color: T.inkDim }}
+                className="rounded-2xl border p-3.5 shadow-sm flex flex-col gap-2"
+                style={{ background: T.panel, borderColor: T.line }}
               >
-                <span style={{ color: m.winner_id === m.team1_id ? T.goldBright : T.inkDim }}>
-                  {teamsById[m.team1_id]?.name}
-                </span>
-                {" vs "}
-                <span style={{ color: m.winner_id === m.team2_id ? T.goldBright : T.inkDim }}>
-                  {teamsById[m.team2_id]?.name}
-                </span>
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    onClick={() => onDeclareWinner(m, m.team1_id)}
+                    className="text-sm font-semibold text-right px-2 py-1.5 rounded-lg transition-colors duration-150 flex-1 truncate"
+                    style={{ color: T.ink }}
+                  >
+                    {teamsById[m.team1_id]?.name}
+                  </button>
+                  <span className="text-xs flex-shrink-0" style={{ color: T.inkDim }}>
+                    vs
+                  </span>
+                  <button
+                    onClick={() => onDeclareWinner(m, m.team2_id)}
+                    className="text-sm font-semibold text-left px-2 py-1.5 rounded-lg transition-colors duration-150 flex-1 truncate"
+                    style={{ color: T.ink }}
+                  >
+                    {teamsById[m.team2_id]?.name}
+                  </button>
+                </div>
+                <a
+                  href={`${origin}/partido/${m.match_token}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 py-2 rounded-xl font-bold text-sm text-center transition-all duration-200 hover:scale-105 active:scale-95"
+                  style={{
+                    background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`,
+                    color: T.ink,
+                  }}
+                >
+                  Abrir anotador →
+                </a>
               </div>
             ))}
           </div>
-          )}
-        </>
+        </div>
+      )}
+
+      {jugados.length > 0 && (
+        <div>
+          <button
+            onClick={() => setAbiertoJugados((v) => !v)}
+            className="w-full flex items-center justify-between mb-2.5 lg:pointer-events-none"
+          >
+            <h2 className="text-xs font-extrabold uppercase tracking-wide" style={{ color: T.inkDim }}>
+              Ya jugados ({jugados.length})
+            </h2>
+            <span className="text-xs lg:hidden" style={{ color: T.gold }}>
+              {abiertoJugados ? "▲" : "▼"}
+            </span>
+          </button>
+          <div className={`${abiertoJugados ? "flex" : "hidden"} lg:flex flex-col gap-2.5`}>
+            {jugados.map((m) => {
+              const gano1 = m.winner_id === m.team1_id;
+              const gano2 = m.winner_id === m.team2_id;
+              return (
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between gap-2 px-3.5 py-3 rounded-xl border text-sm"
+                  style={{ background: T.bg, borderColor: T.line }}
+                >
+                  <span
+                    className="truncate flex-1"
+                    style={{ color: gano1 ? T.ink : T.inkDim, textDecoration: gano2 ? "line-through" : "none" }}
+                  >
+                    {teamsById[m.team1_id]?.name} <b style={{ color: gano1 ? T.goldBright : T.inkDim }}>{m.score_a ?? 0}</b>
+                  </span>
+                  <span className="text-xs flex-shrink-0" style={{ color: T.inkDim }}>
+                    vs
+                  </span>
+                  <span
+                    className="truncate flex-1 text-right"
+                    style={{ color: gano2 ? T.ink : T.inkDim, textDecoration: gano1 ? "line-through" : "none" }}
+                  >
+                    <b style={{ color: gano2 ? T.goldBright : T.inkDim }}>{m.score_b ?? 0}</b> {teamsById[m.team2_id]?.name}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
     </div>
   );
