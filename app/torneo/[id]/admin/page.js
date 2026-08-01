@@ -1401,6 +1401,7 @@ function FaseDeGruposPanel({
   const hayPendientesGrupos = grupoMatches.some((m) => !m.winner_id);
   const [gruposAbiertos, setGruposAbiertos] = useState({});
   const [crucesAbiertos, setCrucesAbiertos] = useState({});
+  const [verGrupos, setVerGrupos] = useState(false);
 
   function grupoAbierto(num) {
     return gruposAbiertos[num] !== false; // abierto por default
@@ -1462,16 +1463,228 @@ function FaseDeGruposPanel({
     return Object.values(stats).sort((a, b) => b.pg - a.pg || b.pf - b.pc - (a.pf - a.pc));
   }
 
+  function textoCrucesCopa(bracketMatches, tituloCopa) {
+    const pendientes = bracketMatches.filter((m) => !m.bye && !m.winner_id && m.team1_id && m.team2_id);
+    if (pendientes.length === 0) return null;
+    const numeroPorEquipo = {};
+    teams.forEach((t, i) => (numeroPorEquipo[t.id] = i + 1));
+    const conNumero = (teamId) => {
+      const nombre = teamsById[teamId]?.name || "?";
+      const num = numeroPorEquipo[teamId];
+      return num ? `${num} (${nombre})` : nombre;
+    };
+    const porRonda = {};
+    pendientes.forEach((m) => {
+      porRonda[m.round_index] = porRonda[m.round_index] || [];
+      porRonda[m.round_index].push(m);
+    });
+    const bloques = Object.keys(porRonda)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map((idx) => {
+        const totalRonda = bracketMatches.filter((m) => m.round_index === idx).length;
+        const nombreRonda = roundLabel(totalRonda);
+        const lineas = porRonda[idx].map((m) => `${conNumero(m.team1_id)} vs ${conNumero(m.team2_id)}`);
+        return `📋 ${nombreRonda}\n${lineas.join("\n")}`;
+      });
+    const fecha = tournament.fecha ? ` — ${tournament.fecha}` : "";
+    const publicUrl = `${origin}/torneo/${tournament.id}`;
+    const titulo = tituloCopa ? ` — ${tituloCopa}` : "";
+    return `⚔️ ${tournament.nombre}${titulo}${fecha}\n\n${bloques.join("\n\n")}\n\n${publicUrl}`;
+  }
+
+  async function compartirCrucesCopa(bracketMatches, tituloCopa) {
+    const texto = textoCrucesCopa(bracketMatches, tituloCopa);
+    if (!texto) {
+      alert("No hay cruces pendientes en esta copa todavía.");
+      return;
+    }
+    if (navigator.share) {
+      try {
+        await navigator.share({ text: texto });
+      } catch (e) {
+        return;
+      }
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank");
+    }
+  }
+
+  function renderTablasDeGrupos() {
+    return (
+      <>
+        {tournament.es_prueba && hayPendientesGrupos && !tournament.copas_generadas && (
+          <button
+            onClick={onSimular}
+            disabled={simulando}
+            className="w-full mb-4 py-2.5 rounded-2xl font-bold text-sm disabled:opacity-60"
+            style={{ background: T.panelLight, color: T.goldBright, border: `1px dashed ${T.gold}` }}
+          >
+            {simulando ? "Simulando…" : "Simular fase de grupos al azar (solo para test)"}
+          </button>
+        )}
+        {numerosGrupos.map((num) => {
+          const tabla = tablaDeGrupo(num);
+          const partidosGrupo = grupoMatches
+            .filter((m) => m.grupo === num)
+            .sort((a, b) => a.round_index - b.round_index || a.match_index - b.match_index);
+          const abierto = grupoAbierto(num);
+          const pendientesGrupo = partidosGrupo.filter((m) => !m.winner_id);
+          return (
+            <div key={num} className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+              <button onClick={() => toggleGrupo(num)} className="w-full flex items-center justify-between mb-3">
+                <h3 className="font-bold" style={{ color: T.gold }}>
+                  Grupo {num}
+                </h3>
+                <span style={{ transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+                  <IconAbajo color={T.inkDim} />
+                </span>
+              </button>
+
+              {abierto && (
+                <>
+                  <div className="rounded-xl border overflow-hidden mb-3" style={{ borderColor: T.line }}>
+                    <div
+                      className="grid gap-1 px-2 py-1.5 text-[10px] font-extrabold uppercase"
+                      style={{ gridTemplateColumns: "1fr 40px 16px 24px 24px 30px", background: T.panelLight, color: T.inkDim }}
+                    >
+                      <div>Equipo</div>
+                      <div className="text-center">Código</div>
+                      <div />
+                      <div className="text-center">PJ</div>
+                      <div className="text-center">PG</div>
+                      <div className="text-center">DIF</div>
+                    </div>
+                    {tabla.map((row) => (
+                      <div
+                        key={row.team.id}
+                        className="grid gap-1 px-2 py-1.5 text-xs items-center"
+                        style={{ gridTemplateColumns: "1fr 40px 16px 24px 24px 30px", borderTop: `1px solid ${T.line}`, color: T.ink }}
+                      >
+                        <div className="truncate font-semibold">{row.team.name}</div>
+                        <div className="text-center" style={{ color: T.inkDim }}>
+                          {row.team.codigo}
+                        </div>
+                        <div />
+                        <div className="text-center">{row.pj}</div>
+                        <div className="text-center">{row.pg}</div>
+                        <div className="text-center">{row.pf - row.pc}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center justify-between mb-2">
+                    <button onClick={() => toggleCruces(num)} className="flex items-center gap-1.5">
+                      <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: T.inkDim }}>
+                        Cruces
+                      </span>
+                      <span
+                        style={{
+                          transform: crucesAbierto(num) ? "rotate(180deg)" : "none",
+                          transition: "transform 0.15s",
+                        }}
+                      >
+                        <IconAbajo color={T.inkDim} size={10} />
+                      </span>
+                    </button>
+                    {pendientesGrupo.length > 0 && (
+                      <button
+                        onClick={() => compartirCrucesGrupo(num, partidosGrupo)}
+                        className="text-xs font-bold px-3 py-1.5 rounded-lg"
+                        style={{ background: "#81C784", color: "#1B3A2A" }}
+                      >
+                        Compartir
+                      </button>
+                    )}
+                  </div>
+
+                  {crucesAbierto(num) && (
+                    <div className="flex flex-col gap-1.5">
+                      {partidosGrupo.map((m) => (
+                        <div key={m.id} className="text-xs px-2.5 py-2.5 rounded-lg" style={{ background: T.panelLight }}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1 min-w-0 flex-1">
+                              <span className="truncate" style={{ color: T.ink }}>
+                                {teamsById[m.team1_id]?.name}
+                              </span>
+                              <b className="flex-shrink-0" style={{ color: T.inkDim, fontSize: 10 }}>
+                                vs
+                              </b>
+                              <span className="truncate" style={{ color: T.ink }}>
+                                {teamsById[m.team2_id]?.name}
+                              </span>
+                            </div>
+                            {m.winner_id && (
+                              <span className="font-bold flex-shrink-0" style={{ color: T.goldBright }}>
+                                {m.score_a}-{m.score_b}
+                              </span>
+                            )}
+                          </div>
+                          {!m.winner_id &&
+                            !tournament.copas_generadas &&
+                            (formResultadoId === m.id ? (
+                              <ResultadoInlineGrupo
+                                T={T}
+                                match={m}
+                                nombreLocal={teamsById[m.team1_id]?.name}
+                                nombreVisitante={teamsById[m.team2_id]?.name}
+                                puntosMax={tournament.puntos_max || 30}
+                                onCancelar={() => setFormResultadoId(null)}
+                                onGuardado={() => {
+                                  setFormResultadoId(null);
+                                  onRecargar();
+                                }}
+                              />
+                            ) : (
+                              <div className="flex gap-1.5 mt-2">
+                                <a
+                                  href={`/partido/${m.match_token}`}
+                                  className="flex-1 text-center font-bold py-2 rounded-lg"
+                                  style={{ background: T.panel, color: T.goldBright, border: `1px solid ${T.line}` }}
+                                >
+                                  Abrir anotador
+                                </a>
+                                <button
+                                  onClick={() => setFormResultadoId(m.id)}
+                                  className="flex-1 text-center font-bold py-2 rounded-lg"
+                                  style={{ background: "transparent", color: T.inkDim, border: `1px solid ${T.line}` }}
+                                >
+                                  Cargar a mano
+                                </button>
+                              </div>
+                            ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })}
+      </>
+    );
+  }
+
   if (tournament.copas_generadas) {
     const oro = matches.filter((m) => m.bracket === "oro");
     const plata = matches.filter((m) => m.bracket === "plata");
     return (
       <div>
         <div className="rounded-2xl p-4 mb-4 border shadow-sm text-center" style={{ background: T.panel, borderColor: T.line }}>
-          <p className="text-sm font-bold" style={{ color: T.gold }}>
+          <p className="text-sm font-bold mb-2" style={{ color: T.gold }}>
             Fase de grupos cerrada — cuadro armado con los clasificados.
           </p>
+          <button
+            onClick={() => setVerGrupos((v) => !v)}
+            className="text-xs font-bold px-3 py-1.5 rounded-lg"
+            style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+          >
+            {verGrupos ? "Ocultar fase de grupos ▲" : "Ver fase de grupos ▼"}
+          </button>
         </div>
+
+        {verGrupos && <div className="mb-4">{renderTablasDeGrupos()}</div>}
 
         {tournament.campeon_oro_id && (
           <div
@@ -1487,9 +1700,20 @@ function FaseDeGruposPanel({
           </div>
         )}
 
-        <h2 className="font-bold mb-3" style={{ color: T.gold }}>
-          {plata.length > 0 ? "Copa de Oro" : "Cuadro"} — tocá un equipo para forzar el resultado
-        </h2>
+        <div className="flex items-center justify-between mb-3 gap-2">
+          <h2 className="font-bold" style={{ color: T.gold }}>
+            {plata.length > 0 ? "Copa de Oro" : "Cuadro"} — tocá un equipo para forzar el resultado
+          </h2>
+          {oro.some((m) => !m.bye && !m.winner_id && m.team1_id && m.team2_id) && (
+            <button
+              onClick={() => compartirCrucesCopa(oro, plata.length > 0 ? "Copa de Oro" : null)}
+              className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg"
+              style={{ background: "#81C784", color: "#1B3A2A" }}
+            >
+              📲 Compartir
+            </button>
+          )}
+        </div>
         <BracketDisplayAdmin matches={oro} teamsById={teamsById} origin={origin} onDeclareWinner={onForzarGanador} onReabrir={onReabrir} />
 
         {plata.length > 0 && (
@@ -1507,9 +1731,20 @@ function FaseDeGruposPanel({
                 </div>
               </div>
             )}
-            <h2 className="font-bold mb-3" style={{ color: T.gold }}>
-              Copa de Plata — tocá un equipo para forzar el resultado
-            </h2>
+            <div className="flex items-center justify-between mb-3 gap-2">
+              <h2 className="font-bold" style={{ color: T.gold }}>
+                Copa de Plata — tocá un equipo para forzar el resultado
+              </h2>
+              {plata.some((m) => !m.bye && !m.winner_id && m.team1_id && m.team2_id) && (
+                <button
+                  onClick={() => compartirCrucesCopa(plata, "Copa de Plata")}
+                  className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg"
+                  style={{ background: "#81C784", color: "#1B3A2A" }}
+                >
+                  📲 Compartir
+                </button>
+              )}
+            </div>
             <BracketDisplayAdmin matches={plata} teamsById={teamsById} origin={origin} onDeclareWinner={onForzarGanador} onReabrir={onReabrir} />
           </div>
         )}
@@ -1519,154 +1754,7 @@ function FaseDeGruposPanel({
 
   return (
     <div>
-      {tournament.es_prueba && hayPendientesGrupos && (
-        <button
-          onClick={onSimular}
-          disabled={simulando}
-          className="w-full mb-4 py-2.5 rounded-2xl font-bold text-sm disabled:opacity-60"
-          style={{ background: T.panelLight, color: T.goldBright, border: `1px dashed ${T.gold}` }}
-        >
-          {simulando ? "Simulando…" : "Simular fase de grupos al azar (solo para test)"}
-        </button>
-      )}
-      {numerosGrupos.map((num) => {
-        const tabla = tablaDeGrupo(num);
-        const partidosGrupo = grupoMatches
-          .filter((m) => m.grupo === num)
-          .sort((a, b) => a.round_index - b.round_index || a.match_index - b.match_index);
-        const abierto = grupoAbierto(num);
-        const pendientesGrupo = partidosGrupo.filter((m) => !m.winner_id);
-        return (
-          <div key={num} className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-            <button onClick={() => toggleGrupo(num)} className="w-full flex items-center justify-between mb-3">
-              <h3 className="font-bold" style={{ color: T.gold }}>
-                Grupo {num}
-              </h3>
-              <span style={{ transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
-                <IconAbajo color={T.inkDim} />
-              </span>
-            </button>
-
-            {abierto && (
-              <>
-                <div className="rounded-xl border overflow-hidden mb-3" style={{ borderColor: T.line }}>
-                  <div
-                    className="grid gap-1 px-2 py-1.5 text-[10px] font-extrabold uppercase"
-                    style={{ gridTemplateColumns: "1fr 40px 16px 24px 24px 30px", background: T.panelLight, color: T.inkDim }}
-                  >
-                    <div>Equipo</div>
-                    <div className="text-center">Código</div>
-                    <div />
-                    <div className="text-center">PJ</div>
-                    <div className="text-center">PG</div>
-                    <div className="text-center">DIF</div>
-                  </div>
-                  {tabla.map((row) => (
-                    <div
-                      key={row.team.id}
-                      className="grid gap-1 px-2 py-1.5 text-xs items-center"
-                      style={{ gridTemplateColumns: "1fr 40px 16px 24px 24px 30px", borderTop: `1px solid ${T.line}`, color: T.ink }}
-                    >
-                      <div className="truncate font-semibold">{row.team.name}</div>
-                      <div className="text-center" style={{ color: T.inkDim }}>
-                        {row.team.codigo}
-                      </div>
-                      <div />
-                      <div className="text-center">{row.pj}</div>
-                      <div className="text-center">{row.pg}</div>
-                      <div className="text-center">{row.pf - row.pc}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between mb-2">
-                  <button onClick={() => toggleCruces(num)} className="flex items-center gap-1.5">
-                    <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: T.inkDim }}>
-                      Cruces
-                    </span>
-                    <span
-                      style={{
-                        transform: crucesAbierto(num) ? "rotate(180deg)" : "none",
-                        transition: "transform 0.15s",
-                      }}
-                    >
-                      <IconAbajo color={T.inkDim} size={10} />
-                    </span>
-                  </button>
-                  {pendientesGrupo.length > 0 && (
-                    <button
-                      onClick={() => compartirCrucesGrupo(num, partidosGrupo)}
-                      className="text-xs font-bold px-3 py-1.5 rounded-lg"
-                      style={{ background: "#81C784", color: "#1B3A2A" }}
-                    >
-                      Compartir
-                    </button>
-                  )}
-                </div>
-
-                {crucesAbierto(num) && (
-                <div className="flex flex-col gap-1.5">
-                  {partidosGrupo.map((m) => (
-                    <div key={m.id} className="text-xs px-2.5 py-2.5 rounded-lg" style={{ background: T.panelLight }}>
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1 min-w-0 flex-1">
-                          <span className="truncate" style={{ color: T.ink }}>
-                            {teamsById[m.team1_id]?.name}
-                          </span>
-                          <b className="flex-shrink-0" style={{ color: T.inkDim, fontSize: 10 }}>
-                            vs
-                          </b>
-                          <span className="truncate" style={{ color: T.ink }}>
-                            {teamsById[m.team2_id]?.name}
-                          </span>
-                        </div>
-                        {m.winner_id && (
-                          <span className="font-bold flex-shrink-0" style={{ color: T.goldBright }}>
-                            {m.score_a}-{m.score_b}
-                          </span>
-                        )}
-                      </div>
-                      {!m.winner_id &&
-                        (formResultadoId === m.id ? (
-                          <ResultadoInlineGrupo
-                            T={T}
-                            match={m}
-                            nombreLocal={teamsById[m.team1_id]?.name}
-                            nombreVisitante={teamsById[m.team2_id]?.name}
-                            puntosMax={tournament.puntos_max || 30}
-                            onCancelar={() => setFormResultadoId(null)}
-                            onGuardado={() => {
-                              setFormResultadoId(null);
-                              onRecargar();
-                            }}
-                          />
-                        ) : (
-                          <div className="flex gap-1.5 mt-2">
-                            <a
-                              href={`/partido/${m.match_token}`}
-                              className="flex-1 text-center font-bold py-2 rounded-lg"
-                              style={{ background: T.panel, color: T.goldBright, border: `1px solid ${T.line}` }}
-                            >
-                              Abrir anotador
-                            </a>
-                            <button
-                              onClick={() => setFormResultadoId(m.id)}
-                              className="flex-1 text-center font-bold py-2 rounded-lg"
-                              style={{ background: "transparent", color: T.inkDim, border: `1px solid ${T.line}` }}
-                            >
-                              Cargar a mano
-                            </button>
-                          </div>
-                        ))}
-                    </div>
-                  ))}
-                </div>
-                )}
-              </>
-            )}
-          </div>
-        );
-      })}
+      {renderTablasDeGrupos()}
 
       {error && (
         <p className="text-sm text-center mb-3" style={{ color: T.goldBright }}>
