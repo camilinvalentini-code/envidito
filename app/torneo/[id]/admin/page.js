@@ -40,6 +40,9 @@ export default function AdminPage({ params }) {
   const [busquedaEquipos, setBusquedaEquipos] = useState("");
   const [mostrarQuitarEquipo, setMostrarQuitarEquipo] = useState(false);
   const [nombreNuevoEquipo, setNombreNuevoEquipo] = useState("");
+  const [formatoElegido, setFormatoElegido] = useState("directa"); // "directa" | "grupos"
+  const [cantidadGrupos, setCantidadGrupos] = useState(4);
+  const [clasificanPorGrupo, setClasificanPorGrupo] = useState(2);
 
   useEffect(() => {
     if (typeof window !== "undefined") setOrigin(window.location.origin);
@@ -210,6 +213,44 @@ export default function AdminPage({ params }) {
       return;
     }
     await supabase.from("tournaments").update({ started: true }).eq("id", id);
+    load();
+  }
+
+  async function armarFaseDeGrupos() {
+    if (teams.length < cantidadGrupos * 2) {
+      setError(`Hacen falta al menos ${cantidadGrupos * 2} equipos para ${cantidadGrupos} grupos.`);
+      return;
+    }
+    setError("");
+    const { error: err } = await supabase.rpc("generar_fase_grupos", {
+      p_tournament_id: id,
+      p_cantidad_grupos: cantidadGrupos,
+    });
+    if (err) {
+      setError("No se pudo armar la fase de grupos. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
+    load();
+  }
+
+  async function cerrarFaseDeGrupos() {
+    if (
+      !window.confirm(
+        `¿Cerrar la fase de grupos? Clasifican los primeros ${clasificanPorGrupo} de cada grupo y se arma el cuadro con ellos.`
+      )
+    )
+      return;
+    setError("");
+    const { error: err } = await supabase.rpc("cerrar_fase_grupos_simple", {
+      p_tournament_id: id,
+      p_top_n: clasificanPorGrupo,
+    });
+    if (err) {
+      setError("No se pudo cerrar la fase de grupos. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
     load();
   }
 
@@ -465,6 +506,7 @@ export default function AdminPage({ params }) {
   const mainMatches = matches.filter((m) => m.bracket === "main");
   const repMatches = matches.filter((m) => m.bracket === "repechaje");
   const publicUrl = `${origin}/torneo/${id}`;
+  const enFaseDeGrupos = tournament.formato === "grupos" && tournament.grupos_generados;
 
   function rondaActualIndex() {
     const porRonda = {};
@@ -741,7 +783,20 @@ export default function AdminPage({ params }) {
           </div>
         )}
 
-        {!tournament.started ? (
+        {enFaseDeGrupos ? (
+          <FaseDeGruposPanel
+            T={T}
+            tournament={tournament}
+            teams={teams}
+            matches={matches}
+            teamsById={teamsById}
+            onForzarGanador={forzarGanador}
+            clasificanPorGrupo={clasificanPorGrupo}
+            setClasificanPorGrupo={setClasificanPorGrupo}
+            onCerrarFase={cerrarFaseDeGrupos}
+            error={error}
+          />
+        ) : !tournament.started ? (
           <>
             <div className="grid grid-cols-1 lg:grid-cols-2 lg:items-start gap-4 mb-4 lg:max-w-4xl lg:mx-auto">
               <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
@@ -866,18 +921,65 @@ export default function AdminPage({ params }) {
                 </p>
               )}
 
-              <button
-                onClick={doSorteo}
-                disabled={teams.length < 3}
-                className="w-full py-3 rounded-2xl font-black text-lg transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
-                style={{
-                  background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`,
-                  color: T.ink,
-                  boxShadow: `0 6px 16px ${T.gold}44`,
-                }}
-              >
-                ⚔️ Hacer los cruces
-              </button>
+              <div className="flex rounded-xl overflow-hidden p-0.5 mb-3" style={{ background: T.panelLight }}>
+                <button
+                  onClick={() => setFormatoElegido("directa")}
+                  className="flex-1 py-2 text-xs font-bold rounded-lg"
+                  style={{
+                    background: formatoElegido === "directa" ? T.gold : "transparent",
+                    color: formatoElegido === "directa" ? T.ink : T.inkDim,
+                  }}
+                >
+                  Cuadro directo
+                </button>
+                <button
+                  onClick={() => setFormatoElegido("grupos")}
+                  className="flex-1 py-2 text-xs font-bold rounded-lg"
+                  style={{
+                    background: formatoElegido === "grupos" ? T.gold : "transparent",
+                    color: formatoElegido === "grupos" ? T.ink : T.inkDim,
+                  }}
+                >
+                  Fase de grupos
+                </button>
+              </div>
+
+              {formatoElegido === "directa" ? (
+                <button
+                  onClick={doSorteo}
+                  disabled={teams.length < 3}
+                  className="w-full py-3 rounded-2xl font-black text-lg transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                  style={{
+                    background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`,
+                    color: T.ink,
+                    boxShadow: `0 6px 16px ${T.gold}44`,
+                  }}
+                >
+                  ⚔️ Hacer los cruces
+                </button>
+              ) : (
+                <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+                  <label className="text-xs font-bold block mb-1.5" style={{ color: T.inkDim }}>
+                    ¿Cuántos grupos?
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={cantidadGrupos}
+                    onChange={(e) => setCantidadGrupos(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    className="w-full px-3 py-2 rounded-xl text-sm mb-3"
+                    style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                  />
+                  <button
+                    onClick={armarFaseDeGrupos}
+                    disabled={teams.length < cantidadGrupos * 2}
+                    className="w-full py-3 rounded-2xl font-black text-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                    style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
+                  >
+                    Armar fase de grupos →
+                  </button>
+                </div>
+              )}
             </div>
           </>
         ) : (
@@ -1133,6 +1235,255 @@ export default function AdminPage({ params }) {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+// Fase de grupos — versión simple (v1): mientras se juegan los grupos,
+// muestra tabla + fixture de cada uno; una vez armadas las copas con los
+// clasificados, muestra ese cuadro en una lista lisa por ronda (todavía
+// no el gráfico de BracketDisplayAdmin — eso queda para la versión
+// completa, más adelante).
+function FaseDeGruposPanel({
+  T,
+  tournament,
+  teams,
+  matches,
+  teamsById,
+  onForzarGanador,
+  clasificanPorGrupo,
+  setClasificanPorGrupo,
+  onCerrarFase,
+  error,
+}) {
+  const grupoMatches = matches.filter((m) => m.bracket === "grupos");
+  const numerosGrupos = [...new Set(teams.map((t) => t.grupo).filter((g) => g != null))].sort((a, b) => a - b);
+  const grupoTodosJugados = grupoMatches.length > 0 && grupoMatches.every((m) => m.winner_id);
+
+  function tablaDeGrupo(numGrupo) {
+    const stats = {};
+    teams
+      .filter((t) => t.grupo === numGrupo)
+      .forEach((t) => {
+        stats[t.id] = { team: t, pj: 0, pg: 0, pf: 0, pc: 0 };
+      });
+    grupoMatches
+      .filter((m) => m.grupo === numGrupo && m.winner_id)
+      .forEach((m) => {
+        if (stats[m.team1_id]) {
+          stats[m.team1_id].pj++;
+          stats[m.team1_id].pf += m.score_a;
+          stats[m.team1_id].pc += m.score_b;
+          if (m.winner_id === m.team1_id) stats[m.team1_id].pg++;
+        }
+        if (stats[m.team2_id]) {
+          stats[m.team2_id].pj++;
+          stats[m.team2_id].pf += m.score_b;
+          stats[m.team2_id].pc += m.score_a;
+          if (m.winner_id === m.team2_id) stats[m.team2_id].pg++;
+        }
+      });
+    return Object.values(stats).sort((a, b) => b.pg - a.pg || b.pf - b.pc - (a.pf - a.pc));
+  }
+
+  if (tournament.copas_generadas) {
+    const oro = matches.filter((m) => m.bracket === "oro");
+    const plata = matches.filter((m) => m.bracket === "plata");
+    return (
+      <div>
+        <div className="rounded-2xl p-4 mb-4 border shadow-sm text-center" style={{ background: T.panel, borderColor: T.line }}>
+          <p className="text-sm font-bold" style={{ color: T.gold }}>
+            Fase de grupos cerrada — cuadro armado con los clasificados.
+          </p>
+        </div>
+        <CuadroSimple T={T} titulo="Cuadro" matches={oro} teamsById={teamsById} onForzarGanador={onForzarGanador} campeonId={tournament.campeon_oro_id} />
+        {plata.length > 0 && (
+          <CuadroSimple T={T} titulo="Copa de Plata" matches={plata} teamsById={teamsById} onForzarGanador={onForzarGanador} campeonId={tournament.campeon_plata_id} />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {numerosGrupos.map((num) => {
+        const tabla = tablaDeGrupo(num);
+        const partidosGrupo = grupoMatches
+          .filter((m) => m.grupo === num)
+          .sort((a, b) => a.round_index - b.round_index || a.match_index - b.match_index);
+        return (
+          <div key={num} className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+            <h3 className="font-bold mb-3" style={{ color: T.gold }}>
+              Grupo {num}
+            </h3>
+            <div className="rounded-xl border overflow-hidden mb-3" style={{ borderColor: T.line }}>
+              <div
+                className="grid gap-1 px-2 py-1.5 text-[10px] font-extrabold uppercase"
+                style={{ gridTemplateColumns: "1fr 28px 28px 32px", background: T.panelLight, color: T.inkDim }}
+              >
+                <div>Equipo</div>
+                <div className="text-center">PJ</div>
+                <div className="text-center">PG</div>
+                <div className="text-center">DIF</div>
+              </div>
+              {tabla.map((row) => (
+                <div
+                  key={row.team.id}
+                  className="grid gap-1 px-2 py-1.5 text-xs"
+                  style={{ gridTemplateColumns: "1fr 28px 28px 32px", borderTop: `1px solid ${T.line}`, color: T.ink }}
+                >
+                  <div className="truncate font-semibold">{row.team.name}</div>
+                  <div className="text-center">{row.pj}</div>
+                  <div className="text-center">{row.pg}</div>
+                  <div className="text-center">{row.pf - row.pc}</div>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {partidosGrupo.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between text-xs px-2.5 py-2 rounded-lg gap-2"
+                  style={{ background: T.panelLight }}
+                >
+                  <span style={{ color: T.ink }}>
+                    {teamsById[m.team1_id]?.name} <b style={{ color: T.inkDim }}>vs</b> {teamsById[m.team2_id]?.name}
+                  </span>
+                  {m.winner_id ? (
+                    <span className="font-bold flex-shrink-0" style={{ color: T.goldBright }}>
+                      {m.score_a}-{m.score_b}
+                    </span>
+                  ) : (
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => onForzarGanador(m, m.team1_id)}
+                        className="px-2 py-1 rounded-lg font-bold"
+                        style={{ background: T.panel, color: T.goldBright, border: `1px solid ${T.line}` }}
+                      >
+                        Ganó {teamsById[m.team1_id]?.name}
+                      </button>
+                      <button
+                        onClick={() => onForzarGanador(m, m.team2_id)}
+                        className="px-2 py-1 rounded-lg font-bold"
+                        style={{ background: T.panel, color: T.goldBright, border: `1px solid ${T.line}` }}
+                      >
+                        Ganó {teamsById[m.team2_id]?.name}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {error && (
+        <p className="text-sm text-center mb-3" style={{ color: T.goldBright }}>
+          {error}
+        </p>
+      )}
+
+      {grupoTodosJugados ? (
+        <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+          <p className="text-sm mb-3" style={{ color: T.ink }}>
+            Todos los partidos de grupos están jugados. ¿Cuántos clasifican de cada grupo?
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              min={1}
+              value={clasificanPorGrupo}
+              onChange={(e) => setClasificanPorGrupo(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              className="w-20 px-3 py-2 rounded-xl text-sm text-center"
+              style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+            />
+            <button
+              onClick={onCerrarFase}
+              className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 hover:scale-105 active:scale-95"
+              style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
+            >
+              Cerrar fase de grupos y armar cuadro
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-center" style={{ color: T.inkDim }}>
+          Faltan partidos de grupos por jugar.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function CuadroSimple({ T, titulo, matches, teamsById, onForzarGanador, campeonId }) {
+  const porRonda = {};
+  matches.forEach((m) => {
+    porRonda[m.round_index] = porRonda[m.round_index] || [];
+    porRonda[m.round_index].push(m);
+  });
+  const rondas = Object.keys(porRonda)
+    .map(Number)
+    .sort((a, b) => a - b);
+  return (
+    <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+      <h3 className="font-bold mb-3" style={{ color: T.gold }}>
+        {titulo}
+      </h3>
+      {campeonId && (
+        <p className="text-sm font-bold text-center mb-3" style={{ color: T.goldBright }}>
+          🏆 Campeón: {teamsById[campeonId]?.name}
+        </p>
+      )}
+      {rondas.map((idx) => (
+        <div key={idx} className="mb-3">
+          <div className="text-xs font-extrabold uppercase mb-1.5" style={{ color: T.inkDim }}>
+            Ronda {idx + 1}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {porRonda[idx]
+              .sort((a, b) => a.match_index - b.match_index)
+              .map((m) => (
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between text-xs px-2.5 py-2 rounded-lg gap-2"
+                  style={{ background: T.panelLight }}
+                >
+                  <span style={{ color: T.ink }}>
+                    {m.team1_id ? teamsById[m.team1_id]?.name : "—"} <b style={{ color: T.inkDim }}>vs</b>{" "}
+                    {m.team2_id ? teamsById[m.team2_id]?.name : "—"}
+                  </span>
+                  {m.winner_id ? (
+                    <span className="font-bold flex-shrink-0" style={{ color: T.goldBright }}>
+                      {m.score_a}-{m.score_b}
+                    </span>
+                  ) : m.team1_id && m.team2_id ? (
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => onForzarGanador(m, m.team1_id)}
+                        className="px-2 py-1 rounded-lg font-bold"
+                        style={{ background: T.panel, color: T.goldBright, border: `1px solid ${T.line}` }}
+                      >
+                        Ganó {teamsById[m.team1_id]?.name}
+                      </button>
+                      <button
+                        onClick={() => onForzarGanador(m, m.team2_id)}
+                        className="px-2 py-1 rounded-lg font-bold"
+                        style={{ background: T.panel, color: T.goldBright, border: `1px solid ${T.line}` }}
+                      >
+                        Ganó {teamsById[m.team2_id]?.name}
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[11px] flex-shrink-0" style={{ color: T.inkDim }}>
+                      esperando rival
+                    </span>
+                  )}
+                </div>
+              ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
