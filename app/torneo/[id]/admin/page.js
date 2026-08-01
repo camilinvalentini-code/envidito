@@ -795,6 +795,8 @@ export default function AdminPage({ params }) {
             setClasificanPorGrupo={setClasificanPorGrupo}
             onCerrarFase={cerrarFaseDeGrupos}
             error={error}
+            origin={origin}
+            onRecargar={load}
           />
         ) : !tournament.started ? (
           <>
@@ -1244,6 +1246,103 @@ export default function AdminPage({ params }) {
 // clasificados, muestra ese cuadro en una lista lisa por ronda (todavía
 // no el gráfico de BracketDisplayAdmin — eso queda para la versión
 // completa, más adelante).
+function CargarResultadoManualGrupo({ T, match, nombreLocal, nombreVisitante, onGuardado }) {
+  const [abierto, setAbierto] = useState(false);
+  const [local, setLocal] = useState("");
+  const [visitante, setVisitante] = useState("");
+  const [error, setError] = useState("");
+  const [guardando, setGuardando] = useState(false);
+
+  async function guardar() {
+    const pa = parseInt(local, 10);
+    const pb = parseInt(visitante, 10);
+    if (isNaN(pa) || isNaN(pb)) {
+      setError("Cargá los dos puntajes.");
+      return;
+    }
+    if (pa === pb) {
+      setError("No puede haber empate.");
+      return;
+    }
+    setError("");
+    setGuardando(true);
+    const { error: err } = await supabase.rpc("cargar_resultado_grupo", {
+      p_match_id: match.id,
+      p_score_a: pa,
+      p_score_b: pb,
+    });
+    setGuardando(false);
+    if (err) {
+      setError("No se pudo guardar. Revisá el tope de puntos de esta fase.");
+      return;
+    }
+    setAbierto(false);
+    onGuardado();
+  }
+
+  if (!abierto) {
+    return (
+      <button
+        onClick={() => setAbierto(true)}
+        className="flex-1 text-[11px] font-bold py-1 rounded-lg"
+        style={{ background: "transparent", color: T.inkDim, border: `1px solid ${T.line}` }}
+      >
+        Cargar resultado a mano
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-1.5 w-full">
+      <div className="flex items-center gap-2">
+        <span className="text-xs flex-shrink-0 truncate" style={{ color: T.inkDim, maxWidth: 70 }}>
+          {nombreLocal}
+        </span>
+        <input
+          value={local}
+          onChange={(e) => setLocal(e.target.value.replace(/\D/g, "").slice(0, 2))}
+          inputMode="numeric"
+          placeholder="0"
+          className="w-12 text-center px-1 py-1.5 rounded-lg text-sm"
+          style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
+        />
+        <span className="text-xs" style={{ color: T.inkDim }}>
+          -
+        </span>
+        <input
+          value={visitante}
+          onChange={(e) => setVisitante(e.target.value.replace(/\D/g, "").slice(0, 2))}
+          inputMode="numeric"
+          placeholder="0"
+          className="w-12 text-center px-1 py-1.5 rounded-lg text-sm"
+          style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
+        />
+        <span className="text-xs flex-1 truncate" style={{ color: T.inkDim }}>
+          {nombreVisitante}
+        </span>
+      </div>
+      <div className="flex gap-2 mt-1.5">
+        <button
+          onClick={guardar}
+          disabled={guardando}
+          className="flex-1 text-xs font-bold py-1.5 rounded-lg disabled:opacity-60"
+          style={{ background: T.gold, color: T.ink }}
+        >
+          {guardando ? "Guardando…" : "Guardar"}
+        </button>
+        <button onClick={() => setAbierto(false)} className="text-xs px-2" style={{ color: T.inkDim }}>
+          Cancelar
+        </button>
+      </div>
+      {error && (
+        <p className="text-xs mt-1" style={{ color: T.redDim }}>
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function FaseDeGruposPanel({
   T,
   tournament,
@@ -1255,10 +1354,26 @@ function FaseDeGruposPanel({
   setClasificanPorGrupo,
   onCerrarFase,
   error,
+  origin,
+  onRecargar,
 }) {
   const grupoMatches = matches.filter((m) => m.bracket === "grupos");
   const numerosGrupos = [...new Set(teams.map((t) => t.grupo).filter((g) => g != null))].sort((a, b) => a - b);
   const grupoTodosJugados = grupoMatches.length > 0 && grupoMatches.every((m) => m.winner_id);
+
+  async function compartirPartidoGrupo(m, nombreLocal, nombreVisitante) {
+    const link = `${origin}/partido/${m.match_token}`;
+    const texto = `${tournament.nombre} — Fase de grupos\n${nombreLocal} vs ${nombreVisitante}\n\nAnotá los puntos acá con el código de tu equipo:\n${link}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ text: texto });
+      } catch (e) {
+        return;
+      }
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank");
+    }
+  }
 
   function tablaDeGrupo(numGrupo) {
     const stats = {};
@@ -1341,35 +1456,45 @@ function FaseDeGruposPanel({
             </div>
             <div className="flex flex-col gap-1.5">
               {partidosGrupo.map((m) => (
-                <div
-                  key={m.id}
-                  className="flex items-center justify-between text-xs px-2.5 py-2 rounded-lg gap-2"
-                  style={{ background: T.panelLight }}
-                >
-                  <span style={{ color: T.ink }}>
-                    {teamsById[m.team1_id]?.name} <b style={{ color: T.inkDim }}>vs</b> {teamsById[m.team2_id]?.name}
-                  </span>
-                  {m.winner_id ? (
-                    <span className="font-bold flex-shrink-0" style={{ color: T.goldBright }}>
-                      {m.score_a}-{m.score_b}
+                <div key={m.id} className="text-xs px-2.5 py-2 rounded-lg" style={{ background: T.panelLight }}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span style={{ color: T.ink }}>
+                      {teamsById[m.team1_id]?.name} <b style={{ color: T.inkDim }}>vs</b> {teamsById[m.team2_id]?.name}
                     </span>
-                  ) : (
-                    <div className="flex gap-1 flex-shrink-0">
-                      <button
-                        onClick={() => onForzarGanador(m, m.team1_id)}
-                        className="px-2 py-1 rounded-lg font-bold"
-                        style={{ background: T.panel, color: T.goldBright, border: `1px solid ${T.line}` }}
-                      >
-                        Ganó {teamsById[m.team1_id]?.name}
-                      </button>
-                      <button
-                        onClick={() => onForzarGanador(m, m.team2_id)}
-                        className="px-2 py-1 rounded-lg font-bold"
-                        style={{ background: T.panel, color: T.goldBright, border: `1px solid ${T.line}` }}
-                      >
-                        Ganó {teamsById[m.team2_id]?.name}
-                      </button>
-                    </div>
+                    {m.winner_id && (
+                      <span className="font-bold flex-shrink-0" style={{ color: T.goldBright }}>
+                        {m.score_a}-{m.score_b}
+                      </span>
+                    )}
+                  </div>
+                  {!m.winner_id && (
+                    <>
+                      <div className="flex gap-1.5 mt-1.5">
+                        <a
+                          href={`/partido/${m.match_token}`}
+                          className="flex-1 text-center font-bold py-1 rounded-lg"
+                          style={{ background: T.panel, color: T.goldBright, border: `1px solid ${T.line}` }}
+                        >
+                          Abrir anotador →
+                        </a>
+                        <button
+                          onClick={() => compartirPartidoGrupo(m, teamsById[m.team1_id]?.name, teamsById[m.team2_id]?.name)}
+                          className="px-3 font-bold rounded-lg"
+                          style={{ background: "#81C784", color: "#1B3A2A" }}
+                        >
+                          Compartir
+                        </button>
+                      </div>
+                      <div className="flex mt-1.5">
+                        <CargarResultadoManualGrupo
+                          T={T}
+                          match={m}
+                          nombreLocal={teamsById[m.team1_id]?.name}
+                          nombreVisitante={teamsById[m.team2_id]?.name}
+                          onGuardado={onRecargar}
+                        />
+                      </div>
+                    </>
                   )}
                 </div>
               ))}
