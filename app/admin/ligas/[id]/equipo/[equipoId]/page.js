@@ -54,8 +54,13 @@ function EditarEquipoForm({ T, liga, equipo, onGuardado, onCancelar }) {
       setError(`Esta liga es ${liga?.categoria}: cargá entre ${requeridos} y ${maximo} integrantes (el extra es por si hay suplente).`);
       return;
     }
-    if (!limpios.some((it) => it.whatsapp.replace(/\D/g, "").length >= 6)) {
-      setError("Cargá un WhatsApp válido (con código de área) de al menos un integrante.");
+    if (
+      !limpios.some((it) => {
+        const d = it.whatsapp.replace(/\D/g, "").length;
+        return d >= 10 && d <= 13;
+      })
+    ) {
+      setError("Cargá un WhatsApp válido (código de área + número, ej: 3517 51-0621) de al menos un integrante.");
       return;
     }
     setError("");
