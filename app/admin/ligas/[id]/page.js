@@ -22,6 +22,10 @@ function ResultadoForm({ T, partido, onGuardado }) {
       setError("Cargá los dos puntajes.");
       return;
     }
+    if (pl < 0 || pl > 30 || pv < 0 || pv > 30) {
+      setError("Los puntos van de 0 a 30.");
+      return;
+    }
     if (pl === pv) {
       setError("No puede haber empate.");
       return;
@@ -63,7 +67,7 @@ function ResultadoForm({ T, partido, onGuardado }) {
       <div className="flex items-center gap-2">
         <input
           value={local}
-          onChange={(e) => setLocal(e.target.value)}
+          onChange={(e) => setLocal(e.target.value.replace(/\D/g, "").slice(0, 2))}
           inputMode="numeric"
           placeholder="0"
           className="w-14 text-center px-2 py-1.5 rounded-lg text-sm"
@@ -74,7 +78,7 @@ function ResultadoForm({ T, partido, onGuardado }) {
         </span>
         <input
           value={visitante}
-          onChange={(e) => setVisitante(e.target.value)}
+          onChange={(e) => setVisitante(e.target.value.replace(/\D/g, "").slice(0, 2))}
           inputMode="numeric"
           placeholder="0"
           className="w-14 text-center px-2 py-1.5 rounded-lg text-sm"
