@@ -332,7 +332,7 @@ export default function PanelLiga() {
         )}
 
         {tab === "equipos" && (
-          <EquiposTab T={T} ligaId={ligaId} equipos={equipos} onCambio={load} />
+          <EquiposTab T={T} ligaId={ligaId} liga={liga} equipos={equipos} onCambio={load} />
         )}
 
         {tab === "solicitudes" && (
@@ -343,7 +343,15 @@ export default function PanelLiga() {
   );
 }
 
-function EquiposTab({ T, ligaId, equipos, onCambio }) {
+function IconWhatsApp({ color = "#1B3A2A", size = 17 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <path d="M12 2a10 10 0 00-8.6 15L2 22l5.2-1.4A10 10 0 1012 2zm5.6 14.3c-.2.6-1.4 1.2-1.9 1.3-.5.1-1.1.1-1.8-.1-.4-.1-1-.3-1.7-.6-3-1.3-5-4.3-5.1-4.5-.1-.2-1.2-1.6-1.2-3.1 0-1.5.8-2.2 1.1-2.5.3-.3.6-.4.8-.4h.6c.2 0 .4 0 .6.5.2.6.7 1.9.8 2 .1.2.1.3 0 .5-.1.2-.2.3-.3.5-.2.2-.3.3-.5.5-.2.2-.3.4-.1.7.2.3.9 1.5 1.9 2.4 1.3 1.2 2.4 1.5 2.7 1.7.3.2.5.1.7-.1.2-.2.8-.9 1-1.2.2-.3.4-.2.7-.1.3.1 1.8.8 2.1 1 .3.1.5.2.6.3.1.2.1.9-.1 1.6z" />
+    </svg>
+  );
+}
+
+function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
   const [nombre, setNombre] = useState("");
   const [integrantes, setIntegrantes] = useState([{ nombre: "", whatsapp: "" }]);
   const [guardando, setGuardando] = useState(false);
@@ -449,23 +457,40 @@ function EquiposTab({ T, ligaId, equipos, onCambio }) {
         Equipos anotados ({equipos.length})
       </div>
       <div className="flex flex-col gap-2">
-        {equipos.map((eq) => (
-          <Link
-            key={eq.id}
-            href={`/admin/ligas/${ligaId}/equipo/${eq.id}`}
-            className="flex items-center justify-between px-3.5 py-2.5 rounded-xl"
-            style={{ background: T.panel, border: `1px solid ${T.line}` }}
-          >
-            <div>
-              <div className="text-sm font-bold" style={{ color: T.ink }}>
-                {eq.nombre}
-              </div>
-              <div className="text-xs" style={{ color: T.inkDim }}>
-                {(eq.liga_integrantes || []).length} integrante(s) · código {eq.codigo}
-              </div>
+        {equipos.map((eq) => {
+          const contacto = (eq.liga_integrantes || []).find((it) => it.whatsapp && it.whatsapp.trim());
+          const numero = contacto ? contacto.whatsapp.replace(/\D/g, "") : null;
+          const texto = encodeURIComponent(`Hola equipo ${eq.nombre}! te escribo por la liga ${liga?.nombre || ""}.`);
+          const waLink = numero ? `https://wa.me/${numero}?text=${texto}` : null;
+          return (
+            <div
+              key={eq.id}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl"
+              style={{ background: T.panel, border: `1px solid ${T.line}` }}
+            >
+              <Link href={`/admin/ligas/${ligaId}/equipo/${eq.id}`} className="flex-1 min-w-0">
+                <div className="text-sm font-bold truncate" style={{ color: T.ink }}>
+                  {eq.nombre}
+                </div>
+                <div className="text-xs" style={{ color: T.inkDim }}>
+                  {(eq.liga_integrantes || []).length} integrante(s) · código {eq.codigo}
+                </div>
+              </Link>
+              {waLink && (
+                <a
+                  href={waLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={`Escribirle a ${contacto.nombre} por WhatsApp`}
+                  className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-transform duration-200 hover:scale-110"
+                  style={{ background: "#81C784" }}
+                >
+                  <IconWhatsApp />
+                </a>
+              )}
             </div>
-          </Link>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
