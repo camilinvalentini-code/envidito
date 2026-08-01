@@ -399,3 +399,30 @@ end;
 $$;
 revoke execute on function public.rechazar_solicitud_liga(uuid) from anon, public;
 grant execute on function public.rechazar_solicitud_liga(uuid) to authenticated;
+
+-- 16) Función: editar un equipo ya creado (nombre + reemplaza integrantes) --
+create or replace function public.editar_equipo_liga(
+  p_equipo_id uuid, p_nombre text, p_integrantes jsonb
+) returns void language plpgsql security definer
+set search_path = public, pg_temp as $$
+declare
+  item jsonb;
+begin
+  if not public.is_admin() then
+    raise exception 'no autorizado';
+  end if;
+
+  update liga_equipos set nombre = p_nombre where id = p_equipo_id;
+
+  delete from liga_integrantes where equipo_id = p_equipo_id;
+
+  if p_integrantes is not null then
+    for item in select * from jsonb_array_elements(p_integrantes) loop
+      insert into liga_integrantes (equipo_id, nombre, whatsapp)
+      values (p_equipo_id, item->>'nombre', item->>'whatsapp');
+    end loop;
+  end if;
+end;
+$$;
+revoke execute on function public.editar_equipo_liga(uuid, text, jsonb) from anon, public;
+grant execute on function public.editar_equipo_liga(uuid, text, jsonb) to authenticated;

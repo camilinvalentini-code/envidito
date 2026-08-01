@@ -8,6 +8,134 @@ import { supabase } from "../../../../../../lib/supabaseClient";
 import ThemeToggleButton from "../../../../../../components/ThemeToggleButton";
 import { IconAtras } from "../../../../../../components/LineIcons";
 
+function IconLapiz({ color, size = 13 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path
+        d="M4 20l1-4 11-11 3 3-11 11-4 1z"
+        stroke={color}
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function EditarEquipoForm({ T, liga, equipo, onGuardado, onCancelar }) {
+  const [nombre, setNombre] = useState(equipo.nombre);
+  const [integrantes, setIntegrantes] = useState(
+    (equipo.liga_integrantes || []).map((it) => ({ nombre: it.nombre, whatsapp: it.whatsapp || "" }))
+  );
+  const [error, setError] = useState("");
+  const [guardando, setGuardando] = useState(false);
+
+  const requeridos = { "1v1": 1, "2v2": 2, "3v3": 3 }[liga?.categoria] || 1;
+
+  function setIntegrante(i, campo, valor) {
+    setIntegrantes((arr) => arr.map((it, idx) => (idx === i ? { ...it, [campo]: valor } : it)));
+  }
+  function agregarFila() {
+    setIntegrantes((arr) => [...arr, { nombre: "", whatsapp: "" }]);
+  }
+  function quitarFila(i) {
+    setIntegrantes((arr) => arr.filter((_, idx) => idx !== i));
+  }
+
+  async function guardar() {
+    if (!nombre.trim()) {
+      setError("Ponele nombre al equipo.");
+      return;
+    }
+    const limpios = integrantes.filter((it) => it.nombre.trim());
+    if (limpios.length !== requeridos) {
+      setError(`Esta liga es ${liga?.categoria}, necesitás cargar exactamente ${requeridos} integrante(s).`);
+      return;
+    }
+    if (!limpios.some((it) => it.whatsapp.trim())) {
+      setError("Cargá el WhatsApp de al menos un integrante.");
+      return;
+    }
+    setError("");
+    setGuardando(true);
+    const { error: err } = await supabase.rpc("editar_equipo_liga", {
+      p_equipo_id: equipo.id,
+      p_nombre: nombre.trim(),
+      p_integrantes: limpios,
+    });
+    setGuardando(false);
+    if (err) {
+      setError("No se pudo guardar.");
+      return;
+    }
+    onGuardado();
+  }
+
+  return (
+    <div className="rounded-2xl p-4 border mb-5" style={{ background: T.panel, borderColor: T.line }}>
+      <div className="text-xs font-bold mb-2" style={{ color: T.inkDim }}>
+        Editar equipo
+      </div>
+      <input
+        value={nombre}
+        onChange={(e) => setNombre(e.target.value)}
+        placeholder="Nombre del equipo*"
+        className="w-full px-3 py-2 rounded-xl text-sm mb-2"
+        style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+      />
+      <div className="text-xs font-bold mb-1.5" style={{ color: T.inkDim }}>
+        Integrantes <span style={{ color: T.goldBright, fontWeight: 700 }}>(exactamente {requeridos}, WhatsApp de al menos uno)</span>
+      </div>
+      <div className="flex flex-col gap-1.5 mb-2">
+        {integrantes.map((it, i) => (
+          <div key={i} className="flex gap-1.5">
+            <input
+              value={it.nombre}
+              onChange={(e) => setIntegrante(i, "nombre", e.target.value)}
+              placeholder="Nombre"
+              className="flex-1 px-2.5 py-1.5 rounded-lg text-xs"
+              style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+            />
+            <input
+              value={it.whatsapp}
+              onChange={(e) => setIntegrante(i, "whatsapp", e.target.value)}
+              placeholder="WhatsApp"
+              className="flex-1 px-2.5 py-1.5 rounded-lg text-xs"
+              style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+            />
+            {integrantes.length > 1 && (
+              <button onClick={() => quitarFila(i)} className="text-xs px-1" style={{ color: T.redDim }}>
+                x
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      <button onClick={agregarFila} className="text-xs font-bold mb-3" style={{ color: T.goldBright }}>
+        + Agregar integrante
+      </button>
+      {error && (
+        <p className="text-xs mb-2" style={{ color: T.redDim }}>
+          {error}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <button
+          onClick={guardar}
+          disabled={guardando}
+          className="flex-1 py-2.5 rounded-xl font-bold text-sm disabled:opacity-60"
+          style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
+        >
+          {guardando ? "Guardando…" : "Guardar cambios"}
+        </button>
+        <button onClick={onCancelar} className="text-sm px-3" style={{ color: T.inkDim }}>
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function FichaEquipo() {
   const { T } = useTheme();
   const router = useRouter();
@@ -23,6 +151,7 @@ export default function FichaEquipo() {
   const [partidos, setPartidos] = useState([]);
   const [fila, setFila] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [editando, setEditando] = useState(false);
 
   const load = useCallback(async () => {
     const { data: l } = await supabase.from("ligas").select("*").eq("id", ligaId).single();
@@ -125,13 +254,31 @@ export default function FichaEquipo() {
           </span>
         </div>
 
-        {equipo.liga_integrantes?.length > 0 && (
-          <div className="flex flex-wrap justify-center gap-1.5 mb-5">
-            {equipo.liga_integrantes.map((it) => (
+        {editando ? (
+          <EditarEquipoForm
+            T={T}
+            liga={liga}
+            equipo={equipo}
+            onCancelar={() => setEditando(false)}
+            onGuardado={() => {
+              setEditando(false);
+              load();
+            }}
+          />
+        ) : (
+          <div className="flex flex-wrap justify-center items-center gap-1.5 mb-5">
+            {(equipo.liga_integrantes || []).map((it) => (
               <span key={it.id} className="text-xs px-2.5 py-1 rounded-full" style={{ background: T.panelLight, color: T.ink }}>
                 {it.nombre}
               </span>
             ))}
+            <button
+              onClick={() => setEditando(true)}
+              className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full"
+              style={{ background: T.panelLight, color: T.goldBright }}
+            >
+              <IconLapiz color={T.goldBright} /> Editar equipo
+            </button>
           </div>
         )}
 
