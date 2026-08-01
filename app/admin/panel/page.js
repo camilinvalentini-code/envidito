@@ -116,13 +116,22 @@ export default function PanelAdmin() {
           Conectado como <strong style={{ color: T.gold }}>{profile.nombre || profile.email}</strong> ({profile.email})
         </p>
 
-        <Link
-          href="/admin/jugadores"
-          className="block text-center py-2.5 rounded-2xl font-bold text-sm mb-6 transition-all duration-200 hover:scale-105 active:scale-95"
-          style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
-        >
-          🔀 Fusionar jugadores duplicados
-        </Link>
+        <div className="flex flex-col gap-2 mb-6">
+          <Link
+            href="/admin/ligas"
+            className="block text-center py-2.5 rounded-2xl font-bold text-sm transition-all duration-200 hover:scale-105 active:scale-95"
+            style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
+          >
+            Ligas
+          </Link>
+          <Link
+            href="/admin/jugadores"
+            className="block text-center py-2.5 rounded-2xl font-bold text-sm transition-all duration-200 hover:scale-105 active:scale-95"
+            style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
+          >
+            🔀 Fusionar jugadores duplicados
+          </Link>
+        </div>
 
         {pendientes.length > 0 && (
           <div className="rounded-2xl p-4 mb-6 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
