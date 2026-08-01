@@ -1,7 +1,7 @@
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useTheme } from "../../../../../../lib/theme";
 import { useAuth } from "../../../../../../lib/useAuth";
 import { supabase } from "../../../../../../lib/supabaseClient";
@@ -84,7 +84,7 @@ function EditarEquipoForm({ T, liga, equipo, onGuardado, onCancelar }) {
         style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
       />
       <div className="text-xs font-bold mb-1.5" style={{ color: T.inkDim }}>
-        Integrantes <span style={{ color: T.goldBright, fontWeight: 700 }}>(exactamente {requeridos}, WhatsApp de al menos uno)</span>
+        Integrantes <span style={{ color: T.goldBright, fontWeight: 700 }}>— Obligatorio al menos 1 WhatsApp.</span>
       </div>
       <div className="flex flex-col gap-1.5 mb-2">
         {integrantes.map((it, i) => (
@@ -140,6 +140,7 @@ export default function FichaEquipo() {
   const { T } = useTheme();
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const ligaId = params.id;
   const equipoId = params.equipoId;
   const { session, profile, loading: authLoading } = useAuth();
@@ -151,7 +152,7 @@ export default function FichaEquipo() {
   const [partidos, setPartidos] = useState([]);
   const [fila, setFila] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [editando, setEditando] = useState(false);
+  const [editando, setEditando] = useState(searchParams.get("editar") === "1");
 
   const load = useCallback(async () => {
     const { data: l } = await supabase.from("ligas").select("*").eq("id", ligaId).single();
@@ -236,21 +237,21 @@ export default function FichaEquipo() {
         </div>
 
         <div className="text-center mb-1">
+          <div className="text-xs" style={{ color: T.inkDim }}>
+            {liga?.nombre}
+          </div>
           <div className="text-2xl font-black" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
             {equipo.nombre}
           </div>
-          <div className="text-xs mt-0.5" style={{ color: T.inkDim }}>
-            {liga?.nombre}
-          </div>
         </div>
-        <div className="flex justify-center gap-2 mb-4">
+        <div className="flex justify-center gap-2 mb-5">
           {fila && (
             <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: T.panelLight, color: T.goldBright }}>
               {fila.pj} PJ · {fila.pg} PG
             </span>
           )}
           <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: T.panelLight, color: T.inkDim }}>
-            código {equipo.codigo}
+            Código <span style={{ color: T.goldBright }}>{equipo.codigo}</span>
           </span>
         </div>
 
@@ -266,19 +267,26 @@ export default function FichaEquipo() {
             }}
           />
         ) : (
-          <div className="flex flex-wrap justify-center items-center gap-1.5 mb-5">
-            {(equipo.liga_integrantes || []).map((it) => (
-              <span key={it.id} className="text-xs px-2.5 py-1 rounded-full" style={{ background: T.panelLight, color: T.ink }}>
-                {it.nombre}
-              </span>
-            ))}
-            <button
-              onClick={() => setEditando(true)}
-              className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full"
-              style={{ background: T.panelLight, color: T.goldBright }}
-            >
-              <IconLapiz color={T.goldBright} /> Editar equipo
-            </button>
+          <div className="mb-5">
+            <div className="text-xs font-extrabold uppercase tracking-wide mb-2 text-center" style={{ color: T.inkDim }}>
+              Integrantes
+            </div>
+            <div className="flex flex-wrap justify-center gap-1.5 mb-3">
+              {(equipo.liga_integrantes || []).map((it) => (
+                <span key={it.id} className="text-xs px-2.5 py-1 rounded-full" style={{ background: T.panelLight, color: T.ink }}>
+                  {it.nombre}
+                </span>
+              ))}
+            </div>
+            <div className="flex justify-center">
+              <button
+                onClick={() => setEditando(true)}
+                className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full"
+                style={{ background: T.panelLight, color: T.goldBright }}
+              >
+                <IconLapiz color={T.goldBright} /> Editar equipo
+              </button>
+            </div>
           </div>
         )}
 

@@ -351,11 +351,46 @@ function IconWhatsApp({ color = "#1B3A2A", size = 17 }) {
   );
 }
 
+function IconLapiz({ color, size = 13 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path
+        d="M4 20l1-4 11-11 3 3-11 11-4 1z"
+        stroke={color}
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconBasura({ color, size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path
+        d="M4 7h16M9 7V4.5a1 1 0 011-1h4a1 1 0 011 1V7m-9 0l1 13a1 1 0 001 1h8a1 1 0 001-1l1-13"
+        stroke={color}
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
   const [nombre, setNombre] = useState("");
   const [integrantes, setIntegrantes] = useState([{ nombre: "", whatsapp: "" }]);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+  const [confirmarBorrar, setConfirmarBorrar] = useState(null);
+
+  async function eliminarEquipo(id) {
+    await supabase.rpc("eliminar_equipo_liga", { p_equipo_id: id });
+    setConfirmarBorrar(null);
+    onCambio();
+  }
 
   function setIntegrante(i, campo, valor) {
     setIntegrantes((arr) => arr.map((it, idx) => (idx === i ? { ...it, [campo]: valor } : it)));
@@ -414,9 +449,7 @@ function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
           style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
         />
         <div className="text-xs font-bold mb-1.5" style={{ color: T.inkDim }}>
-          Integrantes <span style={{ color: T.goldBright, fontWeight: 700 }}>
-            (esta liga es {liga?.categoria}: exactamente {requeridos}, con WhatsApp de al menos uno)
-          </span>
+          Integrantes <span style={{ color: T.goldBright, fontWeight: 700 }}>— Obligatorio al menos 1 WhatsApp.</span>
         </div>
         <div className="flex flex-col gap-1.5 mb-2">
           {integrantes.map((it, i) => (
@@ -495,6 +528,39 @@ function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
                 >
                   <IconWhatsApp />
                 </a>
+              )}
+              {confirmarBorrar === eq.id ? (
+                <div className="flex gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => eliminarEquipo(eq.id)}
+                    className="text-xs font-bold px-2 py-1.5 rounded-lg"
+                    style={{ background: T.redDim, color: "#FFFFFF" }}
+                  >
+                    confirmar
+                  </button>
+                  <button onClick={() => setConfirmarBorrar(null)} className="text-xs px-1.5" style={{ color: T.inkDim }}>
+                    no
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <Link
+                    href={`/admin/ligas/${ligaId}/equipo/${eq.id}?editar=1`}
+                    title="Editar equipo"
+                    className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: T.panelLight }}
+                  >
+                    <IconLapiz color={T.goldBright} />
+                  </Link>
+                  <button
+                    onClick={() => setConfirmarBorrar(eq.id)}
+                    title="Eliminar equipo"
+                    className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: T.panelLight }}
+                  >
+                    <IconBasura color={T.redDim} />
+                  </button>
+                </>
               )}
             </div>
           );

@@ -426,3 +426,20 @@ end;
 $$;
 revoke execute on function public.editar_equipo_liga(uuid, text, jsonb) from anon, public;
 grant execute on function public.editar_equipo_liga(uuid, text, jsonb) to authenticated;
+
+-- 17) Función: eliminar un equipo (y sus partidos programados con él) -------
+create or replace function public.eliminar_equipo_liga(p_equipo_id uuid)
+returns void language plpgsql security definer
+set search_path = public, pg_temp as $$
+begin
+  if not public.is_admin() then
+    raise exception 'no autorizado';
+  end if;
+
+  update liga_etapas set campeon_equipo_id = null where campeon_equipo_id = p_equipo_id;
+  delete from liga_partidos where equipo_local_id = p_equipo_id or equipo_visitante_id = p_equipo_id;
+  delete from liga_equipos where id = p_equipo_id;
+end;
+$$;
+revoke execute on function public.eliminar_equipo_liga(uuid) from anon, public;
+grant execute on function public.eliminar_equipo_liga(uuid) to authenticated;
