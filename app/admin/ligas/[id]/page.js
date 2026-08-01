@@ -380,11 +380,23 @@ function IconBasura({ color, size = 14 }) {
 }
 
 function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
+  const requeridos = { "1v1": 1, "2v2": 2, "3v3": 3 }[liga?.categoria] || 1;
+  const maximo = requeridos + 1; // un suplente de margen
+
   const [nombre, setNombre] = useState("");
-  const [integrantes, setIntegrantes] = useState([{ nombre: "", whatsapp: "" }]);
+  const [integrantes, setIntegrantes] = useState(
+    Array.from({ length: requeridos }, () => ({ nombre: "", whatsapp: "" }))
+  );
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const [confirmarBorrar, setConfirmarBorrar] = useState(null);
+
+  useEffect(() => {
+    if (liga?.categoria) {
+      setIntegrantes(Array.from({ length: requeridos }, () => ({ nombre: "", whatsapp: "" })));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liga?.categoria]);
 
   async function eliminarEquipo(id) {
     await supabase.rpc("eliminar_equipo_liga", { p_equipo_id: id });
@@ -396,13 +408,11 @@ function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
     setIntegrantes((arr) => arr.map((it, idx) => (idx === i ? { ...it, [campo]: valor } : it)));
   }
   function agregarFila() {
-    setIntegrantes((arr) => [...arr, { nombre: "", whatsapp: "" }]);
+    setIntegrantes((arr) => (arr.length >= maximo ? arr : [...arr, { nombre: "", whatsapp: "" }]));
   }
   function quitarFila(i) {
     setIntegrantes((arr) => arr.filter((_, idx) => idx !== i));
   }
-
-  const requeridos = { "1v1": 1, "2v2": 2, "3v3": 3 }[liga?.categoria] || 1;
 
   async function agregarEquipo() {
     if (!nombre.trim()) {
@@ -410,8 +420,8 @@ function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
       return;
     }
     const limpios = integrantes.filter((it) => it.nombre.trim());
-    if (limpios.length !== requeridos) {
-      setError(`Esta liga es ${liga?.categoria}, necesitás cargar exactamente ${requeridos} integrante(s).`);
+    if (limpios.length < requeridos || limpios.length > maximo) {
+      setError(`Esta liga es ${liga?.categoria}: cargá entre ${requeridos} y ${maximo} integrantes (el extra es por si hay suplente).`);
       return;
     }
     if (!limpios.some((it) => it.whatsapp.trim())) {
@@ -431,7 +441,7 @@ function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
       return;
     }
     setNombre("");
-    setIntegrantes([{ nombre: "", whatsapp: "" }]);
+    setIntegrantes(Array.from({ length: requeridos }, () => ({ nombre: "", whatsapp: "" })));
     onCambio();
   }
 
@@ -476,9 +486,11 @@ function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
             </div>
           ))}
         </div>
-        <button onClick={agregarFila} className="text-xs font-bold mb-3" style={{ color: T.goldBright }}>
-          + Agregar integrante
-        </button>
+        {integrantes.length < maximo && (
+          <button onClick={agregarFila} className="text-xs font-bold mb-3" style={{ color: T.goldBright }}>
+            + Agregar suplente
+          </button>
+        )}
         {error && (
           <p className="text-xs mb-2" style={{ color: T.redDim }}>
             {error}

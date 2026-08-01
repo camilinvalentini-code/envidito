@@ -31,12 +31,13 @@ function EditarEquipoForm({ T, liga, equipo, onGuardado, onCancelar }) {
   const [guardando, setGuardando] = useState(false);
 
   const requeridos = { "1v1": 1, "2v2": 2, "3v3": 3 }[liga?.categoria] || 1;
+  const maximo = requeridos + 1; // un suplente de margen
 
   function setIntegrante(i, campo, valor) {
     setIntegrantes((arr) => arr.map((it, idx) => (idx === i ? { ...it, [campo]: valor } : it)));
   }
   function agregarFila() {
-    setIntegrantes((arr) => [...arr, { nombre: "", whatsapp: "" }]);
+    setIntegrantes((arr) => (arr.length >= maximo ? arr : [...arr, { nombre: "", whatsapp: "" }]));
   }
   function quitarFila(i) {
     setIntegrantes((arr) => arr.filter((_, idx) => idx !== i));
@@ -48,8 +49,8 @@ function EditarEquipoForm({ T, liga, equipo, onGuardado, onCancelar }) {
       return;
     }
     const limpios = integrantes.filter((it) => it.nombre.trim());
-    if (limpios.length !== requeridos) {
-      setError(`Esta liga es ${liga?.categoria}, necesitás cargar exactamente ${requeridos} integrante(s).`);
+    if (limpios.length < requeridos || limpios.length > maximo) {
+      setError(`Esta liga es ${liga?.categoria}: cargá entre ${requeridos} y ${maximo} integrantes (el extra es por si hay suplente).`);
       return;
     }
     if (!limpios.some((it) => it.whatsapp.trim())) {
@@ -111,9 +112,11 @@ function EditarEquipoForm({ T, liga, equipo, onGuardado, onCancelar }) {
           </div>
         ))}
       </div>
-      <button onClick={agregarFila} className="text-xs font-bold mb-3" style={{ color: T.goldBright }}>
-        + Agregar integrante
-      </button>
+      {integrantes.length < maximo && (
+        <button onClick={agregarFila} className="text-xs font-bold mb-3" style={{ color: T.goldBright }}>
+          + Agregar suplente
+        </button>
+      )}
       {error && (
         <p className="text-xs mb-2" style={{ color: T.redDim }}>
           {error}
