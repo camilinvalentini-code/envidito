@@ -1888,6 +1888,55 @@ function FaseDeGruposPanel({
     onRecargar();
   }
 
+  function renderEquiposCard({ conFiltroClasificados, idsClasificados } = {}) {
+    return (
+      <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+        <button
+          onClick={() => setMostrarEquipos((v) => !v)}
+          className="w-full flex items-center justify-between font-bold"
+          style={{ color: T.gold }}
+        >
+          <span>Equipos ({teams.length})</span>
+          <span style={{ transform: mostrarEquipos ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+            <IconAbajo color={T.inkDim} />
+          </span>
+        </button>
+        {mostrarEquipos && (
+          <div className="mt-3">
+            <input
+              value={busquedaEquipos}
+              onChange={(e) => setBusquedaEquipos(e.target.value)}
+              placeholder="Buscar equipo (para darle su código)..."
+              className="w-full px-3 py-2 rounded-xl text-sm mb-2"
+              style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+            />
+            {conFiltroClasificados && (
+              <label className="flex items-center gap-1.5 text-xs font-bold mb-3" style={{ color: T.inkDim }}>
+                <input
+                  type="checkbox"
+                  checked={soloClasificados}
+                  onChange={(e) => setSoloClasificados(e.target.checked)}
+                />
+                Solo clasificados (los que llegaron al cuadro)
+              </label>
+            )}
+            <TeamList
+              teams={teams.filter(
+                (t) =>
+                  t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()) &&
+                  (!conFiltroClasificados || !soloClasificados || idsClasificados.has(t.id))
+              )}
+              editable
+              onTogglePaid={togglePaid}
+              onEditPlayers={editarJugadores}
+              onEditName={editarNombreEquipo}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (tournament.copas_generadas) {
     const oro = matches.filter((m) => m.bracket === "oro");
     const plata = matches.filter((m) => m.bracket === "plata");
@@ -1911,120 +1960,33 @@ function FaseDeGruposPanel({
 
         {verGrupos && <div className="mb-4">{renderTablasDeGrupos()}</div>}
 
-        <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-          <button
-            onClick={() => setMostrarEquipos((v) => !v)}
-            className="w-full flex items-center justify-between font-bold"
-            style={{ color: T.gold }}
-          >
-            <span>Equipos ({teams.length})</span>
-            <span style={{ transform: mostrarEquipos ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
-              <IconAbajo color={T.inkDim} />
-            </span>
-          </button>
-          {mostrarEquipos && (
-            <div className="mt-3">
-              <input
-                value={busquedaEquipos}
-                onChange={(e) => setBusquedaEquipos(e.target.value)}
-                placeholder="Buscar equipo (para darle su código)..."
-                className="w-full px-3 py-2 rounded-xl text-sm mb-2"
-                style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
-              />
-              <label className="flex items-center gap-1.5 text-xs font-bold mb-3" style={{ color: T.inkDim }}>
-                <input
-                  type="checkbox"
-                  checked={soloClasificados}
-                  onChange={(e) => setSoloClasificados(e.target.checked)}
-                />
-                Solo clasificados (los que llegaron al cuadro)
-              </label>
-              <TeamList
-                teams={teams.filter(
-                  (t) =>
-                    t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()) &&
-                    (!soloClasificados || idsClasificados.has(t.id))
-                )}
-                editable
-                onTogglePaid={togglePaid}
-                onEditPlayers={editarJugadores}
-                onEditName={editarNombreEquipo}
-              />
-            </div>
-          )}
-        </div>
-
-        {tournament.campeon_oro_id && (
-          <div
-            className="rounded-3xl p-5 mb-5 text-center border-2 shadow-md"
-            style={{ background: "#FBF3E3", borderColor: "#EAC27A" }}
-          >
-            <div className="text-xs font-bold uppercase tracking-widest" style={{ color: "#B85C55" }}>
-              🏆 Campeón{plata.length > 0 ? " — Copa de Oro" : ""}
-            </div>
-            <div className="text-2xl font-black mt-1" style={{ color: "#33453E" }}>
-              {teamsById[tournament.campeon_oro_id]?.name}
-            </div>
+        <div className="lg:grid lg:grid-cols-[300px_1fr] lg:gap-6 lg:items-start">
+          <div className="flex flex-col gap-4">
+            {renderEquiposCard({ conFiltroClasificados: true, idsClasificados })}
           </div>
-        )}
 
-        <div className="flex items-center justify-between mb-3 gap-2">
-          <h2 className="font-bold" style={{ color: T.gold }}>
-            {plata.length > 0 ? "Copa de Oro" : "Cuadro"} — tocá un equipo para forzar el resultado
-          </h2>
-          {oro.some((m) => !m.bye && !m.winner_id && m.team1_id && m.team2_id) && (
-            <button
-              onClick={() => compartirCrucesCopa(oro, plata.length > 0 ? "Copa de Oro" : null)}
-              className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg"
-              style={{ background: "#81C784", color: "#1B3A2A" }}
-            >
-              📲 Compartir
-            </button>
-          )}
-        </div>
-        {fasesListasParaResortearDe(oro).map(({ idx, cantidad }) => (
-          <button
-            key={idx}
-            onClick={() => resortearFaseCopa("oro", idx)}
-            className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
-            style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.gold}` }}
-          >
-            Resortear {roundLabel(cantidad)} (todavía no se jugó nada ahí)
-          </button>
-        ))}
-        {bracketSinJugar(oro) && (
-          <button
-            onClick={() => resortearCopaCompleta("oro", oro)}
-            className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
-            style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.gold}` }}
-          >
-            Resortear {plata.length > 0 ? "Copa de Oro" : "el cuadro"} (todavía no se jugó nada)
-          </button>
-        )}
-        <BracketDisplayAdmin matches={oro} teamsById={teamsById} origin={origin} onDeclareWinner={onForzarGanador} onReabrir={onReabrir} />
-
-        {plata.length > 0 && (
-          <div className="mt-6">
-            {tournament.campeon_plata_id && (
+          <div className="mt-4 lg:mt-0">
+            {tournament.campeon_oro_id && (
               <div
                 className="rounded-3xl p-5 mb-5 text-center border-2 shadow-md"
                 style={{ background: "#FBF3E3", borderColor: "#EAC27A" }}
               >
                 <div className="text-xs font-bold uppercase tracking-widest" style={{ color: "#B85C55" }}>
-                  🏆 Campeón — Copa de Plata
+                  🏆 Campeón{plata.length > 0 ? " — Copa de Oro" : ""}
                 </div>
                 <div className="text-2xl font-black mt-1" style={{ color: "#33453E" }}>
-                  {teamsById[tournament.campeon_plata_id]?.name}
+                  {teamsById[tournament.campeon_oro_id]?.name}
                 </div>
               </div>
             )}
+
             <div className="flex items-center justify-between mb-3 gap-2">
               <h2 className="font-bold" style={{ color: T.gold }}>
-                Copa de Plata — tocá un equipo para forzar el resultado
+                {plata.length > 0 ? "Copa de Oro" : "Cuadro"} — tocá un equipo para forzar el resultado
               </h2>
-              {plata.some((m) => !m.bye && !m.winner_id && m.team1_id && m.team2_id) && (
+              {oro.some((m) => !m.bye && !m.winner_id && m.team1_id && m.team2_id) && (
                 <button
-                  onClick={() => compartirCrucesCopa(plata, "Copa de Plata")}
+                  onClick={() => compartirCrucesCopa(oro, plata.length > 0 ? "Copa de Oro" : null)}
                   className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg"
                   style={{ background: "#81C784", color: "#1B3A2A" }}
                 >
@@ -2032,70 +1994,126 @@ function FaseDeGruposPanel({
                 </button>
               )}
             </div>
-            {fasesListasParaResortearDe(plata).map(({ idx, cantidad }) => (
+            {fasesListasParaResortearDe(oro).map(({ idx, cantidad }) => (
               <button
                 key={idx}
-                onClick={() => resortearFaseCopa("plata", idx)}
+                onClick={() => resortearFaseCopa("oro", idx)}
                 className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.gold}` }}
+                style={{ background: "transparent", color: T.goldBright, border: `1px solid ${T.gold}` }}
               >
                 Resortear {roundLabel(cantidad)} (todavía no se jugó nada ahí)
               </button>
             ))}
-            {bracketSinJugar(plata) && (
+            {bracketSinJugar(oro) && (
               <button
-                onClick={() => resortearCopaCompleta("plata", plata)}
+                onClick={() => resortearCopaCompleta("oro", oro)}
                 className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.gold}` }}
+                style={{ background: "transparent", color: T.goldBright, border: `1px solid ${T.gold}` }}
               >
-                Resortear Copa de Plata (todavía no se jugó nada)
+                Resortear {plata.length > 0 ? "Copa de Oro" : "el cuadro"} (todavía no se jugó nada)
               </button>
             )}
-            <BracketDisplayAdmin matches={plata} teamsById={teamsById} origin={origin} onDeclareWinner={onForzarGanador} onReabrir={onReabrir} />
+            <BracketDisplayAdmin matches={oro} teamsById={teamsById} origin={origin} onDeclareWinner={onForzarGanador} onReabrir={onReabrir} />
+
+            {plata.length > 0 && (
+              <div className="mt-6">
+                {tournament.campeon_plata_id && (
+                  <div
+                    className="rounded-3xl p-5 mb-5 text-center border-2 shadow-md"
+                    style={{ background: "#FBF3E3", borderColor: "#EAC27A" }}
+                  >
+                    <div className="text-xs font-bold uppercase tracking-widest" style={{ color: "#B85C55" }}>
+                      🏆 Campeón — Copa de Plata
+                    </div>
+                    <div className="text-2xl font-black mt-1" style={{ color: "#33453E" }}>
+                      {teamsById[tournament.campeon_plata_id]?.name}
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center justify-between mb-3 gap-2">
+                  <h2 className="font-bold" style={{ color: T.gold }}>
+                    Copa de Plata — tocá un equipo para forzar el resultado
+                  </h2>
+                  {plata.some((m) => !m.bye && !m.winner_id && m.team1_id && m.team2_id) && (
+                    <button
+                      onClick={() => compartirCrucesCopa(plata, "Copa de Plata")}
+                      className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg"
+                      style={{ background: "#81C784", color: "#1B3A2A" }}
+                    >
+                      📲 Compartir
+                    </button>
+                  )}
+                </div>
+                {fasesListasParaResortearDe(plata).map(({ idx, cantidad }) => (
+                  <button
+                    key={idx}
+                    onClick={() => resortearFaseCopa("plata", idx)}
+                    className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
+                    style={{ background: "transparent", color: T.goldBright, border: `1px solid ${T.gold}` }}
+                  >
+                    Resortear {roundLabel(cantidad)} (todavía no se jugó nada ahí)
+                  </button>
+                ))}
+                {bracketSinJugar(plata) && (
+                  <button
+                    onClick={() => resortearCopaCompleta("plata", plata)}
+                    className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
+                    style={{ background: "transparent", color: T.goldBright, border: `1px solid ${T.gold}` }}
+                  >
+                    Resortear Copa de Plata (todavía no se jugó nada)
+                  </button>
+                )}
+                <BracketDisplayAdmin matches={plata} teamsById={teamsById} origin={origin} onDeclareWinner={onForzarGanador} onReabrir={onReabrir} />
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     );
   }
 
   return (
-    <div>
-      {renderTablasDeGrupos()}
+    <div className="lg:grid lg:grid-cols-[300px_1fr] lg:gap-6 lg:items-start">
+      <div className="flex flex-col gap-4">{renderEquiposCard()}</div>
 
-      {error && (
-        <p className="text-sm text-center mb-3" style={{ color: T.goldBright }}>
-          {error}
-        </p>
-      )}
+      <div className="mt-4 lg:mt-0">
+        {renderTablasDeGrupos()}
 
-      {grupoTodosJugados ? (
-        <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-          <p className="text-sm mb-3" style={{ color: T.ink }}>
-            Todos los partidos de grupos están jugados. ¿Cuántos clasifican de cada grupo?
+        {error && (
+          <p className="text-sm text-center mb-3" style={{ color: T.goldBright }}>
+            {error}
           </p>
-          <div className="flex gap-2">
-            <input
-              type="number"
-              min={1}
-              value={clasificanPorGrupo}
-              onChange={(e) => setClasificanPorGrupo(Math.max(1, parseInt(e.target.value, 10) || 1))}
-              className="w-20 px-3 py-2 rounded-xl text-sm text-center"
-              style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-            />
-            <button
-              onClick={onCerrarFase}
-              className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 hover:scale-105 active:scale-95"
-              style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
-            >
-              Cerrar fase de grupos y armar cuadro
-            </button>
+        )}
+
+        {grupoTodosJugados ? (
+          <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+            <p className="text-sm mb-3" style={{ color: T.ink }}>
+              Todos los partidos de grupos están jugados. ¿Cuántos clasifican de cada grupo?
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min={1}
+                value={clasificanPorGrupo}
+                onChange={(e) => setClasificanPorGrupo(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                className="w-20 px-3 py-2 rounded-xl text-sm text-center"
+                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+              />
+              <button
+                onClick={onCerrarFase}
+                className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 hover:scale-105 active:scale-95"
+                style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
+              >
+                Cerrar fase de grupos y armar cuadro
+              </button>
+            </div>
           </div>
-        </div>
-      ) : (
-        <p className="text-xs text-center" style={{ color: T.inkDim }}>
-          Faltan partidos de grupos por jugar.
-        </p>
-      )}
+        ) : (
+          <p className="text-xs text-center" style={{ color: T.inkDim }}>
+            Faltan partidos de grupos por jugar.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

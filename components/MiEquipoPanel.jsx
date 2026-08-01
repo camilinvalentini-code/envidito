@@ -91,8 +91,13 @@ export default function MiEquipoPanel({ tournament, teams, matches, teamsById })
   const miEquipo = teamsById[miEquipoId];
   if (!miEquipo) return null; // el equipo guardado ya no existe en este torneo (raro, pero por las dudas)
 
-  // Campeón
-  if (tournament.champion_id === miEquipoId) {
+  // Campeón — en torneos de fase de grupos el ganador queda en
+  // campeon_oro_id o campeon_plata_id según a qué copa fue, no en
+  // champion_id (ese campo es solo para el cuadro directo).
+  const esCampeon = [tournament.champion_id, tournament.campeon_oro_id, tournament.campeon_plata_id].includes(
+    miEquipoId
+  );
+  if (esCampeon) {
     return (
       <div
         className="rounded-3xl p-5 mb-5 text-center border-2 shadow-md"
