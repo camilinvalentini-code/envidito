@@ -8,7 +8,7 @@ import { supabase } from "../../../../lib/supabaseClient";
 import TeamList from "../../../../components/TeamList";
 import BracketDisplay from "../../../../components/BracketDisplay";
 import ThemeToggleButton from "../../../../components/ThemeToggleButton";
-import { IconAtras } from "../../../../components/LineIcons";
+import { IconAtras, IconAbajo } from "../../../../components/LineIcons";
 import { fraseCampeonAlAzar } from "../../../../lib/champFrases";
 import { roundLabel } from "../../../../lib/bracket";
 
@@ -1246,8 +1246,11 @@ export default function AdminPage({ params }) {
 // clasificados, muestra ese cuadro en una lista lisa por ronda (todavía
 // no el gráfico de BracketDisplayAdmin — eso queda para la versión
 // completa, más adelante).
-function CargarResultadoManualGrupo({ T, match, nombreLocal, nombreVisitante, onGuardado }) {
-  const [abierto, setAbierto] = useState(false);
+// El toggle abierto/cerrado lo maneja el padre (FaseDeGruposPanel), para
+// poder mostrar "Abrir anotador" y "Cargar resultado a mano" lado a lado
+// cuando está cerrado, y que el formulario ocupe todo el ancho al abrirse
+// en vez de quedar apretado contra el link de al lado.
+function ResultadoInlineGrupo({ T, match, nombreLocal, nombreVisitante, onCancelar, onGuardado }) {
   const [local, setLocal] = useState("");
   const [visitante, setVisitante] = useState("");
   const [error, setError] = useState("");
@@ -1276,24 +1279,11 @@ function CargarResultadoManualGrupo({ T, match, nombreLocal, nombreVisitante, on
       setError("No se pudo guardar. Revisá el tope de puntos de esta fase.");
       return;
     }
-    setAbierto(false);
     onGuardado();
   }
 
-  if (!abierto) {
-    return (
-      <button
-        onClick={() => setAbierto(true)}
-        className="flex-1 text-xs font-bold py-2 rounded-lg"
-        style={{ background: "transparent", color: T.inkDim, border: `1px solid ${T.line}` }}
-      >
-        Cargar resultado a mano
-      </button>
-    );
-  }
-
   return (
-    <div className="mt-1.5 w-full">
+    <div className="mt-2 w-full">
       <div className="flex items-center gap-1.5">
         <span className="text-xs flex-1 min-w-0 truncate" style={{ color: T.inkDim }}>
           {nombreLocal}
@@ -1330,7 +1320,7 @@ function CargarResultadoManualGrupo({ T, match, nombreLocal, nombreVisitante, on
         >
           {guardando ? "Guardando…" : "Guardar"}
         </button>
-        <button onClick={() => setAbierto(false)} className="text-xs px-3 py-2" style={{ color: T.inkDim }}>
+        <button onClick={onCancelar} className="text-xs px-3 py-2" style={{ color: T.inkDim }}>
           Cancelar
         </button>
       </div>
@@ -1360,10 +1350,23 @@ function FaseDeGruposPanel({
   const grupoMatches = matches.filter((m) => m.bracket === "grupos");
   const numerosGrupos = [...new Set(teams.map((t) => t.grupo).filter((g) => g != null))].sort((a, b) => a - b);
   const grupoTodosJugados = grupoMatches.length > 0 && grupoMatches.every((m) => m.winner_id);
+  const [gruposAbiertos, setGruposAbiertos] = useState({});
 
-  async function compartirPartidoGrupo(m, nombreLocal, nombreVisitante) {
-    const link = `${origin}/partido/${m.match_token}`;
-    const texto = `${tournament.nombre} — Fase de grupos\n${nombreLocal} vs ${nombreVisitante}\n\nAnotá los puntos acá con el código de tu equipo:\n${link}`;
+  function grupoAbierto(num) {
+    return gruposAbiertos[num] !== false; // abierto por default
+  }
+  function toggleGrupo(num) {
+    setGruposAbiertos((prev) => ({ ...prev, [num]: !grupoAbierto(num) }));
+  }
+
+  async function compartirCrucesGrupo(numGrupo, partidosGrupo) {
+    const pendientes = partidosGrupo.filter((m) => !m.winner_id);
+    if (pendientes.length === 0) return;
+    const bloques = pendientes.map((m) => {
+      const link = `${origin}/partido/${m.match_token}`;
+      return `${teamsById[m.team1_id]?.name} vs ${teamsById[m.team2_id]?.name}\n${link}`;
+    });
+    const texto = `${tournament.nombre} — Grupo ${numGrupo}\n\n${bloques.join("\n\n")}`;
     if (navigator.share) {
       try {
         await navigator.share({ text: texto });
@@ -1374,6 +1377,8 @@ function FaseDeGruposPanel({
       window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank");
     }
   }
+
+  const [formResultadoId, setFormResultadoId] = useState(null);
 
   function tablaDeGrupo(numGrupo) {
     const stats = {};
@@ -1426,87 +1431,121 @@ function FaseDeGruposPanel({
         const partidosGrupo = grupoMatches
           .filter((m) => m.grupo === num)
           .sort((a, b) => a.round_index - b.round_index || a.match_index - b.match_index);
+        const abierto = grupoAbierto(num);
+        const pendientesGrupo = partidosGrupo.filter((m) => !m.winner_id);
         return (
           <div key={num} className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-            <h3 className="font-bold mb-3" style={{ color: T.gold }}>
-              Grupo {num}
-            </h3>
-            <div className="rounded-xl border overflow-hidden mb-3" style={{ borderColor: T.line }}>
-              <div
-                className="grid gap-1 px-2 py-1.5 text-[10px] font-extrabold uppercase"
-                style={{ gridTemplateColumns: "1fr 28px 28px 32px", background: T.panelLight, color: T.inkDim }}
-              >
-                <div>Equipo</div>
-                <div className="text-center">PJ</div>
-                <div className="text-center">PG</div>
-                <div className="text-center">DIF</div>
-              </div>
-              {tabla.map((row) => (
-                <div
-                  key={row.team.id}
-                  className="grid gap-1 px-2 py-1.5 text-xs"
-                  style={{ gridTemplateColumns: "1fr 28px 28px 32px", borderTop: `1px solid ${T.line}`, color: T.ink }}
-                >
-                  <div className="truncate font-semibold">{row.team.name}</div>
-                  <div className="text-center">{row.pj}</div>
-                  <div className="text-center">{row.pg}</div>
-                  <div className="text-center">{row.pf - row.pc}</div>
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col gap-1.5">
-              {partidosGrupo.map((m) => (
-                <div key={m.id} className="text-xs px-2.5 py-2.5 rounded-lg" style={{ background: T.panelLight }}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1 min-w-0 flex-1">
-                      <span className="truncate" style={{ color: T.ink }}>
-                        {teamsById[m.team1_id]?.name}
-                      </span>
-                      <b className="flex-shrink-0" style={{ color: T.inkDim, fontSize: 10 }}>
-                        vs
-                      </b>
-                      <span className="truncate" style={{ color: T.ink }}>
-                        {teamsById[m.team2_id]?.name}
-                      </span>
-                    </div>
-                    {m.winner_id && (
-                      <span className="font-bold flex-shrink-0" style={{ color: T.goldBright }}>
-                        {m.score_a}-{m.score_b}
-                      </span>
-                    )}
+            <button onClick={() => toggleGrupo(num)} className="w-full flex items-center justify-between mb-3">
+              <h3 className="font-bold" style={{ color: T.gold }}>
+                Grupo {num}
+              </h3>
+              <span style={{ transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+                <IconAbajo color={T.inkDim} />
+              </span>
+            </button>
+
+            {abierto && (
+              <>
+                <div className="rounded-xl border overflow-hidden mb-3" style={{ borderColor: T.line }}>
+                  <div
+                    className="grid gap-1 px-2 py-1.5 text-[10px] font-extrabold uppercase"
+                    style={{ gridTemplateColumns: "1fr 34px 24px 24px 30px", background: T.panelLight, color: T.inkDim }}
+                  >
+                    <div>Equipo</div>
+                    <div className="text-center">Código</div>
+                    <div className="text-center">PJ</div>
+                    <div className="text-center">PG</div>
+                    <div className="text-center">DIF</div>
                   </div>
-                  {!m.winner_id && (
-                    <>
-                      <div className="flex gap-1.5 mt-2">
-                        <a
-                          href={`/partido/${m.match_token}`}
-                          className="flex-1 text-center font-bold py-2 rounded-lg"
-                          style={{ background: T.panel, color: T.goldBright, border: `1px solid ${T.line}` }}
-                        >
-                          Abrir anotador →
-                        </a>
-                        <button
-                          onClick={() => compartirPartidoGrupo(m, teamsById[m.team1_id]?.name, teamsById[m.team2_id]?.name)}
-                          className="px-4 font-bold rounded-lg"
-                          style={{ background: "#81C784", color: "#1B3A2A" }}
-                        >
-                          Compartir
-                        </button>
+                  {tabla.map((row) => (
+                    <div
+                      key={row.team.id}
+                      className="grid gap-1 px-2 py-1.5 text-xs items-center"
+                      style={{ gridTemplateColumns: "1fr 34px 24px 24px 30px", borderTop: `1px solid ${T.line}`, color: T.ink }}
+                    >
+                      <div className="truncate font-semibold">{row.team.name}</div>
+                      <div className="text-center" style={{ color: T.inkDim }}>
+                        {row.team.codigo}
                       </div>
-                      <div className="flex mt-1.5">
-                        <CargarResultadoManualGrupo
-                          T={T}
-                          match={m}
-                          nombreLocal={teamsById[m.team1_id]?.name}
-                          nombreVisitante={teamsById[m.team2_id]?.name}
-                          onGuardado={onRecargar}
-                        />
-                      </div>
-                    </>
+                      <div className="text-center">{row.pj}</div>
+                      <div className="text-center">{row.pg}</div>
+                      <div className="text-center">{row.pf - row.pc}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: T.inkDim }}>
+                    Cruces
+                  </span>
+                  {pendientesGrupo.length > 0 && (
+                    <button
+                      onClick={() => compartirCrucesGrupo(num, partidosGrupo)}
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg"
+                      style={{ background: "#81C784", color: "#1B3A2A" }}
+                    >
+                      Compartir
+                    </button>
                   )}
                 </div>
-              ))}
-            </div>
+
+                <div className="flex flex-col gap-1.5">
+                  {partidosGrupo.map((m) => (
+                    <div key={m.id} className="text-xs px-2.5 py-2.5 rounded-lg" style={{ background: T.panelLight }}>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1 min-w-0 flex-1">
+                          <span className="truncate" style={{ color: T.ink }}>
+                            {teamsById[m.team1_id]?.name}
+                          </span>
+                          <b className="flex-shrink-0" style={{ color: T.inkDim, fontSize: 10 }}>
+                            vs
+                          </b>
+                          <span className="truncate" style={{ color: T.ink }}>
+                            {teamsById[m.team2_id]?.name}
+                          </span>
+                        </div>
+                        {m.winner_id && (
+                          <span className="font-bold flex-shrink-0" style={{ color: T.goldBright }}>
+                            {m.score_a}-{m.score_b}
+                          </span>
+                        )}
+                      </div>
+                      {!m.winner_id &&
+                        (formResultadoId === m.id ? (
+                          <ResultadoInlineGrupo
+                            T={T}
+                            match={m}
+                            nombreLocal={teamsById[m.team1_id]?.name}
+                            nombreVisitante={teamsById[m.team2_id]?.name}
+                            onCancelar={() => setFormResultadoId(null)}
+                            onGuardado={() => {
+                              setFormResultadoId(null);
+                              onRecargar();
+                            }}
+                          />
+                        ) : (
+                          <div className="flex gap-1.5 mt-2">
+                            <a
+                              href={`/partido/${m.match_token}`}
+                              className="flex-1 text-center font-bold py-2 rounded-lg"
+                              style={{ background: T.panel, color: T.goldBright, border: `1px solid ${T.line}` }}
+                            >
+                              Abrir anotador
+                            </a>
+                            <button
+                              onClick={() => setFormResultadoId(m.id)}
+                              className="flex-1 text-center font-bold py-2 rounded-lg"
+                              style={{ background: "transparent", color: T.inkDim, border: `1px solid ${T.line}` }}
+                            >
+                              Cargar a mano
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         );
       })}
