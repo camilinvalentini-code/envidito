@@ -34,7 +34,9 @@ function EditarEquipoForm({ T, liga, equipo, onGuardado, onCancelar }) {
   const maximo = requeridos + 1; // un suplente de margen
 
   function setIntegrante(i, campo, valor) {
-    const limpio = campo === "whatsapp" ? valor.replace(/[^0-9+\-\s]/g, "") : valor;
+    let limpio = valor;
+    if (campo === "whatsapp") limpio = valor.replace(/[^0-9+\-\s]/g, "");
+    if (campo === "nombre") limpio = valor.replace(/[^a-zA-ZÀ-ÿñÑ\s'-]/g, "");
     setIntegrantes((arr) => arr.map((it, idx) => (idx === i ? { ...it, [campo]: limpio } : it)));
   }
   function agregarFila() {
@@ -60,7 +62,7 @@ function EditarEquipoForm({ T, liga, equipo, onGuardado, onCancelar }) {
         return d >= 10 && d <= 13;
       })
     ) {
-      setError("Cargá un WhatsApp válido (código de área + número, ej: 3517 51-0621) de al menos un integrante.");
+      setError("Cargá un WhatsApp válido (código de área + número, ej: 351X XX-XXXX) de al menos un integrante.");
       return;
     }
     setError("");

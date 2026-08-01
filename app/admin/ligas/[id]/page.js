@@ -24,6 +24,11 @@ export default function PanelLiga() {
   const [tab, setTab] = useState("fixture");
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
+  const [origin, setOrigin] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") setOrigin(window.location.origin);
+  }, []);
 
   const load = useCallback(async () => {
     const { data: l } = await supabase.from("ligas").select("*").eq("id", ligaId).single();
@@ -89,6 +94,20 @@ export default function PanelLiga() {
     if (!window.confirm(`¿Marcar a "${nombreGanador}" como ganador de este partido? No toca el marcador, solo lo cierra.`)) return;
     await supabase.from("liga_partidos").update({ jugado: true, ganador_id: ganadorId }).eq("id", partido.id);
     loadPartidos();
+  }
+
+  async function compartirPartido(p, nombreLocal, nombreVisitante, codigoLocal, codigoVisitante) {
+    const link = `${origin}/partido-liga/${p.match_token}`;
+    const texto = `${liga?.nombre} — Fecha ${p.fecha_numero}\n${nombreLocal} vs ${nombreVisitante}\n\nAnotá los puntos acá con el código de tu equipo:\n${link}\n\nCódigo ${nombreLocal}: ${codigoLocal}\nCódigo ${nombreVisitante}: ${codigoVisitante}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ text: texto });
+      } catch (e) {
+        return;
+      }
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank");
+    }
   }
 
   const pendientesCount = solicitudes.filter((s) => s.estado === "pendiente").length;
@@ -237,13 +256,30 @@ export default function PanelLiga() {
                               </div>
                             ) : (
                               <>
-                                <Link
-                                  href={`/partido-liga/${p.match_token}`}
-                                  className="block w-full text-center text-xs font-bold mt-2 py-1.5 rounded-lg"
-                                  style={{ background: T.panelLight, color: T.goldBright }}
-                                >
-                                  Abrir anotador →
-                                </Link>
+                                <div className="flex gap-1.5 mt-2">
+                                  <Link
+                                    href={`/partido-liga/${p.match_token}`}
+                                    className="flex-1 text-center text-xs font-bold py-1.5 rounded-lg"
+                                    style={{ background: T.panelLight, color: T.goldBright }}
+                                  >
+                                    Abrir anotador →
+                                  </Link>
+                                  <button
+                                    onClick={() =>
+                                      compartirPartido(
+                                        p,
+                                        equiposById[p.equipo_local_id]?.nombre,
+                                        equiposById[p.equipo_visitante_id]?.nombre,
+                                        equiposById[p.equipo_local_id]?.codigo,
+                                        equiposById[p.equipo_visitante_id]?.codigo
+                                      )
+                                    }
+                                    className="px-3 text-xs font-bold rounded-lg"
+                                    style={{ background: "#81C784", color: "#1B3A2A" }}
+                                  >
+                                    Compartir
+                                  </button>
+                                </div>
                                 <div className="flex gap-1.5 mt-1.5">
                                   <button
                                     onClick={() => forzarGanadorLiga(p, p.equipo_local_id, equiposById[p.equipo_local_id]?.nombre)}
@@ -284,7 +320,7 @@ export default function PanelLiga() {
         )}
 
         {tab === "solicitudes" && (
-          <SolicitudesTab T={T} ligaId={ligaId} solicitudes={solicitudes} onCambio={load} />
+          <SolicitudesTab T={T} ligaId={ligaId} liga={liga} solicitudes={solicitudes} onCambio={load} />
         )}
       </div>
     </div>
@@ -361,7 +397,9 @@ function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
   }
 
   function setIntegrante(i, campo, valor) {
-    const limpio = campo === "whatsapp" ? valor.replace(/[^0-9+\-\s]/g, "") : valor;
+    let limpio = valor;
+    if (campo === "whatsapp") limpio = valor.replace(/[^0-9+\-\s]/g, "");
+    if (campo === "nombre") limpio = valor.replace(/[^a-zA-ZÀ-ÿñÑ\s'-]/g, "");
     setIntegrantes((arr) => arr.map((it, idx) => (idx === i ? { ...it, [campo]: limpio } : it)));
   }
   function agregarFila() {
@@ -387,7 +425,7 @@ function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
         return d >= 10 && d <= 13;
       })
     ) {
-      setError("Cargá un WhatsApp válido (código de área + número, ej: 3517 51-0621) de al menos un integrante.");
+      setError("Cargá un WhatsApp válido (código de área + número, ej: 351X XX-XXXX) de al menos un integrante.");
       return;
     }
     setError("");
@@ -557,21 +595,36 @@ function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
   );
 }
 
-function SolicitudesTab({ T, ligaId, solicitudes, onCambio }) {
+function SolicitudesTab({ T, ligaId, liga, solicitudes, onCambio }) {
+  const requeridos = { "1v1": 1, "2v2": 2, "3v3": 3 }[liga?.categoria] || 1;
   const [probando, setProbando] = useState(false);
   const [nombreEquipo, setNombreEquipo] = useState("");
+  const [integrantes, setIntegrantes] = useState(Array.from({ length: requeridos }, () => ""));
   const [nombreContacto, setNombreContacto] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
 
+  useEffect(() => {
+    if (liga?.categoria) setIntegrantes(Array.from({ length: requeridos }, () => ""));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liga?.categoria]);
+
+  function setNombreIntegrante(i, valor) {
+    const limpio = valor.replace(/[^a-zA-ZÀ-ÿñÑ\s'-]/g, "");
+    setIntegrantes((arr) => arr.map((v, idx) => (idx === i ? limpio : v)));
+  }
+
   async function crearDePrueba() {
     if (!nombreEquipo.trim()) return;
+    const integrantesLimpios = integrantes.filter((n) => n.trim()).map((n) => ({ nombre: n.trim(), whatsapp: null }));
     await supabase.rpc("crear_solicitud_liga", {
       p_liga_id: ligaId,
       p_nombre_equipo: nombreEquipo.trim(),
       p_nombre_contacto: nombreContacto.trim() || null,
       p_whatsapp: whatsapp.trim() || null,
+      p_integrantes: integrantesLimpios.length ? integrantesLimpios : null,
     });
     setNombreEquipo("");
+    setIntegrantes(Array.from({ length: requeridos }, () => ""));
     setNombreContacto("");
     setWhatsapp("");
     setProbando(false);
@@ -610,20 +663,34 @@ function SolicitudesTab({ T, ligaId, solicitudes, onCambio }) {
             className="px-2.5 py-1.5 rounded-lg text-xs"
             style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
           />
-          <input
-            value={nombreContacto}
-            onChange={(e) => setNombreContacto(e.target.value)}
-            placeholder="Nombre de contacto"
-            className="px-2.5 py-1.5 rounded-lg text-xs"
-            style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-          />
-          <input
-            value={whatsapp}
-            onChange={(e) => setWhatsapp(e.target.value)}
-            placeholder="WhatsApp"
-            className="px-2.5 py-1.5 rounded-lg text-xs"
-            style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-          />
+          <div className="grid grid-cols-2 gap-1.5">
+            {integrantes.map((valor, i) => (
+              <input
+                key={i}
+                value={valor}
+                onChange={(e) => setNombreIntegrante(i, e.target.value)}
+                placeholder={`Integrante`}
+                className="px-2.5 py-1.5 rounded-lg text-xs"
+                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+              />
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <input
+              value={nombreContacto}
+              onChange={(e) => setNombreContacto(e.target.value)}
+              placeholder="Nombre de contacto"
+              className="px-2.5 py-1.5 rounded-lg text-xs"
+              style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+            />
+            <input
+              value={whatsapp}
+              onChange={(e) => setWhatsapp(e.target.value.replace(/[^0-9+\-\s]/g, ""))}
+              placeholder="WhatsApp"
+              className="px-2.5 py-1.5 rounded-lg text-xs"
+              style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+            />
+          </div>
           <div className="flex gap-2 mt-1">
             <button onClick={crearDePrueba} className="flex-1 text-xs font-bold py-1.5 rounded-lg" style={{ background: T.gold, color: T.ink }}>
               Guardar
