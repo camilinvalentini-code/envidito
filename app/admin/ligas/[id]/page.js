@@ -50,7 +50,7 @@ function CargarResultadoManual({ T, partido, nombreLocal, nombreVisitante, onGua
     return (
       <button
         onClick={() => setAbierto(true)}
-        className="flex-1 text-[11px] font-bold py-1 rounded-lg"
+        className="flex-1 text-xs font-bold py-2 rounded-lg"
         style={{ background: "transparent", color: T.inkDim, border: `1px solid ${T.line}` }}
       >
         Cargar resultado a mano
@@ -60,8 +60,8 @@ function CargarResultadoManual({ T, partido, nombreLocal, nombreVisitante, onGua
 
   return (
     <div className="mt-1.5 w-full">
-      <div className="flex items-center gap-2">
-        <span className="text-xs flex-shrink-0 truncate" style={{ color: T.inkDim, maxWidth: 70 }}>
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs flex-1 min-w-0 truncate" style={{ color: T.inkDim }}>
           {nombreLocal}
         </span>
         <input
@@ -69,10 +69,10 @@ function CargarResultadoManual({ T, partido, nombreLocal, nombreVisitante, onGua
           onChange={(e) => setLocal(e.target.value.replace(/\D/g, "").slice(0, 2))}
           inputMode="numeric"
           placeholder="0"
-          className="w-12 text-center px-1 py-1.5 rounded-lg text-sm"
+          className="w-14 flex-shrink-0 text-center px-1 py-2 rounded-lg text-sm"
           style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
         />
-        <span className="text-xs" style={{ color: T.inkDim }}>
+        <span className="text-xs flex-shrink-0" style={{ color: T.inkDim }}>
           -
         </span>
         <input
@@ -80,23 +80,23 @@ function CargarResultadoManual({ T, partido, nombreLocal, nombreVisitante, onGua
           onChange={(e) => setVisitante(e.target.value.replace(/\D/g, "").slice(0, 2))}
           inputMode="numeric"
           placeholder="0"
-          className="w-12 text-center px-1 py-1.5 rounded-lg text-sm"
+          className="w-14 flex-shrink-0 text-center px-1 py-2 rounded-lg text-sm"
           style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
         />
-        <span className="text-xs flex-1 truncate" style={{ color: T.inkDim }}>
+        <span className="text-xs flex-1 min-w-0 truncate text-right" style={{ color: T.inkDim }}>
           {nombreVisitante}
         </span>
       </div>
-      <div className="flex gap-2 mt-1.5">
+      <div className="flex gap-2 mt-2">
         <button
           onClick={guardar}
           disabled={guardando}
-          className="flex-1 text-xs font-bold py-1.5 rounded-lg disabled:opacity-60"
+          className="flex-1 text-xs font-bold py-2 rounded-lg disabled:opacity-60"
           style={{ background: T.gold, color: T.ink }}
         >
           {guardando ? "Guardando…" : "Guardar"}
         </button>
-        <button onClick={() => setAbierto(false)} className="text-xs px-2" style={{ color: T.inkDim }}>
+        <button onClick={() => setAbierto(false)} className="text-xs px-3 py-2" style={{ color: T.inkDim }}>
           Cancelar
         </button>
       </div>
@@ -333,12 +333,14 @@ export default function PanelLiga() {
                       <div className="flex flex-col gap-2">
                         {porFecha[fn].map((p) => (
                           <div key={p.id} className="rounded-xl p-3 border" style={{ background: T.panel, borderColor: T.line }}>
-                            <div className="flex items-center justify-between text-sm font-bold" style={{ color: T.ink }}>
-                              <span>{equiposById[p.equipo_local_id]?.nombre}</span>
-                              <span className="text-xs font-bold" style={{ color: T.inkDim }}>
-                                vs
-                              </span>
-                              <span>{equiposById[p.equipo_visitante_id]?.nombre}</span>
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 min-w-0 flex-1 text-sm font-bold" style={{ color: T.ink }}>
+                                <span className="truncate">{equiposById[p.equipo_local_id]?.nombre}</span>
+                                <span className="flex-shrink-0 text-xs font-bold" style={{ color: T.inkDim }}>
+                                  vs
+                                </span>
+                                <span className="truncate">{equiposById[p.equipo_visitante_id]?.nombre}</span>
+                              </div>
                             </div>
                             {p.jugado ? (
                               <div className="flex items-center justify-between mt-2">
@@ -354,7 +356,7 @@ export default function PanelLiga() {
                                 <div className="flex gap-1.5 mt-2">
                                   <Link
                                     href={`/partido-liga/${p.match_token}`}
-                                    className="flex-1 text-center text-xs font-bold py-1.5 rounded-lg"
+                                    className="flex-1 text-center text-xs font-bold py-2 rounded-lg"
                                     style={{ background: T.panelLight, color: T.goldBright }}
                                   >
                                     Abrir anotador →
@@ -369,7 +371,7 @@ export default function PanelLiga() {
                                         equiposById[p.equipo_visitante_id]?.codigo
                                       )
                                     }
-                                    className="px-3 text-xs font-bold rounded-lg"
+                                    className="px-4 text-xs font-bold rounded-lg"
                                     style={{ background: "#81C784", color: "#1B3A2A" }}
                                   >
                                     Compartir

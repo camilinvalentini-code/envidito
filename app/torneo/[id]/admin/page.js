@@ -1284,7 +1284,7 @@ function CargarResultadoManualGrupo({ T, match, nombreLocal, nombreVisitante, on
     return (
       <button
         onClick={() => setAbierto(true)}
-        className="flex-1 text-[11px] font-bold py-1 rounded-lg"
+        className="flex-1 text-xs font-bold py-2 rounded-lg"
         style={{ background: "transparent", color: T.inkDim, border: `1px solid ${T.line}` }}
       >
         Cargar resultado a mano
@@ -1294,8 +1294,8 @@ function CargarResultadoManualGrupo({ T, match, nombreLocal, nombreVisitante, on
 
   return (
     <div className="mt-1.5 w-full">
-      <div className="flex items-center gap-2">
-        <span className="text-xs flex-shrink-0 truncate" style={{ color: T.inkDim, maxWidth: 70 }}>
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs flex-1 min-w-0 truncate" style={{ color: T.inkDim }}>
           {nombreLocal}
         </span>
         <input
@@ -1303,10 +1303,10 @@ function CargarResultadoManualGrupo({ T, match, nombreLocal, nombreVisitante, on
           onChange={(e) => setLocal(e.target.value.replace(/\D/g, "").slice(0, 2))}
           inputMode="numeric"
           placeholder="0"
-          className="w-12 text-center px-1 py-1.5 rounded-lg text-sm"
+          className="w-14 flex-shrink-0 text-center px-1 py-2 rounded-lg text-sm"
           style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
         />
-        <span className="text-xs" style={{ color: T.inkDim }}>
+        <span className="text-xs flex-shrink-0" style={{ color: T.inkDim }}>
           -
         </span>
         <input
@@ -1314,23 +1314,23 @@ function CargarResultadoManualGrupo({ T, match, nombreLocal, nombreVisitante, on
           onChange={(e) => setVisitante(e.target.value.replace(/\D/g, "").slice(0, 2))}
           inputMode="numeric"
           placeholder="0"
-          className="w-12 text-center px-1 py-1.5 rounded-lg text-sm"
+          className="w-14 flex-shrink-0 text-center px-1 py-2 rounded-lg text-sm"
           style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
         />
-        <span className="text-xs flex-1 truncate" style={{ color: T.inkDim }}>
+        <span className="text-xs flex-1 min-w-0 truncate text-right" style={{ color: T.inkDim }}>
           {nombreVisitante}
         </span>
       </div>
-      <div className="flex gap-2 mt-1.5">
+      <div className="flex gap-2 mt-2">
         <button
           onClick={guardar}
           disabled={guardando}
-          className="flex-1 text-xs font-bold py-1.5 rounded-lg disabled:opacity-60"
+          className="flex-1 text-xs font-bold py-2 rounded-lg disabled:opacity-60"
           style={{ background: T.gold, color: T.ink }}
         >
           {guardando ? "Guardando…" : "Guardar"}
         </button>
-        <button onClick={() => setAbierto(false)} className="text-xs px-2" style={{ color: T.inkDim }}>
+        <button onClick={() => setAbierto(false)} className="text-xs px-3 py-2" style={{ color: T.inkDim }}>
           Cancelar
         </button>
       </div>
@@ -1456,11 +1456,19 @@ function FaseDeGruposPanel({
             </div>
             <div className="flex flex-col gap-1.5">
               {partidosGrupo.map((m) => (
-                <div key={m.id} className="text-xs px-2.5 py-2 rounded-lg" style={{ background: T.panelLight }}>
+                <div key={m.id} className="text-xs px-2.5 py-2.5 rounded-lg" style={{ background: T.panelLight }}>
                   <div className="flex items-center justify-between gap-2">
-                    <span style={{ color: T.ink }}>
-                      {teamsById[m.team1_id]?.name} <b style={{ color: T.inkDim }}>vs</b> {teamsById[m.team2_id]?.name}
-                    </span>
+                    <div className="flex items-center gap-1 min-w-0 flex-1">
+                      <span className="truncate" style={{ color: T.ink }}>
+                        {teamsById[m.team1_id]?.name}
+                      </span>
+                      <b className="flex-shrink-0" style={{ color: T.inkDim, fontSize: 10 }}>
+                        vs
+                      </b>
+                      <span className="truncate" style={{ color: T.ink }}>
+                        {teamsById[m.team2_id]?.name}
+                      </span>
+                    </div>
                     {m.winner_id && (
                       <span className="font-bold flex-shrink-0" style={{ color: T.goldBright }}>
                         {m.score_a}-{m.score_b}
@@ -1469,17 +1477,17 @@ function FaseDeGruposPanel({
                   </div>
                   {!m.winner_id && (
                     <>
-                      <div className="flex gap-1.5 mt-1.5">
+                      <div className="flex gap-1.5 mt-2">
                         <a
                           href={`/partido/${m.match_token}`}
-                          className="flex-1 text-center font-bold py-1 rounded-lg"
+                          className="flex-1 text-center font-bold py-2 rounded-lg"
                           style={{ background: T.panel, color: T.goldBright, border: `1px solid ${T.line}` }}
                         >
                           Abrir anotador →
                         </a>
                         <button
                           onClick={() => compartirPartidoGrupo(m, teamsById[m.team1_id]?.name, teamsById[m.team2_id]?.name)}
-                          className="px-3 font-bold rounded-lg"
+                          className="px-4 font-bold rounded-lg"
                           style={{ background: "#81C784", color: "#1B3A2A" }}
                         >
                           Compartir
