@@ -390,6 +390,14 @@ function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const [confirmarBorrar, setConfirmarBorrar] = useState(null);
+  const [orden, setOrden] = useState("nombre_asc");
+
+  const equiposOrdenados = [...equipos].sort((a, b) => {
+    if (orden === "nombre_asc") return a.nombre.localeCompare(b.nombre);
+    if (orden === "nombre_desc") return b.nombre.localeCompare(a.nombre);
+    if (orden === "creado_asc") return new Date(a.created_at) - new Date(b.created_at);
+    return new Date(b.created_at) - new Date(a.created_at); // creado_desc
+  });
 
   useEffect(() => {
     if (liga?.categoria) {
@@ -506,11 +514,24 @@ function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
         </button>
       </div>
 
-      <div className="text-xs font-extrabold uppercase tracking-wide mb-2" style={{ color: T.inkDim }}>
-        Equipos anotados ({equipos.length})
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="text-xs font-extrabold uppercase tracking-wide" style={{ color: T.inkDim }}>
+          Equipos anotados ({equipos.length})
+        </div>
+        <select
+          value={orden}
+          onChange={(e) => setOrden(e.target.value)}
+          className="text-xs px-2 py-1.5 rounded-lg font-bold"
+          style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+        >
+          <option value="nombre_asc">Nombre A-Z</option>
+          <option value="nombre_desc">Nombre Z-A</option>
+          <option value="creado_asc">Primero anotado</option>
+          <option value="creado_desc">Último anotado</option>
+        </select>
       </div>
       <div className="flex flex-col gap-2">
-        {equipos.map((eq) => {
+        {equiposOrdenados.map((eq) => {
           const contacto = (eq.liga_integrantes || []).find((it) => it.whatsapp && it.whatsapp.trim());
           const numero = contacto ? contacto.whatsapp.replace(/\D/g, "") : null;
           const texto = encodeURIComponent(`Hola equipo ${eq.nombre}! te escribo por la liga ${liga?.nombre || ""}.`);
