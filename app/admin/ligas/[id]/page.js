@@ -413,7 +413,8 @@ function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
   }
 
   function setIntegrante(i, campo, valor) {
-    setIntegrantes((arr) => arr.map((it, idx) => (idx === i ? { ...it, [campo]: valor } : it)));
+    const limpio = campo === "whatsapp" ? valor.replace(/[^0-9+\-\s]/g, "") : valor;
+    setIntegrantes((arr) => arr.map((it, idx) => (idx === i ? { ...it, [campo]: limpio } : it)));
   }
   function agregarFila() {
     setIntegrantes((arr) => (arr.length >= maximo ? arr : [...arr, { nombre: "", whatsapp: "" }]));
@@ -432,8 +433,8 @@ function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
       setError(`Esta liga es ${liga?.categoria}: cargá entre ${requeridos} y ${maximo} integrantes (el extra es por si hay suplente).`);
       return;
     }
-    if (!limpios.some((it) => it.whatsapp.trim())) {
-      setError("Cargá el WhatsApp de al menos un integrante.");
+    if (!limpios.some((it) => it.whatsapp.replace(/\D/g, "").length >= 6)) {
+      setError("Cargá un WhatsApp válido (con código de área) de al menos un integrante.");
       return;
     }
     setError("");
