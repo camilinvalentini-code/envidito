@@ -8,103 +8,6 @@ import { supabase } from "../../../../lib/supabaseClient";
 import ThemeToggleButton from "../../../../components/ThemeToggleButton";
 import { IconAtras } from "../../../../components/LineIcons";
 
-function ResultadoForm({ T, partido, onGuardado }) {
-  const [local, setLocal] = useState("");
-  const [visitante, setVisitante] = useState("");
-  const [abierto, setAbierto] = useState(false);
-  const [error, setError] = useState("");
-  const [guardando, setGuardando] = useState(false);
-
-  async function guardar() {
-    const pl = parseInt(local, 10);
-    const pv = parseInt(visitante, 10);
-    if (isNaN(pl) || isNaN(pv)) {
-      setError("Cargá los dos puntajes.");
-      return;
-    }
-    if (pl < 0 || pl > 30 || pv < 0 || pv > 30) {
-      setError("Los puntos van de 0 a 30.");
-      return;
-    }
-    if (pl === pv) {
-      setError("No puede haber empate.");
-      return;
-    }
-    setError("");
-    setGuardando(true);
-    const { error: err } = await supabase.rpc("cargar_resultado_liga", {
-      p_partido_id: partido.id,
-      p_puntos_local: pl,
-      p_puntos_visitante: pv,
-    });
-    setGuardando(false);
-    if (err) {
-      setError("No se pudo guardar.");
-      return;
-    }
-    setAbierto(false);
-    onGuardado();
-  }
-
-  if (!abierto) {
-    return (
-      <button
-        onClick={() => {
-          setAbierto(true);
-          setLocal(partido.jugado ? String(partido.puntos_local) : "");
-          setVisitante(partido.jugado ? String(partido.puntos_visitante) : "");
-        }}
-        className="w-full text-center text-xs font-bold mt-2 py-1.5 rounded-lg"
-        style={{ background: T.panelLight, color: T.goldBright }}
-      >
-        {partido.jugado ? `Editar resultado (${partido.puntos_local}-${partido.puntos_visitante})` : "Cargar resultado"}
-      </button>
-    );
-  }
-
-  return (
-    <div className="mt-2 flex flex-col gap-1.5">
-      <div className="flex items-center gap-2">
-        <input
-          value={local}
-          onChange={(e) => setLocal(e.target.value.replace(/\D/g, "").slice(0, 2))}
-          inputMode="numeric"
-          placeholder="0"
-          className="w-14 text-center px-2 py-1.5 rounded-lg text-sm"
-          style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-        />
-        <span className="text-xs" style={{ color: T.inkDim }}>
-          -
-        </span>
-        <input
-          value={visitante}
-          onChange={(e) => setVisitante(e.target.value.replace(/\D/g, "").slice(0, 2))}
-          inputMode="numeric"
-          placeholder="0"
-          className="w-14 text-center px-2 py-1.5 rounded-lg text-sm"
-          style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-        />
-        <button
-          onClick={guardar}
-          disabled={guardando}
-          className="flex-1 text-xs font-bold py-1.5 rounded-lg disabled:opacity-60"
-          style={{ background: T.gold, color: T.ink }}
-        >
-          {guardando ? "..." : "Guardar"}
-        </button>
-        <button onClick={() => setAbierto(false)} className="text-xs px-1.5" style={{ color: T.inkDim }}>
-          x
-        </button>
-      </div>
-      {error && (
-        <p className="text-xs" style={{ color: T.redDim }}>
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
 export default function PanelLiga() {
   const { T } = useTheme();
   const router = useRouter();
@@ -317,7 +220,28 @@ export default function PanelLiga() {
                               </span>
                               <span>{equiposById[p.equipo_visitante_id]?.nombre}</span>
                             </div>
-                            <ResultadoForm T={T} partido={p} onGuardado={loadPartidos} />
+                            {p.jugado ? (
+                              <div className="flex items-center justify-between mt-2">
+                                <span className="text-xs font-bold" style={{ color: T.goldBright }}>
+                                  {p.puntos_local}-{p.puntos_visitante}
+                                </span>
+                                <Link
+                                  href={`/admin/ligas/${ligaId}/partido/${p.id}`}
+                                  className="text-xs font-bold"
+                                  style={{ color: T.inkDim }}
+                                >
+                                  Editar en el anotador →
+                                </Link>
+                              </div>
+                            ) : (
+                              <Link
+                                href={`/admin/ligas/${ligaId}/partido/${p.id}`}
+                                className="block w-full text-center text-xs font-bold mt-2 py-1.5 rounded-lg"
+                                style={{ background: T.panelLight, color: T.goldBright }}
+                              >
+                                Abrir anotador →
+                              </Link>
+                            )}
                           </div>
                         ))}
                       </div>
