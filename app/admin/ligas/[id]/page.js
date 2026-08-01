@@ -85,6 +85,12 @@ export default function PanelLiga() {
     loadPartidos();
   }
 
+  async function forzarGanadorLiga(partido, ganadorId, nombreGanador) {
+    if (!window.confirm(`¿Marcar a "${nombreGanador}" como ganador de este partido? No toca el marcador, solo lo cierra.`)) return;
+    await supabase.from("liga_partidos").update({ jugado: true, ganador_id: ganadorId }).eq("id", partido.id);
+    loadPartidos();
+  }
+
   const pendientesCount = solicitudes.filter((s) => s.estado === "pendiente").length;
   const etapaActual = etapas.find((e) => e.id === etapaId);
   const equiposById = {};
@@ -225,22 +231,36 @@ export default function PanelLiga() {
                                 <span className="text-xs font-bold" style={{ color: T.goldBright }}>
                                   {p.puntos_local}-{p.puntos_visitante}
                                 </span>
-                                <Link
-                                  href={`/admin/ligas/${ligaId}/partido/${p.id}`}
-                                  className="text-xs font-bold"
-                                  style={{ color: T.inkDim }}
-                                >
+                                <Link href={`/partido-liga/${p.match_token}`} className="text-xs font-bold" style={{ color: T.inkDim }}>
                                   Editar en el anotador →
                                 </Link>
                               </div>
                             ) : (
-                              <Link
-                                href={`/admin/ligas/${ligaId}/partido/${p.id}`}
-                                className="block w-full text-center text-xs font-bold mt-2 py-1.5 rounded-lg"
-                                style={{ background: T.panelLight, color: T.goldBright }}
-                              >
-                                Abrir anotador →
-                              </Link>
+                              <>
+                                <Link
+                                  href={`/partido-liga/${p.match_token}`}
+                                  className="block w-full text-center text-xs font-bold mt-2 py-1.5 rounded-lg"
+                                  style={{ background: T.panelLight, color: T.goldBright }}
+                                >
+                                  Abrir anotador →
+                                </Link>
+                                <div className="flex gap-1.5 mt-1.5">
+                                  <button
+                                    onClick={() => forzarGanadorLiga(p, p.equipo_local_id, equiposById[p.equipo_local_id]?.nombre)}
+                                    className="flex-1 text-[11px] font-bold py-1 rounded-lg"
+                                    style={{ background: "transparent", color: T.inkDim, border: `1px solid ${T.line}` }}
+                                  >
+                                    Forzar: ganó {equiposById[p.equipo_local_id]?.nombre}
+                                  </button>
+                                  <button
+                                    onClick={() => forzarGanadorLiga(p, p.equipo_visitante_id, equiposById[p.equipo_visitante_id]?.nombre)}
+                                    className="flex-1 text-[11px] font-bold py-1 rounded-lg"
+                                    style={{ background: "transparent", color: T.inkDim, border: `1px solid ${T.line}` }}
+                                  >
+                                    Forzar: ganó {equiposById[p.equipo_visitante_id]?.nombre}
+                                  </button>
+                                </div>
+                              </>
                             )}
                           </div>
                         ))}
