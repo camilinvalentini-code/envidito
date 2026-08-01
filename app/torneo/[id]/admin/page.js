@@ -197,6 +197,13 @@ export default function AdminPage({ params }) {
     load();
   }
 
+  async function editarNombreEquipo(teamId, name) {
+    const limpio = name.trim();
+    if (!limpio) return;
+    await supabase.from("teams").update({ name: limpio }).eq("id", teamId);
+    load();
+  }
+
   async function generarCuadroPrincipal(teamIds) {
     if (tournament.modo === "vidon") {
       return supabase.rpc("generar_bracket_vidon", { p_tournament_id: id, p_team_ids: teamIds });
@@ -954,6 +961,7 @@ export default function AdminPage({ params }) {
             onReabrir={reabrirPartido}
             togglePaid={togglePaid}
             editarJugadores={editarJugadores}
+            editarNombreEquipo={editarNombreEquipo}
             mostrarEquipos={mostrarEquipos}
             setMostrarEquipos={setMostrarEquipos}
             busquedaEquipos={busquedaEquipos}
@@ -1070,6 +1078,7 @@ export default function AdminPage({ params }) {
                         onTogglePaid={togglePaid}
                         onRemove={removeTeam}
                         onEditPlayers={editarJugadores}
+                        onEditName={editarNombreEquipo}
                       />
                     </div>
                   )}
@@ -1173,6 +1182,7 @@ export default function AdminPage({ params }) {
                     editable
                     onTogglePaid={togglePaid}
                     onEditPlayers={editarJugadores}
+                    onEditName={editarNombreEquipo}
                   />
                 </div>
               )}
@@ -1536,6 +1546,7 @@ function FaseDeGruposPanel({
   onReabrir,
   togglePaid,
   editarJugadores,
+  editarNombreEquipo,
   mostrarEquipos,
   setMostrarEquipos,
   busquedaEquipos,
@@ -1937,6 +1948,7 @@ function FaseDeGruposPanel({
                 editable
                 onTogglePaid={togglePaid}
                 onEditPlayers={editarJugadores}
+                onEditName={editarNombreEquipo}
               />
             </div>
           )}

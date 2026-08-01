@@ -4,9 +4,10 @@ import { useTheme } from "../lib/theme";
 import { INK_ON_LIGHT } from "../lib/theme";
 import { IconLapiz, IconBasura } from "./LineIcons";
 
-export default function TeamList({ teams, onTogglePaid, onRemove, onEditPlayers, editable }) {
+export default function TeamList({ teams, onTogglePaid, onRemove, onEditPlayers, onEditName, editable }) {
   const { T } = useTheme();
   const [editandoId, setEditandoId] = useState(null);
+  const [valorNombre, setValorNombre] = useState("");
   const [valorEdit, setValorEdit] = useState("");
   const [confirmarBorrar, setConfirmarBorrar] = useState(null);
   const [orden, setOrden] = useState("nombre_asc");
@@ -22,10 +23,12 @@ export default function TeamList({ teams, onTogglePaid, onRemove, onEditPlayers,
 
   function empezarEdicion(t) {
     setEditandoId(t.id);
+    setValorNombre(t.name || "");
     setValorEdit(t.players || "");
   }
   function guardarEdicion(teamId) {
-    onEditPlayers(teamId, valorEdit.trim());
+    if (onEditName && valorNombre.trim()) onEditName(teamId, valorNombre.trim());
+    if (onEditPlayers) onEditPlayers(teamId, valorEdit.trim());
     setEditandoId(null);
   }
 
@@ -61,34 +64,49 @@ export default function TeamList({ teams, onTogglePaid, onRemove, onEditPlayers,
               {i + 1}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold truncate" style={{ color: T.ink }}>
-                {t.name}
-              </div>
               {editandoId === t.id ? (
-                <div className="flex items-center gap-1 mt-1">
-                  <input
-                    value={valorEdit}
-                    onChange={(e) => setValorEdit(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && guardarEdicion(t.id)}
-                    placeholder="Nombres de los jugadores"
-                    autoFocus
-                    className="flex-1 min-w-0 px-2 py-1 rounded-lg text-xs"
-                    style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
-                  />
+                <div className="flex flex-col gap-1">
+                  {onEditName && (
+                    <input
+                      value={valorNombre}
+                      onChange={(e) => setValorNombre(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && guardarEdicion(t.id)}
+                      placeholder="Nombre del equipo"
+                      autoFocus
+                      className="w-full px-2 py-1 rounded-lg text-sm font-semibold"
+                      style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+                    />
+                  )}
+                  {onEditPlayers && (
+                    <input
+                      value={valorEdit}
+                      onChange={(e) => setValorEdit(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && guardarEdicion(t.id)}
+                      placeholder="Nombres de los jugadores"
+                      autoFocus={!onEditName}
+                      className="w-full px-2 py-1 rounded-lg text-xs"
+                      style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+                    />
+                  )}
                   <button
                     onClick={() => guardarEdicion(t.id)}
-                    className="text-xs font-bold px-2 py-1 rounded-lg flex-shrink-0"
+                    className="self-start text-xs font-bold px-2.5 py-1 rounded-lg"
                     style={{ background: T.gold, color: INK_ON_LIGHT }}
                   >
                     OK
                   </button>
                 </div>
               ) : (
-                t.players && (
-                  <div className="text-xs truncate" style={{ color: T.inkDim }}>
-                    {t.players}
+                <>
+                  <div className="text-sm font-semibold truncate" style={{ color: T.ink }}>
+                    {t.name}
                   </div>
-                )
+                  {t.players && (
+                    <div className="text-xs truncate" style={{ color: T.inkDim }}>
+                      {t.players}
+                    </div>
+                  )}
+                </>
               )}
               {t.codigo && (
                 <div className="text-xs font-mono mt-0.5" style={{ color: T.inkDim }}>
@@ -107,10 +125,10 @@ export default function TeamList({ teams, onTogglePaid, onRemove, onEditPlayers,
             >
               {t.paid ? "Pagó" : "Debe"}
             </button>
-            {editable && onEditPlayers && editandoId !== t.id && (
+            {editable && (onEditName || onEditPlayers) && editandoId !== t.id && (
               <button
                 onClick={() => empezarEdicion(t)}
-                title={t.players ? "Editar jugadores" : "Agregar jugadores"}
+                title="Editar equipo"
                 className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{ background: T.panel }}
               >
