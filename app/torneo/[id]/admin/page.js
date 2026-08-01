@@ -1351,12 +1351,19 @@ function FaseDeGruposPanel({
   const numerosGrupos = [...new Set(teams.map((t) => t.grupo).filter((g) => g != null))].sort((a, b) => a - b);
   const grupoTodosJugados = grupoMatches.length > 0 && grupoMatches.every((m) => m.winner_id);
   const [gruposAbiertos, setGruposAbiertos] = useState({});
+  const [crucesAbiertos, setCrucesAbiertos] = useState({});
 
   function grupoAbierto(num) {
     return gruposAbiertos[num] !== false; // abierto por default
   }
   function toggleGrupo(num) {
     setGruposAbiertos((prev) => ({ ...prev, [num]: !grupoAbierto(num) }));
+  }
+  function crucesAbierto(num) {
+    return crucesAbiertos[num] !== false; // abierto por default
+  }
+  function toggleCruces(num) {
+    setCrucesAbiertos((prev) => ({ ...prev, [num]: !crucesAbierto(num) }));
   }
 
   async function compartirCrucesGrupo(numGrupo, partidosGrupo) {
@@ -1477,9 +1484,19 @@ function FaseDeGruposPanel({
                 </div>
 
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: T.inkDim }}>
-                    Cruces
-                  </span>
+                  <button onClick={() => toggleCruces(num)} className="flex items-center gap-1.5">
+                    <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: T.inkDim }}>
+                      Cruces
+                    </span>
+                    <span
+                      style={{
+                        transform: crucesAbierto(num) ? "rotate(180deg)" : "none",
+                        transition: "transform 0.15s",
+                      }}
+                    >
+                      <IconAbajo color={T.inkDim} size={10} />
+                    </span>
+                  </button>
                   {pendientesGrupo.length > 0 && (
                     <button
                       onClick={() => compartirCrucesGrupo(num, partidosGrupo)}
@@ -1491,6 +1508,7 @@ function FaseDeGruposPanel({
                   )}
                 </div>
 
+                {crucesAbierto(num) && (
                 <div className="flex flex-col gap-1.5">
                   {partidosGrupo.map((m) => (
                     <div key={m.id} className="text-xs px-2.5 py-2.5 rounded-lg" style={{ background: T.panelLight }}>
@@ -1546,6 +1564,7 @@ function FaseDeGruposPanel({
                     </div>
                   ))}
                 </div>
+                )}
               </>
             )}
           </div>

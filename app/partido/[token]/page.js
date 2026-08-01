@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTheme } from "../../../lib/theme";
 import { useSkin } from "../../../lib/scoreboardSkin";
 import { supabase } from "../../../lib/supabaseClient";
@@ -17,6 +18,7 @@ function claveCodigo(matchId) {
 export default function PartidoPage({ params }) {
   const { token } = params;
   useWakeLock();
+  const router = useRouter();
   const { T } = useTheme();
   const { layout, marks, setLayout, setMarks } = useSkin();
   const [match, setMatch] = useState(null);
@@ -209,13 +211,16 @@ export default function PartidoPage({ params }) {
     <div className="transition-colors duration-500" style={{ background: T.bg }}>
       <div className="max-w-md mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-4">
-          <Link
-            href="/"
+          <button
+            onClick={() => {
+              if (typeof window !== "undefined" && window.history.length > 1) router.back();
+              else router.push("/");
+            }}
             className="w-8 h-8 rounded-xl flex items-center justify-center"
             style={{ background: T.panel, border: `1px solid ${T.line}` }}
           >
             <IconAtras color={T.ink} />
-          </Link>
+          </button>
           <ThemeToggleButton />
         </div>
         <h1 className="text-xl font-black text-center mb-1" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
