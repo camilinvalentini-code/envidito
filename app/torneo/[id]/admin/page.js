@@ -1449,10 +1449,11 @@ function FaseDeGruposPanel({
                 <div className="rounded-xl border overflow-hidden mb-3" style={{ borderColor: T.line }}>
                   <div
                     className="grid gap-1 px-2 py-1.5 text-[10px] font-extrabold uppercase"
-                    style={{ gridTemplateColumns: "1fr 34px 24px 24px 30px", background: T.panelLight, color: T.inkDim }}
+                    style={{ gridTemplateColumns: "1fr 40px 16px 24px 24px 30px", background: T.panelLight, color: T.inkDim }}
                   >
                     <div>Equipo</div>
                     <div className="text-center">Código</div>
+                    <div />
                     <div className="text-center">PJ</div>
                     <div className="text-center">PG</div>
                     <div className="text-center">DIF</div>
@@ -1461,12 +1462,13 @@ function FaseDeGruposPanel({
                     <div
                       key={row.team.id}
                       className="grid gap-1 px-2 py-1.5 text-xs items-center"
-                      style={{ gridTemplateColumns: "1fr 34px 24px 24px 30px", borderTop: `1px solid ${T.line}`, color: T.ink }}
+                      style={{ gridTemplateColumns: "1fr 40px 16px 24px 24px 30px", borderTop: `1px solid ${T.line}`, color: T.ink }}
                     >
                       <div className="truncate font-semibold">{row.team.name}</div>
                       <div className="text-center" style={{ color: T.inkDim }}>
                         {row.team.codigo}
                       </div>
+                      <div />
                       <div className="text-center">{row.pj}</div>
                       <div className="text-center">{row.pg}</div>
                       <div className="text-center">{row.pf - row.pc}</div>
