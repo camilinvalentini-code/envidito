@@ -1413,6 +1413,7 @@ function FaseDeGruposPanel({
   const [gruposAbiertos, setGruposAbiertos] = useState({});
   const [crucesAbiertos, setCrucesAbiertos] = useState({});
   const [verGrupos, setVerGrupos] = useState(false);
+  const [soloClasificados, setSoloClasificados] = useState(false);
 
   function grupoAbierto(num) {
     return gruposAbiertos[num] !== false; // abierto por default
@@ -1744,6 +1745,9 @@ function FaseDeGruposPanel({
   if (tournament.copas_generadas) {
     const oro = matches.filter((m) => m.bracket === "oro");
     const plata = matches.filter((m) => m.bracket === "plata");
+    const idsClasificados = new Set(
+      [...oro, ...plata].flatMap((m) => [m.team1_id, m.team2_id]).filter(Boolean)
+    );
     return (
       <div>
         <div className="rounded-2xl p-4 mb-4 border shadow-sm text-center" style={{ background: T.panel, borderColor: T.line }}>
@@ -1778,11 +1782,23 @@ function FaseDeGruposPanel({
                 value={busquedaEquipos}
                 onChange={(e) => setBusquedaEquipos(e.target.value)}
                 placeholder="Buscar equipo (para darle su código)..."
-                className="w-full px-3 py-2 rounded-xl text-sm mb-3"
+                className="w-full px-3 py-2 rounded-xl text-sm mb-2"
                 style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
               />
+              <label className="flex items-center gap-1.5 text-xs font-bold mb-3" style={{ color: T.inkDim }}>
+                <input
+                  type="checkbox"
+                  checked={soloClasificados}
+                  onChange={(e) => setSoloClasificados(e.target.checked)}
+                />
+                Solo clasificados (los que llegaron al cuadro)
+              </label>
               <TeamList
-                teams={teams.filter((t) => t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()))}
+                teams={teams.filter(
+                  (t) =>
+                    t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()) &&
+                    (!soloClasificados || idsClasificados.has(t.id))
+                )}
                 editable
                 onTogglePaid={togglePaid}
                 onEditPlayers={editarJugadores}
