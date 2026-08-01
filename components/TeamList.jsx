@@ -15,7 +15,9 @@ export default function TeamList({ teams, onTogglePaid, onRemove, onEditPlayers,
     if (orden === "nombre_asc") return a.name.localeCompare(b.name);
     if (orden === "nombre_desc") return b.name.localeCompare(a.name);
     if (orden === "creado_asc") return new Date(a.created_at) - new Date(b.created_at);
-    return new Date(b.created_at) - new Date(a.created_at); // creado_desc
+    if (orden === "creado_desc") return new Date(b.created_at) - new Date(a.created_at);
+    if (orden === "debe_primero") return (a.paid ? 1 : 0) - (b.paid ? 1 : 0) || a.name.localeCompare(b.name);
+    return 0;
   });
 
   function empezarEdicion(t) {
@@ -41,6 +43,7 @@ export default function TeamList({ teams, onTogglePaid, onRemove, onEditPlayers,
             <option value="nombre_desc">Nombre Z-A</option>
             <option value="creado_asc">Primero anotado</option>
             <option value="creado_desc">Último anotado</option>
+            <option value="debe_primero">Debe primero</option>
           </select>
         </div>
       )}
