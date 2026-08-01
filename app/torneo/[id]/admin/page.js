@@ -819,6 +819,7 @@ export default function AdminPage({ params }) {
             onRecargar={load}
             onSimular={simularFaseDeGrupos}
             simulando={simulandoGrupos}
+            onReabrir={reabrirPartido}
           />
         ) : !tournament.started ? (
           <>
@@ -1392,6 +1393,7 @@ function FaseDeGruposPanel({
   onRecargar,
   onSimular,
   simulando,
+  onReabrir,
 }) {
   const grupoMatches = matches.filter((m) => m.bracket === "grupos");
   const numerosGrupos = [...new Set(teams.map((t) => t.grupo).filter((g) => g != null))].sort((a, b) => a - b);
@@ -1470,9 +1472,46 @@ function FaseDeGruposPanel({
             Fase de grupos cerrada — cuadro armado con los clasificados.
           </p>
         </div>
-        <CuadroSimple T={T} titulo="Cuadro" matches={oro} teamsById={teamsById} onForzarGanador={onForzarGanador} campeonId={tournament.campeon_oro_id} />
+
+        {tournament.campeon_oro_id && (
+          <div
+            className="rounded-3xl p-5 mb-5 text-center border-2 shadow-md"
+            style={{ background: "#FBF3E3", borderColor: "#EAC27A" }}
+          >
+            <div className="text-xs font-bold uppercase tracking-widest" style={{ color: "#B85C55" }}>
+              🏆 Campeón{plata.length > 0 ? " — Copa de Oro" : ""}
+            </div>
+            <div className="text-2xl font-black mt-1" style={{ color: "#33453E" }}>
+              {teamsById[tournament.campeon_oro_id]?.name}
+            </div>
+          </div>
+        )}
+
+        <h2 className="font-bold mb-3" style={{ color: T.gold }}>
+          {plata.length > 0 ? "Copa de Oro" : "Cuadro"} — tocá un equipo para forzar el resultado
+        </h2>
+        <BracketDisplayAdmin matches={oro} teamsById={teamsById} origin={origin} onDeclareWinner={onForzarGanador} onReabrir={onReabrir} />
+
         {plata.length > 0 && (
-          <CuadroSimple T={T} titulo="Copa de Plata" matches={plata} teamsById={teamsById} onForzarGanador={onForzarGanador} campeonId={tournament.campeon_plata_id} />
+          <div className="mt-6">
+            {tournament.campeon_plata_id && (
+              <div
+                className="rounded-3xl p-5 mb-5 text-center border-2 shadow-md"
+                style={{ background: "#FBF3E3", borderColor: "#EAC27A" }}
+              >
+                <div className="text-xs font-bold uppercase tracking-widest" style={{ color: "#B85C55" }}>
+                  🏆 Campeón — Copa de Plata
+                </div>
+                <div className="text-2xl font-black mt-1" style={{ color: "#33453E" }}>
+                  {teamsById[tournament.campeon_plata_id]?.name}
+                </div>
+              </div>
+            )}
+            <h2 className="font-bold mb-3" style={{ color: T.gold }}>
+              Copa de Plata — tocá un equipo para forzar el resultado
+            </h2>
+            <BracketDisplayAdmin matches={plata} teamsById={teamsById} origin={origin} onDeclareWinner={onForzarGanador} onReabrir={onReabrir} />
+          </div>
         )}
       </div>
     );
@@ -1663,78 +1702,6 @@ function FaseDeGruposPanel({
           Faltan partidos de grupos por jugar.
         </p>
       )}
-    </div>
-  );
-}
-
-function CuadroSimple({ T, titulo, matches, teamsById, onForzarGanador, campeonId }) {
-  const porRonda = {};
-  matches.forEach((m) => {
-    porRonda[m.round_index] = porRonda[m.round_index] || [];
-    porRonda[m.round_index].push(m);
-  });
-  const rondas = Object.keys(porRonda)
-    .map(Number)
-    .sort((a, b) => a - b);
-  return (
-    <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-      <h3 className="font-bold mb-3" style={{ color: T.gold }}>
-        {titulo}
-      </h3>
-      {campeonId && (
-        <p className="text-sm font-bold text-center mb-3" style={{ color: T.goldBright }}>
-          🏆 Campeón: {teamsById[campeonId]?.name}
-        </p>
-      )}
-      {rondas.map((idx) => (
-        <div key={idx} className="mb-3">
-          <div className="text-xs font-extrabold uppercase mb-1.5" style={{ color: T.inkDim }}>
-            Ronda {idx + 1}
-          </div>
-          <div className="flex flex-col gap-1.5">
-            {porRonda[idx]
-              .sort((a, b) => a.match_index - b.match_index)
-              .map((m) => (
-                <div
-                  key={m.id}
-                  className="flex items-center justify-between text-xs px-2.5 py-2 rounded-lg gap-2"
-                  style={{ background: T.panelLight }}
-                >
-                  <span style={{ color: T.ink }}>
-                    {m.team1_id ? teamsById[m.team1_id]?.name : "—"} <b style={{ color: T.inkDim }}>vs</b>{" "}
-                    {m.team2_id ? teamsById[m.team2_id]?.name : "—"}
-                  </span>
-                  {m.winner_id ? (
-                    <span className="font-bold flex-shrink-0" style={{ color: T.goldBright }}>
-                      {m.score_a}-{m.score_b}
-                    </span>
-                  ) : m.team1_id && m.team2_id ? (
-                    <div className="flex gap-1 flex-shrink-0">
-                      <button
-                        onClick={() => onForzarGanador(m, m.team1_id)}
-                        className="px-2 py-1 rounded-lg font-bold"
-                        style={{ background: T.panel, color: T.goldBright, border: `1px solid ${T.line}` }}
-                      >
-                        Ganó {teamsById[m.team1_id]?.name}
-                      </button>
-                      <button
-                        onClick={() => onForzarGanador(m, m.team2_id)}
-                        className="px-2 py-1 rounded-lg font-bold"
-                        style={{ background: T.panel, color: T.goldBright, border: `1px solid ${T.line}` }}
-                      >
-                        Ganó {teamsById[m.team2_id]?.name}
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="text-[11px] flex-shrink-0" style={{ color: T.inkDim }}>
-                      esperando rival
-                    </span>
-                  )}
-                </div>
-              ))}
-          </div>
-        </div>
-      ))}
     </div>
   );
 }
