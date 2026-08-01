@@ -62,10 +62,15 @@ export default function EnVivo() {
                 style={{ background: T.panel, border: `1px solid ${T.line}` }}
               >
                 <div className="text-sm font-bold" style={{ color: T.ink }}>
-                  {t.nombre} {t.champion_id && "🏆"}
+                  {t.nombre} {(t.champion_id || t.campeon_oro_id || t.campeon_plata_id) && "🏆"}
                 </div>
                 <div className="text-xs" style={{ color: T.inkDim }}>
-                  {[t.ubicacion, t.fecha, t.categoria, t.started ? "en juego" : "todavía sin sortear"]
+                  {[
+                    t.ubicacion,
+                    t.fecha,
+                    t.categoria,
+                    (t.formato === "grupos" ? t.grupos_generados : t.started) ? "en juego" : "todavía sin sortear",
+                  ]
                     .filter(Boolean)
                     .join(" · ")}
                 </div>

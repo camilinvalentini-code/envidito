@@ -820,6 +820,12 @@ export default function AdminPage({ params }) {
             onSimular={simularFaseDeGrupos}
             simulando={simulandoGrupos}
             onReabrir={reabrirPartido}
+            togglePaid={togglePaid}
+            editarJugadores={editarJugadores}
+            mostrarEquipos={mostrarEquipos}
+            setMostrarEquipos={setMostrarEquipos}
+            busquedaEquipos={busquedaEquipos}
+            setBusquedaEquipos={setBusquedaEquipos}
           />
         ) : !tournament.started ? (
           <>
@@ -1034,7 +1040,6 @@ export default function AdminPage({ params }) {
                     editable
                     onTogglePaid={togglePaid}
                     onEditPlayers={editarJugadores}
-                    twoColumns
                   />
                 </div>
               )}
@@ -1394,6 +1399,12 @@ function FaseDeGruposPanel({
   onSimular,
   simulando,
   onReabrir,
+  togglePaid,
+  editarJugadores,
+  mostrarEquipos,
+  setMostrarEquipos,
+  busquedaEquipos,
+  setBusquedaEquipos,
 }) {
   const grupoMatches = matches.filter((m) => m.bracket === "grupos");
   const numerosGrupos = [...new Set(teams.map((t) => t.grupo).filter((g) => g != null))].sort((a, b) => a - b);
@@ -1666,6 +1677,70 @@ function FaseDeGruposPanel({
     );
   }
 
+  function bracketSinJugar(bracketMatches) {
+    const ronda0 = bracketMatches.filter((m) => m.round_index === 0);
+    return ronda0.length > 0 && ronda0.every((m) => m.bye || (!m.winner_id && m.score_a === 0 && m.score_b === 0));
+  }
+
+  function fasesListasParaResortearDe(bracketMatches) {
+    const porRonda = {};
+    bracketMatches.forEach((m) => {
+      porRonda[m.round_index] = porRonda[m.round_index] || [];
+      porRonda[m.round_index].push(m);
+    });
+    return Object.keys(porRonda)
+      .map(Number)
+      .filter((idx) => {
+        if (idx === 0) return false;
+        const ms = porRonda[idx];
+        const completa = ms.every((m) => m.team1_id && m.team2_id);
+        const sinJugar = ms.every((m) => !m.winner_id && m.score_a === 0 && m.score_b === 0);
+        return completa && sinJugar;
+      })
+      .sort((a, b) => a - b)
+      .map((idx) => ({ idx, cantidad: porRonda[idx].length }));
+  }
+
+  async function resortearFaseCopa(bracketName, idx) {
+    if (!window.confirm("¿Volver a sortear los cruces de esta fase? Nadie jugó nada todavía ahí, así que es seguro.")) return;
+    const { error: err } = await supabase.rpc("resortear_fase", {
+      p_tournament_id: tournament.id,
+      p_bracket: bracketName,
+      p_round_index: idx,
+    });
+    if (err) {
+      console.error(err);
+      return;
+    }
+    onRecargar();
+  }
+
+  async function resortearCopaCompleta(bracketName, bracketMatches) {
+    if (!window.confirm("¿Volver a sortear este cuadro? Se descarta el cuadro actual y se arma uno nuevo desde cero, con los mismos equipos clasificados.")) return;
+    const idsClasificados = [
+      ...new Set(
+        bracketMatches
+          .filter((m) => m.round_index === 0)
+          .flatMap((m) => [m.team1_id, m.team2_id])
+          .filter(Boolean)
+      ),
+    ];
+    await supabase.from("matches").delete().eq("tournament_id", tournament.id).eq("bracket", bracketName);
+    const campo = bracketName === "oro" ? "campeon_oro_id" : "campeon_plata_id";
+    await supabase.from("tournaments").update({ [campo]: null }).eq("id", tournament.id);
+    const { error: err } = await supabase.rpc("generar_bracket", {
+      p_tournament_id: tournament.id,
+      p_bracket: bracketName,
+      p_team_ids: idsClasificados,
+      p_shuffle: true,
+    });
+    if (err) {
+      console.error(err);
+      return;
+    }
+    onRecargar();
+  }
+
   if (tournament.copas_generadas) {
     const oro = matches.filter((m) => m.bracket === "oro");
     const plata = matches.filter((m) => m.bracket === "plata");
@@ -1685,6 +1760,36 @@ function FaseDeGruposPanel({
         </div>
 
         {verGrupos && <div className="mb-4">{renderTablasDeGrupos()}</div>}
+
+        <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+          <button
+            onClick={() => setMostrarEquipos((v) => !v)}
+            className="w-full flex items-center justify-between font-bold"
+            style={{ color: T.gold }}
+          >
+            <span>Equipos ({teams.length})</span>
+            <span className="text-xs" style={{ color: T.inkDim }}>
+              {mostrarEquipos ? "Ocultar ▲" : "Mostrar ▼"}
+            </span>
+          </button>
+          {mostrarEquipos && (
+            <div className="mt-3">
+              <input
+                value={busquedaEquipos}
+                onChange={(e) => setBusquedaEquipos(e.target.value)}
+                placeholder="Buscar equipo (para darle su código)..."
+                className="w-full px-3 py-2 rounded-xl text-sm mb-3"
+                style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+              />
+              <TeamList
+                teams={teams.filter((t) => t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()))}
+                editable
+                onTogglePaid={togglePaid}
+                onEditPlayers={editarJugadores}
+              />
+            </div>
+          )}
+        </div>
 
         {tournament.campeon_oro_id && (
           <div
@@ -1714,6 +1819,25 @@ function FaseDeGruposPanel({
             </button>
           )}
         </div>
+        {fasesListasParaResortearDe(oro).map(({ idx, cantidad }) => (
+          <button
+            key={idx}
+            onClick={() => resortearFaseCopa("oro", idx)}
+            className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
+            style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.gold}` }}
+          >
+            Resortear {roundLabel(cantidad)} (todavía no se jugó nada ahí)
+          </button>
+        ))}
+        {bracketSinJugar(oro) && (
+          <button
+            onClick={() => resortearCopaCompleta("oro", oro)}
+            className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
+            style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.gold}` }}
+          >
+            Resortear {plata.length > 0 ? "Copa de Oro" : "el cuadro"} (todavía no se jugó nada)
+          </button>
+        )}
         <BracketDisplayAdmin matches={oro} teamsById={teamsById} origin={origin} onDeclareWinner={onForzarGanador} onReabrir={onReabrir} />
 
         {plata.length > 0 && (
@@ -1745,6 +1869,25 @@ function FaseDeGruposPanel({
                 </button>
               )}
             </div>
+            {fasesListasParaResortearDe(plata).map(({ idx, cantidad }) => (
+              <button
+                key={idx}
+                onClick={() => resortearFaseCopa("plata", idx)}
+                className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
+                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.gold}` }}
+              >
+                Resortear {roundLabel(cantidad)} (todavía no se jugó nada ahí)
+              </button>
+            ))}
+            {bracketSinJugar(plata) && (
+              <button
+                onClick={() => resortearCopaCompleta("plata", plata)}
+                className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
+                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.gold}` }}
+              >
+                Resortear Copa de Plata (todavía no se jugó nada)
+              </button>
+            )}
             <BracketDisplayAdmin matches={plata} teamsById={teamsById} origin={origin} onDeclareWinner={onForzarGanador} onReabrir={onReabrir} />
           </div>
         )}

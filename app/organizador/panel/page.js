@@ -153,9 +153,18 @@ export default function PanelOrganizador() {
     );
   }
 
-  const enVivo = misTorneos.filter((t) => t.started && !t.champion_id && !t.cerrado);
-  const pendientes = misTorneos.filter((t) => !t.started);
-  const finalizados = misTorneos.filter((t) => !!t.champion_id || t.cerrado);
+  // En modo "grupos" el sorteo/campeón se reflejan en otras columnas
+  // (grupos_generados, campeon_oro_id/campeon_plata_id) — started y
+  // champion_id nunca se usan ahí, quedarían siempre en "Pendientes".
+  function empezoElSorteo(t) {
+    return t.formato === "grupos" ? !!t.grupos_generados : !!t.started;
+  }
+  function tieneCampeon(t) {
+    return t.formato === "grupos" ? !!(t.campeon_oro_id || t.campeon_plata_id) : !!t.champion_id;
+  }
+  const enVivo = misTorneos.filter((t) => empezoElSorteo(t) && !tieneCampeon(t) && !t.cerrado);
+  const pendientes = misTorneos.filter((t) => !empezoElSorteo(t));
+  const finalizados = misTorneos.filter((t) => tieneCampeon(t) || t.cerrado);
   const TABS = [
     { key: "enVivo", label: "En vivo", list: enVivo, empty: "Ninguno corriendo ahora.", dot: T.redDim },
     { key: "pendientes", label: "Pendientes", list: pendientes, empty: "No hay ninguno esperando el sorteo.", dot: T.inkDim },

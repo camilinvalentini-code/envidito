@@ -39,10 +39,13 @@ export default function CrearTorneo() {
   const [testLoading, setTestLoading] = useState(false);
 
   const NOMBRES_PRUEBA = [
-    "Los Guapos", "Ancho Falso", "Falta Envido y Truco", "Sol de Mayo", "Río Platenses",
-    "La Peña", "Malas y Buenas", "Envido Va", "Los Tantos", "Flor de Mesa",
-    "Che Pintó", "Los Mentirosos", "Vale Cuatro", "33 de Mano", "Los Cantores",
-    "Una Punta", "Falta el Vino", "Los Aguante", "Las Perdedoras", "Las Gauchas",
+    "Queen", "The Beatles", "The Rolling Stones", "Metallica", "Nirvana",
+    "Pink Floyd", "Led Zeppelin", "AC/DC", "Guns N' Roses", "Red Hot Chili Peppers",
+    "Coldplay", "Imagine Dragons", "Linkin Park", "Green Day", "Foo Fighters",
+    "Rammstein", "Bon Jovi", "Radiohead", "Arctic Monkeys", "Twenty One Pilots",
+    "Soda Stereo", "Los Redonditos de Ricota", "Divididos", "La Renga", "Babasónicos",
+    "Bersuit Vergarabat", "Los Piojos", "Airbag", "No Te Va Gustar", "Cuarteto de Nos",
+    "Tan Biónica", "Miranda!",
   ];
 
   useEffect(() => {
