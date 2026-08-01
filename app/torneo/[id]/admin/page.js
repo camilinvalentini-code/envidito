@@ -36,6 +36,7 @@ export default function AdminPage({ params }) {
   const [infoEncargado, setInfoEncargado] = useState("");
   const [vista, setVista] = useState("mesas"); // "mesas" | "cuadro"
   const [simulando, setSimulando] = useState(false);
+  const [simulandoGrupos, setSimulandoGrupos] = useState(false);
   const [mostrarEquipos, setMostrarEquipos] = useState(false);
   const [busquedaEquipos, setBusquedaEquipos] = useState("");
   const [mostrarQuitarEquipo, setMostrarQuitarEquipo] = useState(false);
@@ -453,6 +454,7 @@ export default function AdminPage({ params }) {
         .from("matches")
         .select("*")
         .eq("tournament_id", id)
+        .neq("bracket", "grupos") // los de grupos necesitan puntaje real, los simula aparte
         .is("winner_id", null)
         .not("team1_id", "is", null)
         .not("team2_id", "is", null);
@@ -462,6 +464,24 @@ export default function AdminPage({ params }) {
       await supabase.rpc("declarar_ganador", { p_match_id: m.id, p_winner_id: winnerId });
     }
     setSimulando(false);
+    load();
+  }
+
+  async function simularFaseDeGrupos() {
+    if (!window.confirm("Esto completa TODOS los partidos pendientes de la fase de grupos con resultados al azar (para testear). ¿Seguro?")) return;
+    setSimulandoGrupos(true);
+    const tope = tournament.puntos_max || 30;
+    const pendientes = matches.filter((m) => m.bracket === "grupos" && !m.winner_id && m.team1_id && m.team2_id);
+    for (const m of pendientes) {
+      const ganaA = Math.random() < 0.5;
+      const perdedor = Math.floor(Math.random() * tope); // 0..tope-1
+      await supabase.rpc("cargar_resultado_grupo", {
+        p_match_id: m.id,
+        p_score_a: ganaA ? tope : perdedor,
+        p_score_b: ganaA ? perdedor : tope,
+      });
+    }
+    setSimulandoGrupos(false);
     load();
   }
 
@@ -797,6 +817,8 @@ export default function AdminPage({ params }) {
             error={error}
             origin={origin}
             onRecargar={load}
+            onSimular={simularFaseDeGrupos}
+            simulando={simulandoGrupos}
           />
         ) : !tournament.started ? (
           <>
@@ -1250,29 +1272,33 @@ export default function AdminPage({ params }) {
 // poder mostrar "Abrir anotador" y "Cargar resultado a mano" lado a lado
 // cuando está cerrado, y que el formulario ocupe todo el ancho al abrirse
 // en vez de quedar apretado contra el link de al lado.
-function ResultadoInlineGrupo({ T, match, nombreLocal, nombreVisitante, onCancelar, onGuardado }) {
-  const [local, setLocal] = useState("");
-  const [visitante, setVisitante] = useState("");
+// En truco no existe un resultado tipo "3 a 2": el que gana siempre
+// llega al puntaje máximo del torneo. Así que acá solo se elige quién
+// ganó, y con cuántos puntos quedó el que perdió.
+function ResultadoInlineGrupo({ T, match, nombreLocal, nombreVisitante, puntosMax, onCancelar, onGuardado }) {
+  const [ganador, setGanador] = useState(null); // "A" | "B" | null
+  const [perdedor, setPerdedor] = useState("");
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(false);
 
   async function guardar() {
-    const pa = parseInt(local, 10);
-    const pb = parseInt(visitante, 10);
-    if (isNaN(pa) || isNaN(pb)) {
-      setError("Cargá los dos puntajes.");
+    if (!ganador) {
+      setError("Elegí quién ganó.");
       return;
     }
-    if (pa === pb) {
-      setError("No puede haber empate.");
+    const pp = parseInt(perdedor, 10);
+    if (isNaN(pp) || pp < 0 || pp >= puntosMax) {
+      setError(`El que perdió tiene que tener entre 0 y ${puntosMax - 1}.`);
       return;
     }
     setError("");
     setGuardando(true);
+    const scoreA = ganador === "A" ? puntosMax : pp;
+    const scoreB = ganador === "B" ? puntosMax : pp;
     const { error: err } = await supabase.rpc("cargar_resultado_grupo", {
       p_match_id: match.id,
-      p_score_a: pa,
-      p_score_b: pb,
+      p_score_a: scoreA,
+      p_score_b: scoreB,
     });
     setGuardando(false);
     if (err) {
@@ -1284,33 +1310,51 @@ function ResultadoInlineGrupo({ T, match, nombreLocal, nombreVisitante, onCancel
 
   return (
     <div className="mt-2 w-full">
-      <div className="flex items-center gap-1.5">
-        <span className="text-xs flex-1 min-w-0 truncate" style={{ color: T.inkDim }}>
-          {nombreLocal}
-        </span>
-        <input
-          value={local}
-          onChange={(e) => setLocal(e.target.value.replace(/\D/g, "").slice(0, 2))}
-          inputMode="numeric"
-          placeholder="0"
-          className="w-14 flex-shrink-0 text-center px-1 py-2 rounded-lg text-sm"
-          style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
-        />
-        <span className="text-xs flex-shrink-0" style={{ color: T.inkDim }}>
-          -
-        </span>
-        <input
-          value={visitante}
-          onChange={(e) => setVisitante(e.target.value.replace(/\D/g, "").slice(0, 2))}
-          inputMode="numeric"
-          placeholder="0"
-          className="w-14 flex-shrink-0 text-center px-1 py-2 rounded-lg text-sm"
-          style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
-        />
-        <span className="text-xs flex-1 min-w-0 truncate text-right" style={{ color: T.inkDim }}>
-          {nombreVisitante}
-        </span>
+      <div className="text-xs mb-1.5" style={{ color: T.inkDim }}>
+        ¿Quién ganó? (llega a {puntosMax})
       </div>
+      <div className="flex gap-1.5">
+        <button
+          onClick={() => setGanador("A")}
+          className="flex-1 text-center text-xs font-bold py-2 rounded-lg truncate"
+          style={
+            ganador === "A"
+              ? { background: T.gold, color: T.ink }
+              : { background: T.panel, color: T.ink, border: `1px solid ${T.line}` }
+          }
+        >
+          {nombreLocal}
+        </button>
+        <button
+          onClick={() => setGanador("B")}
+          className="flex-1 text-center text-xs font-bold py-2 rounded-lg truncate"
+          style={
+            ganador === "B"
+              ? { background: T.gold, color: T.ink }
+              : { background: T.panel, color: T.ink, border: `1px solid ${T.line}` }
+          }
+        >
+          {nombreVisitante}
+        </button>
+      </div>
+      {ganador && (
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-xs flex-shrink-0" style={{ color: T.inkDim }}>
+            Perdió con:
+          </span>
+          <input
+            value={perdedor}
+            onChange={(e) => setPerdedor(e.target.value.replace(/\D/g, "").slice(0, 2))}
+            inputMode="numeric"
+            placeholder="0"
+            className="w-14 flex-shrink-0 text-center px-1 py-2 rounded-lg text-sm"
+            style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
+          />
+          <span className="text-xs" style={{ color: T.inkDim }}>
+            de {puntosMax}
+          </span>
+        </div>
+      )}
       <div className="flex gap-2 mt-2">
         <button
           onClick={guardar}
@@ -1346,10 +1390,13 @@ function FaseDeGruposPanel({
   error,
   origin,
   onRecargar,
+  onSimular,
+  simulando,
 }) {
   const grupoMatches = matches.filter((m) => m.bracket === "grupos");
   const numerosGrupos = [...new Set(teams.map((t) => t.grupo).filter((g) => g != null))].sort((a, b) => a - b);
   const grupoTodosJugados = grupoMatches.length > 0 && grupoMatches.every((m) => m.winner_id);
+  const hayPendientesGrupos = grupoMatches.some((m) => !m.winner_id);
   const [gruposAbiertos, setGruposAbiertos] = useState({});
   const [crucesAbiertos, setCrucesAbiertos] = useState({});
 
@@ -1433,6 +1480,16 @@ function FaseDeGruposPanel({
 
   return (
     <div>
+      {tournament.es_prueba && hayPendientesGrupos && (
+        <button
+          onClick={onSimular}
+          disabled={simulando}
+          className="w-full mb-4 py-2.5 rounded-2xl font-bold text-sm disabled:opacity-60"
+          style={{ background: T.panelLight, color: T.goldBright, border: `1px dashed ${T.gold}` }}
+        >
+          {simulando ? "Simulando…" : "Simular fase de grupos al azar (solo para test)"}
+        </button>
+      )}
       {numerosGrupos.map((num) => {
         const tabla = tablaDeGrupo(num);
         const partidosGrupo = grupoMatches
@@ -1537,6 +1594,7 @@ function FaseDeGruposPanel({
                             match={m}
                             nombreLocal={teamsById[m.team1_id]?.name}
                             nombreVisitante={teamsById[m.team2_id]?.name}
+                            puntosMax={tournament.puntos_max || 30}
                             onCancelar={() => setFormResultadoId(null)}
                             onGuardado={() => {
                               setFormResultadoId(null);

@@ -8,34 +8,34 @@ import { supabase } from "../../../../lib/supabaseClient";
 import ThemeToggleButton from "../../../../components/ThemeToggleButton";
 import { IconAtras } from "../../../../components/LineIcons";
 
+const LIGA_PUNTOS_MAX = 30;
+
+// En truco no existe un resultado tipo "3 a 2": el que gana siempre
+// llega al puntaje máximo (30). Así que acá solo se elige quién ganó,
+// y con cuántos puntos quedó el que perdió.
 function CargarResultadoManual({ T, partido, nombreLocal, nombreVisitante, onGuardado }) {
   const [abierto, setAbierto] = useState(false);
-  const [local, setLocal] = useState("");
-  const [visitante, setVisitante] = useState("");
+  const [ganador, setGanador] = useState(null); // "A" | "B" | null
+  const [perdedor, setPerdedor] = useState("");
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(false);
 
   async function guardar() {
-    const pl = parseInt(local, 10);
-    const pv = parseInt(visitante, 10);
-    if (isNaN(pl) || isNaN(pv)) {
-      setError("Cargá los dos puntajes.");
+    if (!ganador) {
+      setError("Elegí quién ganó.");
       return;
     }
-    if (pl < 0 || pl > 30 || pv < 0 || pv > 30) {
-      setError("Los puntos van de 0 a 30.");
-      return;
-    }
-    if (pl === pv) {
-      setError("No puede haber empate.");
+    const pp = parseInt(perdedor, 10);
+    if (isNaN(pp) || pp < 0 || pp >= LIGA_PUNTOS_MAX) {
+      setError(`El que perdió tiene que tener entre 0 y ${LIGA_PUNTOS_MAX - 1}.`);
       return;
     }
     setError("");
     setGuardando(true);
     const { error: err } = await supabase.rpc("cargar_resultado_liga", {
       p_partido_id: partido.id,
-      p_puntos_local: pl,
-      p_puntos_visitante: pv,
+      p_puntos_local: ganador === "A" ? LIGA_PUNTOS_MAX : pp,
+      p_puntos_visitante: ganador === "B" ? LIGA_PUNTOS_MAX : pp,
     });
     setGuardando(false);
     if (err) {
@@ -60,33 +60,51 @@ function CargarResultadoManual({ T, partido, nombreLocal, nombreVisitante, onGua
 
   return (
     <div className="mt-1.5 w-full">
-      <div className="flex items-center gap-1.5">
-        <span className="text-xs flex-1 min-w-0 truncate" style={{ color: T.inkDim }}>
-          {nombreLocal}
-        </span>
-        <input
-          value={local}
-          onChange={(e) => setLocal(e.target.value.replace(/\D/g, "").slice(0, 2))}
-          inputMode="numeric"
-          placeholder="0"
-          className="w-14 flex-shrink-0 text-center px-1 py-2 rounded-lg text-sm"
-          style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-        />
-        <span className="text-xs flex-shrink-0" style={{ color: T.inkDim }}>
-          -
-        </span>
-        <input
-          value={visitante}
-          onChange={(e) => setVisitante(e.target.value.replace(/\D/g, "").slice(0, 2))}
-          inputMode="numeric"
-          placeholder="0"
-          className="w-14 flex-shrink-0 text-center px-1 py-2 rounded-lg text-sm"
-          style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-        />
-        <span className="text-xs flex-1 min-w-0 truncate text-right" style={{ color: T.inkDim }}>
-          {nombreVisitante}
-        </span>
+      <div className="text-xs mb-1.5" style={{ color: T.inkDim }}>
+        ¿Quién ganó? (llega a {LIGA_PUNTOS_MAX})
       </div>
+      <div className="flex gap-1.5">
+        <button
+          onClick={() => setGanador("A")}
+          className="flex-1 text-center text-xs font-bold py-2 rounded-lg truncate"
+          style={
+            ganador === "A"
+              ? { background: T.gold, color: T.ink }
+              : { background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }
+          }
+        >
+          {nombreLocal}
+        </button>
+        <button
+          onClick={() => setGanador("B")}
+          className="flex-1 text-center text-xs font-bold py-2 rounded-lg truncate"
+          style={
+            ganador === "B"
+              ? { background: T.gold, color: T.ink }
+              : { background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }
+          }
+        >
+          {nombreVisitante}
+        </button>
+      </div>
+      {ganador && (
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-xs flex-shrink-0" style={{ color: T.inkDim }}>
+            Perdió con:
+          </span>
+          <input
+            value={perdedor}
+            onChange={(e) => setPerdedor(e.target.value.replace(/\D/g, "").slice(0, 2))}
+            inputMode="numeric"
+            placeholder="0"
+            className="w-14 flex-shrink-0 text-center px-1 py-2 rounded-lg text-sm"
+            style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+          />
+          <span className="text-xs" style={{ color: T.inkDim }}>
+            de {LIGA_PUNTOS_MAX}
+          </span>
+        </div>
+      )}
       <div className="flex gap-2 mt-2">
         <button
           onClick={guardar}
