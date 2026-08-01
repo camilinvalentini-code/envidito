@@ -364,9 +364,13 @@ function EquiposTab({ T, ligaId, equipos, onCambio }) {
       setError("Ponele nombre al equipo.");
       return;
     }
+    const limpios = integrantes.filter((it) => it.nombre.trim());
+    if (!limpios.some((it) => it.whatsapp.trim())) {
+      setError("Cargá el WhatsApp de al menos un integrante.");
+      return;
+    }
     setError("");
     setGuardando(true);
-    const limpios = integrantes.filter((it) => it.nombre.trim());
     const { error: err } = await supabase.rpc("agregar_equipo_liga", {
       p_liga_id: ligaId,
       p_nombre: nombre.trim(),
@@ -396,7 +400,7 @@ function EquiposTab({ T, ligaId, equipos, onCambio }) {
           style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
         />
         <div className="text-xs font-bold mb-1.5" style={{ color: T.inkDim }}>
-          Integrantes
+          Integrantes <span style={{ color: T.goldBright, fontWeight: 700 }}>(WhatsApp de al menos uno es obligatorio)</span>
         </div>
         <div className="flex flex-col gap-1.5 mb-2">
           {integrantes.map((it, i) => (

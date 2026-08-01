@@ -1,6 +1,5 @@
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { useTheme } from "../../../../../lib/theme";
 import { useAuth } from "../../../../../lib/useAuth";
@@ -139,13 +138,16 @@ export default function TablaLiga() {
     <div className="min-h-screen transition-colors duration-500" style={{ background: T.bg }}>
       <div className="max-w-md mx-auto px-4 py-6">
         <div className="flex justify-between items-center mb-3">
-          <Link
-            href={`/admin/ligas/${ligaId}`}
+          <button
+            onClick={() => {
+              if (typeof window !== "undefined" && window.history.length > 1) router.back();
+              else router.push(`/admin/ligas/${ligaId}`);
+            }}
             className="w-8 h-8 rounded-xl flex items-center justify-center"
             style={{ background: T.panel, border: `1px solid ${T.line}` }}
           >
             <IconAtras color={T.ink} />
-          </Link>
+          </button>
           <ThemeToggleButton />
         </div>
 
