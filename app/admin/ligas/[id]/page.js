@@ -8,6 +8,107 @@ import { supabase } from "../../../../lib/supabaseClient";
 import ThemeToggleButton from "../../../../components/ThemeToggleButton";
 import { IconAtras } from "../../../../components/LineIcons";
 
+function CargarResultadoManual({ T, partido, nombreLocal, nombreVisitante, onGuardado }) {
+  const [abierto, setAbierto] = useState(false);
+  const [local, setLocal] = useState("");
+  const [visitante, setVisitante] = useState("");
+  const [error, setError] = useState("");
+  const [guardando, setGuardando] = useState(false);
+
+  async function guardar() {
+    const pl = parseInt(local, 10);
+    const pv = parseInt(visitante, 10);
+    if (isNaN(pl) || isNaN(pv)) {
+      setError("Cargá los dos puntajes.");
+      return;
+    }
+    if (pl < 0 || pl > 30 || pv < 0 || pv > 30) {
+      setError("Los puntos van de 0 a 30.");
+      return;
+    }
+    if (pl === pv) {
+      setError("No puede haber empate.");
+      return;
+    }
+    setError("");
+    setGuardando(true);
+    const { error: err } = await supabase.rpc("cargar_resultado_liga", {
+      p_partido_id: partido.id,
+      p_puntos_local: pl,
+      p_puntos_visitante: pv,
+    });
+    setGuardando(false);
+    if (err) {
+      setError("No se pudo guardar.");
+      return;
+    }
+    setAbierto(false);
+    onGuardado();
+  }
+
+  if (!abierto) {
+    return (
+      <button
+        onClick={() => setAbierto(true)}
+        className="flex-1 text-[11px] font-bold py-1 rounded-lg"
+        style={{ background: "transparent", color: T.inkDim, border: `1px solid ${T.line}` }}
+      >
+        Cargar resultado a mano
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-1.5 w-full">
+      <div className="flex items-center gap-2">
+        <span className="text-xs flex-shrink-0 truncate" style={{ color: T.inkDim, maxWidth: 70 }}>
+          {nombreLocal}
+        </span>
+        <input
+          value={local}
+          onChange={(e) => setLocal(e.target.value.replace(/\D/g, "").slice(0, 2))}
+          inputMode="numeric"
+          placeholder="0"
+          className="w-12 text-center px-1 py-1.5 rounded-lg text-sm"
+          style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+        />
+        <span className="text-xs" style={{ color: T.inkDim }}>
+          -
+        </span>
+        <input
+          value={visitante}
+          onChange={(e) => setVisitante(e.target.value.replace(/\D/g, "").slice(0, 2))}
+          inputMode="numeric"
+          placeholder="0"
+          className="w-12 text-center px-1 py-1.5 rounded-lg text-sm"
+          style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+        />
+        <span className="text-xs flex-1 truncate" style={{ color: T.inkDim }}>
+          {nombreVisitante}
+        </span>
+      </div>
+      <div className="flex gap-2 mt-1.5">
+        <button
+          onClick={guardar}
+          disabled={guardando}
+          className="flex-1 text-xs font-bold py-1.5 rounded-lg disabled:opacity-60"
+          style={{ background: T.gold, color: T.ink }}
+        >
+          {guardando ? "Guardando…" : "Guardar"}
+        </button>
+        <button onClick={() => setAbierto(false)} className="text-xs px-2" style={{ color: T.inkDim }}>
+          Cancelar
+        </button>
+      </div>
+      {error && (
+        <p className="text-xs mt-1" style={{ color: T.redDim }}>
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function PanelLiga() {
   const { T } = useTheme();
   const router = useRouter();
@@ -87,12 +188,6 @@ export default function PanelLiga() {
       setMsg("No se pudo generar el fixture.");
       return;
     }
-    loadPartidos();
-  }
-
-  async function forzarGanadorLiga(partido, ganadorId, nombreGanador) {
-    if (!window.confirm(`¿Marcar a "${nombreGanador}" como ganador de este partido? No toca el marcador, solo lo cierra.`)) return;
-    await supabase.from("liga_partidos").update({ jugado: true, ganador_id: ganadorId }).eq("id", partido.id);
     loadPartidos();
   }
 
@@ -280,21 +375,14 @@ export default function PanelLiga() {
                                     Compartir
                                   </button>
                                 </div>
-                                <div className="flex gap-1.5 mt-1.5">
-                                  <button
-                                    onClick={() => forzarGanadorLiga(p, p.equipo_local_id, equiposById[p.equipo_local_id]?.nombre)}
-                                    className="flex-1 text-[11px] font-bold py-1 rounded-lg"
-                                    style={{ background: "transparent", color: T.inkDim, border: `1px solid ${T.line}` }}
-                                  >
-                                    Forzar: ganó {equiposById[p.equipo_local_id]?.nombre}
-                                  </button>
-                                  <button
-                                    onClick={() => forzarGanadorLiga(p, p.equipo_visitante_id, equiposById[p.equipo_visitante_id]?.nombre)}
-                                    className="flex-1 text-[11px] font-bold py-1 rounded-lg"
-                                    style={{ background: "transparent", color: T.inkDim, border: `1px solid ${T.line}` }}
-                                  >
-                                    Forzar: ganó {equiposById[p.equipo_visitante_id]?.nombre}
-                                  </button>
+                                <div className="flex mt-1.5">
+                                  <CargarResultadoManual
+                                    T={T}
+                                    partido={p}
+                                    nombreLocal={equiposById[p.equipo_local_id]?.nombre}
+                                    nombreVisitante={equiposById[p.equipo_visitante_id]?.nombre}
+                                    onGuardado={loadPartidos}
+                                  />
                                 </div>
                               </>
                             )}
@@ -608,21 +696,32 @@ function SolicitudesTab({ T, ligaId, liga, solicitudes, onCambio }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liga?.categoria]);
 
+  const [error, setError] = useState("");
+
   function setNombreIntegrante(i, valor) {
     const limpio = valor.replace(/[^a-zA-ZÀ-ÿñÑ\s'-]/g, "");
     setIntegrantes((arr) => arr.map((v, idx) => (idx === i ? limpio : v)));
   }
 
   async function crearDePrueba() {
-    if (!nombreEquipo.trim()) return;
+    if (!nombreEquipo.trim()) {
+      setError("Ponele nombre al equipo.");
+      return;
+    }
+    setError("");
     const integrantesLimpios = integrantes.filter((n) => n.trim()).map((n) => ({ nombre: n.trim(), whatsapp: null }));
-    await supabase.rpc("crear_solicitud_liga", {
+    const { error: err } = await supabase.rpc("crear_solicitud_liga", {
       p_liga_id: ligaId,
       p_nombre_equipo: nombreEquipo.trim(),
       p_nombre_contacto: nombreContacto.trim() || null,
       p_whatsapp: whatsapp.trim() || null,
       p_integrantes: integrantesLimpios.length ? integrantesLimpios : null,
     });
+    if (err) {
+      setError("No se pudo guardar la solicitud. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
     setNombreEquipo("");
     setIntegrantes(Array.from({ length: requeridos }, () => ""));
     setNombreContacto("");
@@ -691,6 +790,11 @@ function SolicitudesTab({ T, ligaId, liga, solicitudes, onCambio }) {
               style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
             />
           </div>
+          {error && (
+            <p className="text-xs" style={{ color: T.redDim }}>
+              {error}
+            </p>
+          )}
           <div className="flex gap-2 mt-1">
             <button onClick={crearDePrueba} className="flex-1 text-xs font-bold py-1.5 rounded-lg" style={{ background: T.gold, color: T.ink }}>
               Guardar
