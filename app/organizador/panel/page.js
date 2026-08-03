@@ -329,7 +329,7 @@ export default function PanelOrganizador() {
                 value={claveNueva}
                 onChange={(e) => setClaveNueva(e.target.value)}
                 type="password"
-                placeholder="Nueva contraseña (mín. 6 caracteres)"
+                placeholder="Nueva contraseña"
                 className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm"
                 style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
               />
@@ -342,6 +342,9 @@ export default function PanelOrganizador() {
                 {claveLoading ? "..." : "Guardar"}
               </button>
             </div>
+            <p className="text-xs mt-1" style={{ color: T.inkDim }}>
+              Mínimo 6 caracteres.
+            </p>
             {claveMsg && (
               <p className="text-xs mt-2" style={{ color: T.goldBright }}>
                 {claveMsg}

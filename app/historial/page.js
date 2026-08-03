@@ -15,20 +15,31 @@ export default function HistorialPage() {
       const { data: torneos } = await supabase
         .from("tournaments")
         .select("*")
-        .not("champion_id", "is", null)
+        .or("champion_id.not.is.null,campeon_oro_id.not.is.null,campeon_plata_id.not.is.null")
         .eq("es_prueba", false)
         .order("created_at", { ascending: false });
-      const champIds = (torneos || []).map((t) => t.champion_id).filter(Boolean);
+      const champIds = (torneos || [])
+        .flatMap((t) => [t.champion_id, t.campeon_oro_id, t.campeon_plata_id])
+        .filter(Boolean);
       let teamsById = {};
       if (champIds.length) {
         const { data: ts } = await supabase.from("teams").select("id, name, players").in("id", champIds);
         (ts || []).forEach((t) => (teamsById[t.id] = t));
       }
+      const filas = (torneos || []).flatMap((t) => {
+        if (t.formato === "grupos") {
+          const copas = [];
+          if (t.campeon_oro_id) copas.push({ ...t, copaLabel: "Copa de Oro", campeonId: t.campeon_oro_id });
+          if (t.campeon_plata_id) copas.push({ ...t, copaLabel: "Copa de Plata", campeonId: t.campeon_plata_id });
+          return copas;
+        }
+        return t.champion_id ? [{ ...t, copaLabel: null, campeonId: t.champion_id }] : [];
+      });
       setRows(
-        (torneos || []).map((t) => ({
+        filas.map((t) => ({
           ...t,
-          campeonNombre: teamsById[t.champion_id]?.name,
-          campeonJugadores: teamsById[t.champion_id]?.players,
+          campeonNombre: teamsById[t.campeonId]?.name,
+          campeonJugadores: teamsById[t.campeonId]?.players,
         }))
       );
       setLoading(false);
@@ -57,9 +68,13 @@ export default function HistorialPage() {
         ) : (
           <div className="flex flex-col gap-2">
             {rows.map((t) => (
-              <div key={t.id} className="px-4 py-3 rounded-xl" style={{ background: T.panel, border: `1px solid ${T.line}` }}>
+              <div key={`${t.id}-${t.copaLabel || "unico"}`} className="px-4 py-3 rounded-xl" style={{ background: T.panel, border: `1px solid ${T.line}` }}>
                 <div className="text-sm font-bold" style={{ color: T.ink }}>
-                  {t.campeonNombre} <span style={{ color: T.inkDim, fontWeight: "normal" }}>({t.categoria})</span>
+                  {t.campeonNombre}{" "}
+                  <span style={{ color: T.inkDim, fontWeight: "normal" }}>
+                    ({t.categoria}
+                    {t.copaLabel ? `, ${t.copaLabel}` : ""})
+                  </span>
                 </div>
                 {t.campeonJugadores && (
                   <div className="text-xs" style={{ color: T.inkDim }}>
