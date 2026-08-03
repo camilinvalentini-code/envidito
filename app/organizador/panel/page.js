@@ -76,7 +76,7 @@ export default function PanelOrganizador() {
       .order("created_at", { ascending: false })
       .limit(30);
     setMisTorneos(mios || []);
-    setOtros(todos || []);
+    setOtros((todos || []).filter((t) => empezoElSorteo(t) && !tieneCampeon(t) && !t.cerrado));
     setLoading(false);
   }, [session]);
 
@@ -389,11 +389,13 @@ export default function PanelOrganizador() {
           </div>
 
           <div className="flex items-center gap-2.5 justify-center mb-1">
-            <IconEspada color={T.goldBright} size={17} />
+            <Link href="/">
+              <IconEspada color={T.goldBright} size={17} />
+            </Link>
             <IconBasto color={T.goldBright} size={17} />
-            <span className="font-black text-lg" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
+            <Link href="/" className="font-black text-lg" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
               Envidito
-            </span>
+            </Link>
             <IconOro color={T.goldBright} size={17} />
             <IconCopa color={T.goldBright} size={17} />
           </div>
@@ -439,11 +441,13 @@ export default function PanelOrganizador() {
         <div className="hidden lg:block">
           <div className="flex items-center justify-between mb-7">
             <div className="flex items-center gap-3">
-              <IconEspada color={T.goldBright} size={20} />
+              <Link href="/">
+                <IconEspada color={T.goldBright} size={20} />
+              </Link>
               <div>
-                <div className="font-black text-xl" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
+                <Link href="/" className="font-black text-xl block" style={{ color: T.ink, fontFamily: "Georgia, serif" }}>
                   Envidito
-                </div>
+                </Link>
                 <div className="text-xs mt-0.5" style={{ color: T.inkDim }}>
                   Hola, {profile.nombre || profile.email} · Panel de organizador
                 </div>
