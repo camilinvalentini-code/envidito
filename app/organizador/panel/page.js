@@ -172,6 +172,27 @@ export default function PanelOrganizador() {
   ];
   const tabActual = TABS.find((t) => t.key === activeTab) || TABS[0];
 
+  function EmptyState({ colSpan2 }) {
+    if (tabActual.key !== "enVivo") {
+      return (
+        <p className={`text-sm text-center py-4${colSpan2 ? " col-span-2" : ""}`} style={{ color: T.inkDim }}>
+          {tabActual.empty}
+        </p>
+      );
+    }
+    return (
+      <div className={`flex flex-col items-center text-center py-6${colSpan2 ? " col-span-2" : ""}`}>
+        <IconCopa color={T.inkDim} size={34} />
+        <p className="text-sm mt-2" style={{ color: T.ink }}>
+          Ningún torneo en vivo
+        </p>
+        <p className="text-xs mt-1" style={{ color: T.inkDim }}>
+          Creá uno arriba para empezar
+        </p>
+      </div>
+    );
+  }
+
   function CrearBtn({ big }) {
     return (
       <Link
@@ -401,11 +422,7 @@ export default function PanelOrganizador() {
           </div>
 
           <div className="flex flex-col gap-2 mb-8">
-            {tabActual.list.length === 0 && (
-              <p className="text-sm text-center py-4" style={{ color: T.inkDim }}>
-                {tabActual.empty}
-              </p>
-            )}
+            {tabActual.list.length === 0 && <EmptyState />}
             {tabActual.list.map((t) => (
               <TorneoRow key={t.id} t={t} />
             ))}
@@ -454,11 +471,7 @@ export default function PanelOrganizador() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 content-start">
-              {tabActual.list.length === 0 && (
-                <p className="text-sm text-center py-4 col-span-2" style={{ color: T.inkDim }}>
-                  {tabActual.empty}
-                </p>
-              )}
+              {tabActual.list.length === 0 && <EmptyState colSpan2 />}
               {tabActual.list.map((t) => (
                 <TorneoRow key={t.id} t={t} />
               ))}

@@ -4,9 +4,12 @@ import React from "react";
 export function IconEspada({ color, size = 20 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
-      <line x1="10" y1="2" x2="10" y2="14" stroke={color} strokeWidth="1.6" />
-      <line x1="5.5" y1="6" x2="14.5" y2="6" stroke={color} strokeWidth="1.6" />
-      <path d="M8 14H12L10 18L8 14Z" fill={color} />
+      <g transform="rotate(22 10 10)">
+        <path d="M10 1C10.4 1 10.7 1.3 10.8 1.8L11.6 12.5H8.4L9.2 1.8C9.3 1.3 9.6 1 10 1Z" fill={color} />
+        <line x1="5.5" y1="12.5" x2="14.5" y2="12.5" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+        <line x1="10" y1="12.5" x2="10" y2="17.3" stroke={color} strokeWidth="2" />
+        <circle cx="10" cy="17.7" r="1.4" fill={color} />
+      </g>
     </svg>
   );
 }
@@ -31,13 +34,12 @@ export function IconCopa({ color, size = 20 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
       <path
-        d="M4 3H16L13.2 10.5C12.5 12.3 11 13 10 13C9 13 7.5 12.3 6.8 10.5L4 3Z"
-        stroke={color}
-        strokeWidth="1.4"
-        strokeLinejoin="round"
+        d="M4 3C4 3 4.3 8 7 10.8C8.1 12 8.9 12.6 10 12.6C11.1 12.6 11.9 12 13 10.8C15.7 8 16 3 16 3Z"
+        fill={color}
+        opacity="0.85"
       />
-      <line x1="10" y1="13" x2="10" y2="16.5" stroke={color} strokeWidth="1.4" />
-      <line x1="6.5" y1="17.5" x2="13.5" y2="17.5" stroke={color} strokeWidth="1.4" />
+      <rect x="9.3" y="12.6" width="1.4" height="3.4" fill={color} />
+      <rect x="6.3" y="16.6" width="7.4" height="1.4" rx="0.7" fill={color} />
     </svg>
   );
 }
