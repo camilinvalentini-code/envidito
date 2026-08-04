@@ -189,8 +189,8 @@ export default function AdminPage({ params }) {
     await supabase.from("teams").delete().eq("id", teamId);
     load();
   }
-  async function togglePaid(teamId, paid) {
-    await supabase.from("teams").update({ paid }).eq("id", teamId);
+  async function setMetodoPago(teamId, metodo) {
+    await supabase.from("teams").update({ metodo_pago: metodo, paid: !!metodo }).eq("id", teamId);
     load();
   }
   async function editarJugadores(teamId, players) {
@@ -963,7 +963,7 @@ export default function AdminPage({ params }) {
             onSimular={simularFaseDeGrupos}
             simulando={simulandoGrupos}
             onReabrir={reabrirPartido}
-            togglePaid={togglePaid}
+            setMetodoPago={setMetodoPago}
             editarJugadores={editarJugadores}
             editarNombreEquipo={editarNombreEquipo}
             mostrarEquipos={mostrarEquipos}
@@ -1079,7 +1079,7 @@ export default function AdminPage({ params }) {
                       <TeamList
                         teams={teams.filter((t) => t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()))}
                         editable
-                        onTogglePaid={togglePaid}
+                        onSetMetodoPago={setMetodoPago}
                         onRemove={removeTeam}
                         onEditPlayers={editarJugadores}
                         onEditName={editarNombreEquipo}
@@ -1184,7 +1184,7 @@ export default function AdminPage({ params }) {
                   <TeamList
                     teams={teams.filter((t) => t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()))}
                     editable
-                    onTogglePaid={togglePaid}
+                    onSetMetodoPago={setMetodoPago}
                     onEditPlayers={editarJugadores}
                     onEditName={editarNombreEquipo}
                   />
@@ -1550,7 +1550,7 @@ function FaseDeGruposPanel({
   onSimular,
   simulando,
   onReabrir,
-  togglePaid,
+  setMetodoPago,
   editarJugadores,
   editarNombreEquipo,
   mostrarEquipos,
@@ -1933,7 +1933,7 @@ function FaseDeGruposPanel({
                   (!conFiltroClasificados || !soloClasificados || idsClasificados.has(t.id))
               )}
               editable
-              onTogglePaid={togglePaid}
+              onSetMetodoPago={setMetodoPago}
               onEditPlayers={editarJugadores}
               onEditName={editarNombreEquipo}
             />

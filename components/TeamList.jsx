@@ -4,7 +4,13 @@ import { useTheme } from "../lib/theme";
 import { INK_ON_LIGHT } from "../lib/theme";
 import { IconLapiz, IconBasura } from "./LineIcons";
 
-export default function TeamList({ teams, onTogglePaid, onRemove, onEditPlayers, onEditName, editable }) {
+function siguienteMetodo(actual) {
+  if (actual === "efectivo") return "transferencia";
+  if (actual === "transferencia") return null;
+  return "efectivo";
+}
+
+export default function TeamList({ teams, onSetMetodoPago, onRemove, onEditPlayers, onEditName, editable }) {
   const { T } = useTheme();
   const [editandoId, setEditandoId] = useState(null);
   const [valorNombre, setValorNombre] = useState("");
@@ -115,15 +121,17 @@ export default function TeamList({ teams, onTogglePaid, onRemove, onEditPlayers,
               )}
             </div>
             <button
-              onClick={() => onTogglePaid(t.id, !t.paid)}
+              onClick={() => onSetMetodoPago(t.id, siguienteMetodo(t.metodo_pago))}
               className="text-xs px-2 py-1 rounded-full font-bold transition-colors duration-200 flex-shrink-0"
-              style={{
-                background: t.paid ? T.gold : "transparent",
-                color: t.paid ? INK_ON_LIGHT : T.inkDim,
-                border: `1px solid ${T.gold}`,
-              }}
+              style={
+                t.metodo_pago === "efectivo"
+                  ? { background: T.gold, color: INK_ON_LIGHT, border: `1px solid ${T.gold}` }
+                  : t.metodo_pago === "transferencia"
+                  ? { background: T.redDim, color: "#FFFFFF", border: `1px solid ${T.redDim}` }
+                  : { background: "transparent", color: T.inkDim, border: `1px solid ${T.gold}` }
+              }
             >
-              {t.paid ? "Pagó" : "Debe"}
+              {t.metodo_pago === "efectivo" ? "Efectivo" : t.metodo_pago === "transferencia" ? "Transf." : "Debe"}
             </button>
             {editable && (onEditName || onEditPlayers) && editandoId !== t.id && (
               <button
