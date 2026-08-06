@@ -1568,7 +1568,7 @@ function FaseDeGruposPanel({
   const [soloClasificados, setSoloClasificados] = useState(false);
 
   function grupoAbierto(num) {
-    return gruposAbiertos[num] !== false; // abierto por default
+    return gruposAbiertos[num] === true; // cerrado por default
   }
   function toggleGrupo(num) {
     setGruposAbiertos((prev) => ({ ...prev, [num]: !grupoAbierto(num) }));
