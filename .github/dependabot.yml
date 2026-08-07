@@ -5,3 +5,10 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    # Los saltos de versión mayor (ej. Tailwind 3 -> 4, Next 14 -> 15) suelen
+    # traer cambios de configuración que rompen el sitio si se mergean sin
+    # revisar a mano. Dependabot se queda solo con parches y versiones
+    # menores automáticas; los mayores hay que decidirlos aparte.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
