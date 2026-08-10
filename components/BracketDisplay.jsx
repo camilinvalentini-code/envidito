@@ -37,9 +37,9 @@ export default function BracketDisplay({ matches, teamsById, adminMode, tourname
           </button>
         </>
       )}
-      <div ref={scrollRef} className="flex gap-4 overflow-x-auto pb-2 scroll-smooth">
+      <div ref={scrollRef} className="flex gap-4 lg:gap-6 overflow-x-auto pb-2 scroll-smooth lg:justify-center">
       {rounds.map((round, rIdx) => (
-        <div key={rIdx} className="flex-shrink-0 w-56">
+        <div key={rIdx} className="flex-shrink-0 w-56 lg:w-64">
           <div className="flex items-center gap-2 mb-3 justify-center">
             <SuitIcon suit={SUITS[rIdx % 4]} size={15} />
             <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: T.gold }}>

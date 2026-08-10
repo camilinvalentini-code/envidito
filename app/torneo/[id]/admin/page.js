@@ -40,6 +40,7 @@ export default function AdminPage({ params }) {
   const [mostrarEquipos, setMostrarEquipos] = useState(false);
   const [busquedaEquipos, setBusquedaEquipos] = useState("");
   const [mostrarQuitarEquipo, setMostrarQuitarEquipo] = useState(false);
+  const [mostrarCrucesArmadosVidon, setMostrarCrucesArmadosVidon] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [sorteoAjustesAbierto, setSorteoAjustesAbierto] = useState(false);
   const [modoPruebaAbierto, setModoPruebaAbierto] = useState(false);
@@ -573,6 +574,8 @@ export default function AdminPage({ params }) {
   // partido pendiente.
   const modoVidon = tournament.modo === "vidon";
   const casillerosVidonSinJugar = mainMatches.filter((m) => m.round_index === 0 && !m.winner_id && !m.bye);
+  const casillerosVidonLibres = casillerosVidonSinJugar.filter((m) => !m.team1_id || !m.team2_id);
+  const casillerosVidonArmados = casillerosVidonSinJugar.filter((m) => m.team1_id && m.team2_id);
   const equiposActivos = new Set();
   matches.forEach((m) => {
     if (!m.winner_id) {
@@ -1410,61 +1413,105 @@ export default function AdminPage({ params }) {
                       Reingresos (Sistema Vidon Bar)
                     </h3>
                     <p className="text-xs mb-3" style={{ color: T.inkDim }}>
-                      Un equipo eliminado quiere volver a jugar (por ejemplo, pagando de nuevo): elegilo acá para
-                      el casillero libre que quieras. Solo se puede en la primera ronda, antes de que se juegue
-                      ese partido puntual.
+                      Un equipo eliminado quiere volver a jugar (por ejemplo, pagando de nuevo): elegilo para el
+                      casillero libre. Solo se puede en la primera ronda, antes de que se juegue ese partido.
                     </p>
-                    <div className="flex flex-col gap-2">
-                      {casillerosVidonSinJugar.map((m) => (
-                        <div key={m.id} className="rounded-xl p-3" style={{ background: T.bg, border: `1px solid ${T.line}` }}>
-                          {[m.team1_id, m.team2_id].map((tid, i) => (
-                            <div key={i}>
-                              {i === 1 && <div className="h-px my-2" style={{ background: T.line }} />}
-                              <div className="flex items-center justify-between gap-2">
-                                {tid ? (
-                                  <>
+
+                    {casillerosVidonLibres.length > 0 ? (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                        {casillerosVidonLibres.map((m) => (
+                          <div key={m.id} className="rounded-xl p-3" style={{ background: T.bg, border: `1px solid ${T.line}` }}>
+                            {[m.team1_id, m.team2_id].map((tid, i) => (
+                              <div key={i}>
+                                {i === 1 && <div className="h-px my-2" style={{ background: T.line }} />}
+                                <div className="flex items-center justify-between gap-2">
+                                  {tid ? (
                                     <span className="text-sm font-semibold truncate" style={{ color: T.ink }}>
                                       {teamsById[tid]?.name}
                                     </span>
-                                    <button
-                                      onClick={() => quitarDeCasilleroVidon(m.id, tid)}
-                                      className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                                      style={{ background: T.redDim, color: "#FFFFFF" }}
-                                      title="Sacar de este casillero"
+                                  ) : (
+                                    <select
+                                      defaultValue=""
+                                      onChange={(e) => {
+                                        if (e.target.value) {
+                                          asignarCasilleroVidon(m.id, e.target.value);
+                                          e.target.value = "";
+                                        }
+                                      }}
+                                      className="flex-1 px-2 py-1.5 rounded-lg text-sm"
+                                      style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
                                     >
-                                      ✕
-                                    </button>
-                                  </>
-                                ) : (
-                                  <select
-                                    defaultValue=""
-                                    onChange={(e) => {
-                                      if (e.target.value) {
-                                        asignarCasilleroVidon(m.id, e.target.value);
-                                        e.target.value = "";
-                                      }
-                                    }}
-                                    className="flex-1 px-2 py-1.5 rounded-lg text-sm"
-                                    style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-                                  >
-                                    <option value="">— casillero vacío: elegí un equipo —</option>
-                                    {equiposLibresVidon.map((eq) => (
-                                      <option key={eq.id} value={eq.id}>
-                                        {eq.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                )}
+                                      <option value="">— casillero vacío: elegí un equipo —</option>
+                                      {equiposLibresVidon.map((eq) => (
+                                        <option key={eq.id} value={eq.id}>
+                                          {eq.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                    {equiposLibresVidon.length === 0 && (
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs" style={{ color: T.inkDim }}>
+                        No hay ningún casillero libre en este momento — todos los cruces de la primera ronda ya
+                        están completos.
+                      </p>
+                    )}
+
+                    {equiposLibresVidon.length === 0 && casillerosVidonLibres.length > 0 && (
                       <p className="text-xs mt-3" style={{ color: T.inkDim }}>
                         Todavía no hay ningún equipo eliminado disponible para reingresar.
                       </p>
+                    )}
+
+                    {casillerosVidonArmados.length > 0 && (
+                      <div className="mt-4 pt-3" style={{ borderTop: `1px solid ${T.line}` }}>
+                        <button
+                          onClick={() => setMostrarCrucesArmadosVidon((v) => !v)}
+                          className="w-full flex items-center justify-between"
+                          style={{ color: T.inkDim }}
+                        >
+                          <span className="text-xs font-bold">¿Te equivocaste? Corregir un cruce ya armado</span>
+                          <span className="text-xs">{mostrarCrucesArmadosVidon ? "▲" : "▼"}</span>
+                        </button>
+                        {mostrarCrucesArmadosVidon && (
+                          <div className="flex flex-col gap-2 mt-2">
+                            {casillerosVidonArmados.map((m) => (
+                              <div
+                                key={m.id}
+                                className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-sm"
+                                style={{ background: T.bg, border: `1px solid ${T.line}` }}
+                              >
+                                <span className="truncate flex-1" style={{ color: T.ink }}>
+                                  {teamsById[m.team1_id]?.name}
+                                  <span style={{ color: T.inkDim }}> vs </span>
+                                  {teamsById[m.team2_id]?.name}
+                                </span>
+                                <button
+                                  onClick={() => quitarDeCasilleroVidon(m.id, m.team1_id)}
+                                  className="text-xs font-bold flex-shrink-0 px-2 py-1 rounded-full"
+                                  style={{ color: T.redDim, border: `1px solid ${T.redDim}` }}
+                                  title={`Sacar a ${teamsById[m.team1_id]?.name}`}
+                                >
+                                  sacar {teamsById[m.team1_id]?.name}
+                                </button>
+                                <button
+                                  onClick={() => quitarDeCasilleroVidon(m.id, m.team2_id)}
+                                  className="text-xs font-bold flex-shrink-0 px-2 py-1 rounded-full"
+                                  style={{ color: T.redDim, border: `1px solid ${T.redDim}` }}
+                                  title={`Sacar a ${teamsById[m.team2_id]?.name}`}
+                                >
+                                  sacar {teamsById[m.team2_id]?.name}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
