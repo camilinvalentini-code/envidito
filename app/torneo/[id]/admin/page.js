@@ -2289,8 +2289,13 @@ function MesasPendientes({ matches, teamsById, origin, onDeclareWinner }) {
     );
   }
 
+  // Dos columnas solo cuando hay algo de las dos — si "Ya jugados" está
+  // vacío, la grilla igual le reservaba la mitad de la pantalla y "Por
+  // jugar" quedaba apretado a un lado con todo ese espacio muerto al lado.
+  const dosColumnas = pendientes.length > 0 && jugados.length > 0;
+
   return (
-    <div className="lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
+    <div className={dosColumnas ? "lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start" : ""}>
       {pendientes.length > 0 && (
         <div>
           <button
