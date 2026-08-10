@@ -40,7 +40,6 @@ export default function AdminPage({ params }) {
   const [mostrarEquipos, setMostrarEquipos] = useState(false);
   const [busquedaEquipos, setBusquedaEquipos] = useState("");
   const [mostrarQuitarEquipo, setMostrarQuitarEquipo] = useState(false);
-  const [mostrarCrucesArmadosVidon, setMostrarCrucesArmadosVidon] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [sorteoAjustesAbierto, setSorteoAjustesAbierto] = useState(false);
   const [modoPruebaAbierto, setModoPruebaAbierto] = useState(false);
@@ -472,21 +471,6 @@ export default function AdminPage({ params }) {
     load();
   }
 
-  async function quitarDeCasilleroVidon(matchId, teamId) {
-    const nombre = teamsById[teamId]?.name || "este equipo";
-    if (!window.confirm(`¿Sacar a "${nombre}" de este casillero? El equipo no se borra del torneo, solo queda libre para reasignarlo.`)) return;
-    const { error: err } = await supabase.rpc("quitar_de_casillero_vidon", {
-      p_match_id: matchId,
-      p_team_id: teamId,
-    });
-    if (err) {
-      setError("No se pudo sacar el equipo de ese casillero. Probá de nuevo.");
-      console.error(err);
-      return;
-    }
-    load();
-  }
-
   async function simularTorneoCompleto() {
     if (!window.confirm("Esto va a completar TODO el torneo con resultados al azar (para testear). ¿Seguro?")) return;
     setSimulando(true);
@@ -575,7 +559,6 @@ export default function AdminPage({ params }) {
   const modoVidon = tournament.modo === "vidon";
   const casillerosVidonSinJugar = mainMatches.filter((m) => m.round_index === 0 && !m.winner_id && !m.bye);
   const casillerosVidonLibres = casillerosVidonSinJugar.filter((m) => !m.team1_id || !m.team2_id);
-  const casillerosVidonArmados = casillerosVidonSinJugar.filter((m) => m.team1_id && m.team2_id);
   const equiposActivos = new Set();
   matches.forEach((m) => {
     if (!m.winner_id) {
@@ -1466,52 +1449,6 @@ export default function AdminPage({ params }) {
                       <p className="text-xs mt-3" style={{ color: T.inkDim }}>
                         Todavía no hay ningún equipo eliminado disponible para reingresar.
                       </p>
-                    )}
-
-                    {casillerosVidonArmados.length > 0 && (
-                      <div className="mt-4 pt-3" style={{ borderTop: `1px solid ${T.line}` }}>
-                        <button
-                          onClick={() => setMostrarCrucesArmadosVidon((v) => !v)}
-                          className="w-full flex items-center justify-between"
-                          style={{ color: T.inkDim }}
-                        >
-                          <span className="text-xs font-bold">¿Te equivocaste? Corregir un cruce ya armado</span>
-                          <span className="text-xs">{mostrarCrucesArmadosVidon ? "▲" : "▼"}</span>
-                        </button>
-                        {mostrarCrucesArmadosVidon && (
-                          <div className="flex flex-col gap-2 mt-2">
-                            {casillerosVidonArmados.map((m) => (
-                              <div
-                                key={m.id}
-                                className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-sm"
-                                style={{ background: T.bg, border: `1px solid ${T.line}` }}
-                              >
-                                <span className="truncate flex-1" style={{ color: T.ink }}>
-                                  {teamsById[m.team1_id]?.name}
-                                  <span style={{ color: T.inkDim }}> vs </span>
-                                  {teamsById[m.team2_id]?.name}
-                                </span>
-                                <button
-                                  onClick={() => quitarDeCasilleroVidon(m.id, m.team1_id)}
-                                  className="text-xs font-bold flex-shrink-0 px-2 py-1 rounded-full"
-                                  style={{ color: T.redDim, border: `1px solid ${T.redDim}` }}
-                                  title={`Sacar a ${teamsById[m.team1_id]?.name}`}
-                                >
-                                  Sacar {teamsById[m.team1_id]?.name}
-                                </button>
-                                <button
-                                  onClick={() => quitarDeCasilleroVidon(m.id, m.team2_id)}
-                                  className="text-xs font-bold flex-shrink-0 px-2 py-1 rounded-full"
-                                  style={{ color: T.redDim, border: `1px solid ${T.redDim}` }}
-                                  title={`Sacar a ${teamsById[m.team2_id]?.name}`}
-                                >
-                                  Sacar {teamsById[m.team2_id]?.name}
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
                     )}
                   </div>
                 )}
