@@ -458,6 +458,34 @@ export default function AdminPage({ params }) {
     load();
   }
 
+  async function asignarCasilleroVidon(matchId, teamId) {
+    const { error: err } = await supabase.rpc("asignar_equipo_casillero_vidon", {
+      p_match_id: matchId,
+      p_team_id: teamId,
+    });
+    if (err) {
+      setError("No se pudo asignar el equipo a ese casillero. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
+    load();
+  }
+
+  async function quitarDeCasilleroVidon(matchId, teamId) {
+    const nombre = teamsById[teamId]?.name || "este equipo";
+    if (!window.confirm(`¿Sacar a "${nombre}" de este casillero? El equipo no se borra del torneo, solo queda libre para reasignarlo.`)) return;
+    const { error: err } = await supabase.rpc("quitar_de_casillero_vidon", {
+      p_match_id: matchId,
+      p_team_id: teamId,
+    });
+    if (err) {
+      setError("No se pudo sacar el equipo de ese casillero. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
+    load();
+  }
+
   async function simularTorneoCompleto() {
     if (!window.confirm("Esto va a completar TODO el torneo con resultados al azar (para testear). ¿Seguro?")) return;
     setSimulando(true);
@@ -538,6 +566,28 @@ export default function AdminPage({ params }) {
   const mainMatches = matches.filter((m) => m.bracket === "main");
   const repMatches = matches.filter((m) => m.bracket === "repechaje");
   const publicUrl = `${origin}/torneo/${id}`;
+
+  // Modo Vidón: casilleros de la primera ronda todavía sin jugar (donde se
+  // puede reingresar un equipo eliminado) y qué equipos están libres para
+  // ocuparlos — perdieron algún partido y no están ya anotados en otro
+  // partido pendiente.
+  const modoVidon = tournament.modo === "vidon";
+  const casillerosVidonSinJugar = mainMatches.filter((m) => m.round_index === 0 && !m.winner_id && !m.bye);
+  const equiposActivos = new Set();
+  matches.forEach((m) => {
+    if (!m.winner_id) {
+      if (m.team1_id) equiposActivos.add(m.team1_id);
+      if (m.team2_id) equiposActivos.add(m.team2_id);
+    }
+  });
+  const equiposEliminados = new Set();
+  matches.forEach((m) => {
+    if (m.winner_id) {
+      const perdedorId = m.winner_id === m.team1_id ? m.team2_id : m.team1_id;
+      if (perdedorId) equiposEliminados.add(perdedorId);
+    }
+  });
+  const equiposLibresVidon = teams.filter((t) => equiposEliminados.has(t.id) && !equiposActivos.has(t.id));
   const enFaseDeGrupos = tournament.formato === "grupos" && tournament.grupos_generados;
 
   function rondaActualIndex() {
@@ -973,7 +1023,7 @@ export default function AdminPage({ params }) {
           />
         ) : !tournament.started ? (
           <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 lg:items-start gap-4 mb-4 lg:max-w-4xl lg:mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 lg:items-start gap-4 mb-4">
               <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
                 <h2 className="font-bold mb-3" style={{ color: T.gold }}>
                   Anotar equipo
@@ -1353,6 +1403,72 @@ export default function AdminPage({ params }) {
                 <h2 className="font-bold mb-3" style={{ color: T.gold }}>
                   Cuadro principal — tocá un equipo para forzar el resultado
                 </h2>
+
+                {modoVidon && casillerosVidonSinJugar.length > 0 && (
+                  <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+                    <h3 className="font-bold text-sm mb-1" style={{ color: T.ink }}>
+                      Reingresos (Sistema Vidon Bar)
+                    </h3>
+                    <p className="text-xs mb-3" style={{ color: T.inkDim }}>
+                      Un equipo eliminado quiere volver a jugar (por ejemplo, pagando de nuevo): elegilo acá para
+                      el casillero libre que quieras. Solo se puede en la primera ronda, antes de que se juegue
+                      ese partido puntual.
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {casillerosVidonSinJugar.map((m) => (
+                        <div key={m.id} className="rounded-xl p-3" style={{ background: T.bg, border: `1px solid ${T.line}` }}>
+                          {[m.team1_id, m.team2_id].map((tid, i) => (
+                            <div key={i}>
+                              {i === 1 && <div className="h-px my-2" style={{ background: T.line }} />}
+                              <div className="flex items-center justify-between gap-2">
+                                {tid ? (
+                                  <>
+                                    <span className="text-sm font-semibold truncate" style={{ color: T.ink }}>
+                                      {teamsById[tid]?.name}
+                                    </span>
+                                    <button
+                                      onClick={() => quitarDeCasilleroVidon(m.id, tid)}
+                                      className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                                      style={{ background: T.redDim, color: "#FFFFFF" }}
+                                      title="Sacar de este casillero"
+                                    >
+                                      ✕
+                                    </button>
+                                  </>
+                                ) : (
+                                  <select
+                                    defaultValue=""
+                                    onChange={(e) => {
+                                      if (e.target.value) {
+                                        asignarCasilleroVidon(m.id, e.target.value);
+                                        e.target.value = "";
+                                      }
+                                    }}
+                                    className="flex-1 px-2 py-1.5 rounded-lg text-sm"
+                                    style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                                  >
+                                    <option value="">— casillero vacío: elegí un equipo —</option>
+                                    {equiposLibresVidon.map((eq) => (
+                                      <option key={eq.id} value={eq.id}>
+                                        {eq.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                    {equiposLibresVidon.length === 0 && (
+                      <p className="text-xs mt-3" style={{ color: T.inkDim }}>
+                        Todavía no hay ningún equipo eliminado disponible para reingresar.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="mb-2">
                   <BracketDisplayAdmin
                     matches={mainMatches}

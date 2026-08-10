@@ -156,7 +156,7 @@ export default function CrearTorneo() {
 
   return (
     <div className="transition-colors duration-500" style={{ background: T.bg }}>
-      <div className="max-w-md mx-auto px-4 py-6">
+      <div className="max-w-md lg:max-w-2xl mx-auto px-4 lg:px-6 py-6">
         <div className="flex justify-between items-center mb-5">
           <Link
             href="/organizador/panel"
@@ -216,43 +216,47 @@ export default function CrearTorneo() {
               </select>
             </div>
 
-            <input
-              value={ciudad}
-              onChange={(e) => setCiudad(e.target.value)}
-              placeholder="Ciudad*"
-              list="ciudades-sugeridas"
-              className="px-3 py-2.5 rounded-xl text-sm"
-              style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
-            />
-            <datalist id="ciudades-sugeridas">
-              {ciudadesSugeridas.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+              <input
+                value={ciudad}
+                onChange={(e) => setCiudad(e.target.value)}
+                placeholder="Ciudad*"
+                list="ciudades-sugeridas"
+                className="px-3 py-2.5 rounded-xl text-sm"
+                style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+              />
+              <datalist id="ciudades-sugeridas">
+                {ciudadesSugeridas.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
 
-            <input
-              value={lugar}
-              onChange={(e) => setLugar(e.target.value)}
-              placeholder="Lugar*"
-              className="px-3 py-2.5 rounded-xl text-sm"
-              style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
-            />
+              <input
+                value={lugar}
+                onChange={(e) => setLugar(e.target.value)}
+                placeholder="Lugar*"
+                className="px-3 py-2.5 rounded-xl text-sm"
+                style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+              />
+            </div>
 
-            <input
-              value={encargado}
-              onChange={(e) => setEncargado(e.target.value)}
-              placeholder="¿Quién organiza? (opcional)"
-              className="px-3 py-2.5 rounded-xl text-sm"
-              style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
-            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+              <input
+                value={encargado}
+                onChange={(e) => setEncargado(e.target.value)}
+                placeholder="¿Quién organiza? (opcional)"
+                className="px-3 py-2.5 rounded-xl text-sm"
+                style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+              />
 
-            <input
-              value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
-              placeholder="Fecha"
-              className="px-3 py-2.5 rounded-xl text-sm"
-              style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
-            />
+              <input
+                value={fecha}
+                onChange={(e) => setFecha(e.target.value)}
+                placeholder="Fecha"
+                className="px-3 py-2.5 rounded-xl text-sm"
+                style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+              />
+            </div>
 
             <div className="mt-1">
               <span className="text-xs font-bold" style={{ color: T.inkDim }}>
