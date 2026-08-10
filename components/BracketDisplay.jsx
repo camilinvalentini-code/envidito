@@ -49,6 +49,9 @@ export default function BracketDisplay({ matches, teamsById, adminMode, tourname
           <div className="flex flex-col gap-4">
             {round.map((m) => {
               const playable = adminMode && !!onDeclareWinner && !m.bye && !m.winner_id && m.team1_id && m.team2_id;
+              // Vidón (u otro): un equipo quedó solo esperando rival y nadie
+              // reingresó — el organizador puede hacerlo pasar directo.
+              const soloEsperando = adminMode && !!onDeclareWinner && !m.bye && !m.winner_id && m.team1_id && !m.team2_id;
               return (
                 <div
                   key={m.id}
@@ -98,6 +101,15 @@ export default function BracketDisplay({ matches, teamsById, adminMode, tourname
                     <div className="text-[11px] text-center mt-1" style={{ color: T.inkDim }}>
                       tocá el ganador para forzarlo
                     </div>
+                  )}
+                  {soloEsperando && (
+                    <button
+                      onClick={() => onDeclareWinner(m, m.team1_id)}
+                      className="block w-full text-center text-xs mt-2 underline"
+                      style={{ color: T.goldBright }}
+                    >
+                      Nadie reingresó → pasa directo de ronda
+                    </button>
                   )}
                   {adminMode && !m.bye && !m.winner_id && m.team1_id && m.team2_id && (
                     <a
