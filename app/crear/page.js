@@ -293,7 +293,7 @@ export default function CrearTorneo() {
                   className="flex-1 py-2 text-xs font-bold"
                   style={{ background: modo === "vidon" ? T.gold : "transparent", color: modo === "vidon" ? T.ink : T.inkDim }}
                 >
-                  Sistema Vidon Bar
+                  Sistema Vidón Bar
                 </button>
               </div>
               <p className="text-[11px] mt-1.5" style={{ color: T.inkDim }}>
@@ -392,7 +392,7 @@ export default function CrearTorneo() {
               <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: T.redDim }}>
                 {[
                   ["directa", "Directa"],
-                  ["vidon", "Vidon Bar"],
+                  ["vidon", "Vidón Bar"],
                 ].map(([v, label]) => (
                   <button
                     key={v}

@@ -201,7 +201,7 @@ export default function AccesoOrganizador() {
             )}
             {enviado && (
               <button onClick={() => setEnviado(false)} className="w-full text-center text-xs underline mt-2" style={{ color: T.inkDim }}>
-                usar otro email
+                Usar otro email
               </button>
             )}
           </>

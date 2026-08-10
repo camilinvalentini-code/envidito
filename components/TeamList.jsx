@@ -155,10 +155,10 @@ export default function TeamList({ teams, onSetMetodoPago, onRemove, onEditPlaye
                     className="text-xs font-bold px-2 py-1.5 rounded-lg"
                     style={{ background: T.redDim, color: "#FFFFFF" }}
                   >
-                    confirmar
+                    Confirmar
                   </button>
                   <button onClick={() => setConfirmarBorrar(null)} className="text-xs px-1.5" style={{ color: T.inkDim }}>
-                    no
+                    No
                   </button>
                 </div>
               ) : (

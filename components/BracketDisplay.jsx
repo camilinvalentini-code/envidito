@@ -107,7 +107,7 @@ export default function BracketDisplay({ matches, teamsById, adminMode, tourname
                       className="block text-center text-xs mt-2 underline"
                       style={{ color: T.goldBright }}
                     >
-                      abrir anotador de esta mesa →
+                      Abrir anotador de esta mesa →
                     </a>
                   )}
                 </div>

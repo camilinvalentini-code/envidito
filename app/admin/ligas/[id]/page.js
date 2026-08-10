@@ -634,7 +634,7 @@ function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
         {equiposOrdenados.map((eq) => {
           const contacto = (eq.liga_integrantes || []).find((it) => it.whatsapp && it.whatsapp.trim());
           const numero = contacto ? contacto.whatsapp.replace(/\D/g, "") : null;
-          const texto = encodeURIComponent(`Hola equipo ${eq.nombre}! te escribo por la liga ${liga?.nombre || ""}.`);
+          const texto = encodeURIComponent(`¡Hola equipo ${eq.nombre}! Te escribo por la liga ${liga?.nombre || ""}.`);
           const waLink = numero ? `https://wa.me/${numero}?text=${texto}` : null;
           return (
             <div
@@ -669,10 +669,10 @@ function EquiposTab({ T, ligaId, liga, equipos, onCambio }) {
                     className="text-xs font-bold px-2 py-1.5 rounded-lg"
                     style={{ background: T.redDim, color: "#FFFFFF" }}
                   >
-                    confirmar
+                    Confirmar
                   </button>
                   <button onClick={() => setConfirmarBorrar(null)} className="text-xs px-1.5" style={{ color: T.inkDim }}>
-                    no
+                    No
                   </button>
                 </div>
               ) : (

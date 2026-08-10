@@ -1410,7 +1410,7 @@ export default function AdminPage({ params }) {
                 {modoVidon && casillerosVidonSinJugar.length > 0 && (
                   <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
                     <h3 className="font-bold text-sm mb-1" style={{ color: T.ink }}>
-                      Reingresos (Sistema Vidon Bar)
+                      Reingresos (Sistema Vidón Bar)
                     </h3>
                     <p className="text-xs mb-3" style={{ color: T.inkDim }}>
                       Un equipo eliminado quiere volver a jugar (por ejemplo, pagando de nuevo): elegilo para el
@@ -1497,7 +1497,7 @@ export default function AdminPage({ params }) {
                                   style={{ color: T.redDim, border: `1px solid ${T.redDim}` }}
                                   title={`Sacar a ${teamsById[m.team1_id]?.name}`}
                                 >
-                                  sacar {teamsById[m.team1_id]?.name}
+                                  Sacar {teamsById[m.team1_id]?.name}
                                 </button>
                                 <button
                                   onClick={() => quitarDeCasilleroVidon(m.id, m.team2_id)}
@@ -1505,7 +1505,7 @@ export default function AdminPage({ params }) {
                                   style={{ color: T.redDim, border: `1px solid ${T.redDim}` }}
                                   title={`Sacar a ${teamsById[m.team2_id]?.name}`}
                                 >
-                                  sacar {teamsById[m.team2_id]?.name}
+                                  Sacar {teamsById[m.team2_id]?.name}
                                 </button>
                               </div>
                             ))}
@@ -2503,7 +2503,7 @@ function BracketDisplayAdmin({ matches, teamsById, origin, onDeclareWinner, onRe
                     style={{ color: T.redDim, border: `1px solid ${T.redDim}` }}
                     title="Reabrir este partido"
                   >
-                    ↺ reabrir
+                    ↺ Reabrir
                   </button>
                 </div>
               ))}

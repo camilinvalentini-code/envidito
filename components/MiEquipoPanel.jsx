@@ -11,7 +11,7 @@ function claveStorage(tournamentId) {
 
 // Busca, entre todos los partidos donde juega mi equipo, el más
 // relevante para mostrar ahora: el de la ronda más avanzada, y si hay
-// más de uno en la misma ronda (puede pasar en el Sistema Vidon Bar, si
+// más de uno en la misma ronda (puede pasar en el Sistema Vidón Bar, si
 // perdiste y te volvieron a colocar en otro lugar), el que todavía no
 // esté decidido.
 function partidoActual(miEquipoId, matches) {

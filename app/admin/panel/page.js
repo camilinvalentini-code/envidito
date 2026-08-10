@@ -244,14 +244,14 @@ export default function PanelAdmin() {
                       className="text-xs font-bold px-2.5 py-1.5 rounded-full"
                       style={{ background: T.redDim, color: "#FFFFFF" }}
                     >
-                      confirmar
+                      Confirmar
                     </button>
                     <button
                       onClick={() => setConfirmarBorrar(null)}
                       className="text-xs px-2"
                       style={{ color: T.inkDim }}
                     >
-                      no
+                      No
                     </button>
                   </div>
                 ) : (

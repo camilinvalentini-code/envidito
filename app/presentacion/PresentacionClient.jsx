@@ -255,7 +255,7 @@ function CuadroDemo() {
 
       {(winner1 || winner2) && (
         <button className="bracket-reset" onClick={reiniciar}>
-          ↺ reiniciar demo
+          ↺ Reiniciar demo
         </button>
       )}
     </div>
@@ -595,7 +595,7 @@ export default function PresentacionClient() {
           </div>
         </div>
         <div className="badges-row reveal d3">
-          <span className="badge">✓ Ya lo usa Vidon Bar (Córdoba)</span>
+          <span className="badge">✓ Ya lo usa Vidón Bar (Córdoba)</span>
         </div>
       </section>
 
