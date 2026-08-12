@@ -42,6 +42,7 @@ export default function AdminPage({ params }) {
   const [mostrarQuitarEquipo, setMostrarQuitarEquipo] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [sorteoAjustesAbierto, setSorteoAjustesAbierto] = useState(true);
+  const [formatoResorteo, setFormatoResorteo] = useState(null); // null = todavía no lo tocó, usa el formato actual del torneo
   const [modoPruebaAbierto, setModoPruebaAbierto] = useState(false);
   const [nombreNuevoEquipo, setNombreNuevoEquipo] = useState("");
   const [formatoElegido, setFormatoElegido] = useState("directa"); // "directa" | "grupos"
@@ -205,8 +206,9 @@ export default function AdminPage({ params }) {
     load();
   }
 
-  async function generarCuadroPrincipal(teamIds) {
-    if (tournament.modo === "vidon") {
+  async function generarCuadroPrincipal(teamIds, modoOverride) {
+    const modo = modoOverride || tournament.modo;
+    if (modo === "vidon") {
       return supabase.rpc("generar_bracket_vidon", { p_tournament_id: id, p_team_ids: teamIds });
     }
     return supabase.rpc("generar_bracket", { p_tournament_id: id, p_bracket: "main", p_team_ids: teamIds });
@@ -320,17 +322,24 @@ export default function AdminPage({ params }) {
   }
 
   async function resortear() {
-    if (!window.confirm("¿Volver a sortear? Se descarta el cuadro actual y se arma uno nuevo desde cero.")) return;
+    const modoElegido = formatoResorteo ?? tournament.modo;
+    const cambiaFormato = modoElegido !== tournament.modo;
+    const nombreFormato = modoElegido === "vidon" ? "Sistema Vidón Bar" : "Eliminación directa";
+    const mensaje = cambiaFormato
+      ? `¿Cambiar el formato a "${nombreFormato}" y volver a sortear? Se descarta el cuadro actual y se arma uno nuevo desde cero.`
+      : "¿Volver a sortear? Se descarta el cuadro actual y se arma uno nuevo desde cero.";
+    if (!window.confirm(mensaje)) return;
     setError("");
     await supabase.from("matches").delete().eq("tournament_id", id).eq("bracket", "main");
     await supabase.from("matches").delete().eq("tournament_id", id).eq("bracket", "repechaje");
-    await supabase.from("tournaments").update({ champion_id: null, repechaje_champion_id: null }).eq("id", id);
-    const { error: err } = await generarCuadroPrincipal(teams.map((t) => t.id));
+    await supabase.from("tournaments").update({ champion_id: null, repechaje_champion_id: null, modo: modoElegido }).eq("id", id);
+    const { error: err } = await generarCuadroPrincipal(teams.map((t) => t.id), modoElegido);
     if (err) {
       setError("No se pudo resortear. Probá de nuevo.");
       console.error(err);
       return;
     }
+    setFormatoResorteo(null);
     load();
   }
 
@@ -1278,13 +1287,42 @@ export default function AdminPage({ params }) {
                     ))}
 
                     {sorteoSinJugar() && (
-                      <button
-                        onClick={resortear}
-                        className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
-                        style={{ background: "transparent", color: T.goldBright, border: `1px solid ${T.gold}` }}
-                      >
-                        Resortear (todavía no se jugó nada)
-                      </button>
+                      <div className="rounded-xl p-3 border mb-3" style={{ background: T.bg, borderColor: T.line }}>
+                        <span className="text-xs font-bold" style={{ color: T.inkDim }}>
+                          Formato
+                        </span>
+                        <div className="flex rounded-xl overflow-hidden border mt-1.5 mb-2" style={{ borderColor: T.gold }}>
+                          <button
+                            onClick={() => setFormatoResorteo("directa")}
+                            className="flex-1 py-2 text-xs font-bold"
+                            style={{
+                              background: (formatoResorteo ?? tournament.modo) === "directa" ? T.gold : "transparent",
+                              color: (formatoResorteo ?? tournament.modo) === "directa" ? T.ink : T.inkDim,
+                            }}
+                          >
+                            Eliminación directa
+                          </button>
+                          <button
+                            onClick={() => setFormatoResorteo("vidon")}
+                            className="flex-1 py-2 text-xs font-bold"
+                            style={{
+                              background: (formatoResorteo ?? tournament.modo) === "vidon" ? T.gold : "transparent",
+                              color: (formatoResorteo ?? tournament.modo) === "vidon" ? T.ink : T.inkDim,
+                            }}
+                          >
+                            Sistema Vidón Bar
+                          </button>
+                        </div>
+                        <button
+                          onClick={resortear}
+                          className="w-full py-2 rounded-2xl font-bold text-xs transition-all duration-200 hover:scale-105 active:scale-95"
+                          style={{ background: "transparent", color: T.goldBright, border: `1px solid ${T.gold}` }}
+                        >
+                          {(formatoResorteo ?? tournament.modo) === tournament.modo
+                            ? "Resortear (todavía no se jugó nada)"
+                            : "Cambiar formato y resortear"}
+                        </button>
+                      </div>
                     )}
 
                     {sorteoSinJugar() && (
