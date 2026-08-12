@@ -41,7 +41,7 @@ export default function AdminPage({ params }) {
   const [busquedaEquipos, setBusquedaEquipos] = useState("");
   const [mostrarQuitarEquipo, setMostrarQuitarEquipo] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const [sorteoAjustesAbierto, setSorteoAjustesAbierto] = useState(false);
+  const [sorteoAjustesAbierto, setSorteoAjustesAbierto] = useState(true);
   const [modoPruebaAbierto, setModoPruebaAbierto] = useState(false);
   const [nombreNuevoEquipo, setNombreNuevoEquipo] = useState("");
   const [formatoElegido, setFormatoElegido] = useState("directa"); // "directa" | "grupos"
@@ -1315,12 +1315,12 @@ export default function AdminPage({ params }) {
                                   }
                                 }}
                                 placeholder="Nombre del equipo nuevo"
-                                className="flex-1 px-3 py-2 rounded-xl text-sm"
+                                className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm"
                                 style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
                               />
                               <button
                                 onClick={() => agregarEquipoAlTorneo(nombreNuevoEquipo)}
-                                className="px-4 py-2 rounded-xl font-bold text-sm"
+                                className="flex-shrink-0 px-4 py-2 rounded-xl font-bold text-sm"
                                 style={{ background: T.gold, color: T.ink }}
                               >
                                 + Agregar

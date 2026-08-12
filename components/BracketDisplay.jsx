@@ -105,10 +105,10 @@ export default function BracketDisplay({ matches, teamsById, adminMode, tourname
                   {soloEsperando && (
                     <button
                       onClick={() => onDeclareWinner(m, m.team1_id)}
-                      className="block w-full text-center text-xs mt-2 underline"
-                      style={{ color: T.goldBright }}
+                      className="block w-full text-center text-xs mt-2 py-1.5 rounded-lg font-semibold"
+                      style={{ color: T.goldBright, background: T.panelLight }}
                     >
-                      Nadie reingresó → pasa directo de ronda
+                      Nadie reingresó → Pasa directo de ronda.
                     </button>
                   )}
                   {adminMode && !m.bye && !m.winner_id && m.team1_id && m.team2_id && (
