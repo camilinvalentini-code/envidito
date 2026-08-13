@@ -40,7 +40,6 @@ export default function AdminPage({ params }) {
   const [mostrarEquipos, setMostrarEquipos] = useState(false);
   const [busquedaEquipos, setBusquedaEquipos] = useState("");
   const [mostrarQuitarEquipo, setMostrarQuitarEquipo] = useState(false);
-  const [linkInscripcionCopiado, setLinkInscripcionCopiado] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [sorteoAjustesAbierto, setSorteoAjustesAbierto] = useState(true);
   const [formatoResorteo, setFormatoResorteo] = useState(null); // null = todavía no lo tocó, usa el formato actual del torneo
@@ -216,12 +215,12 @@ export default function AdminPage({ params }) {
   }
 
   async function doSorteo() {
-    if (teamsAprobados.length < 3) {
+    if (teams.length < 3) {
       setError("Necesitás al menos 3 equipos anotados para hacer el sorteo.");
       return;
     }
     setError("");
-    const { error: err } = await generarCuadroPrincipal(teamsAprobados.map((t) => t.id));
+    const { error: err } = await generarCuadroPrincipal(teams.map((t) => t.id));
     if (err) {
       setError("No se pudo hacer el sorteo. Probá de nuevo.");
       console.error(err);
@@ -232,7 +231,7 @@ export default function AdminPage({ params }) {
   }
 
   async function armarFaseDeGrupos() {
-    if (teamsAprobados.length < cantidadGrupos * 2) {
+    if (teams.length < cantidadGrupos * 2) {
       setError(`Hacen falta al menos ${cantidadGrupos * 2} equipos para ${cantidadGrupos} grupos.`);
       return;
     }
@@ -334,7 +333,7 @@ export default function AdminPage({ params }) {
     await supabase.from("matches").delete().eq("tournament_id", id).eq("bracket", "main");
     await supabase.from("matches").delete().eq("tournament_id", id).eq("bracket", "repechaje");
     await supabase.from("tournaments").update({ champion_id: null, repechaje_champion_id: null, modo: modoElegido }).eq("id", id);
-    const { error: err } = await generarCuadroPrincipal(teamsAprobados.map((t) => t.id), modoElegido);
+    const { error: err } = await generarCuadroPrincipal(teams.map((t) => t.id), modoElegido);
     if (err) {
       setError("No se pudo resortear. Probá de nuevo.");
       console.error(err);
@@ -348,7 +347,7 @@ export default function AdminPage({ params }) {
     const nombre = teamsById[teamId]?.name || "este equipo";
     if (!window.confirm(`¿Sacar a "${nombre}" del torneo? Se rearma el cuadro con los que queden.`)) return;
     setError("");
-    const restantes = teamsAprobados.filter((t) => t.id !== teamId).map((t) => t.id);
+    const restantes = teams.filter((t) => t.id !== teamId).map((t) => t.id);
     if (restantes.length < 3) {
       setError("No se puede sacar: quedarían menos de 3 equipos.");
       return;
@@ -383,7 +382,7 @@ export default function AdminPage({ params }) {
     await supabase.from("matches").delete().eq("tournament_id", id).eq("bracket", "main");
     await supabase.from("matches").delete().eq("tournament_id", id).eq("bracket", "repechaje");
     await supabase.from("tournaments").update({ champion_id: null, repechaje_champion_id: null }).eq("id", id);
-    const todos = [...teamsAprobados.map((t) => t.id), nuevo.id];
+    const todos = [...teams.map((t) => t.id), nuevo.id];
     const { error: err } = await generarCuadroPrincipal(todos);
     if (err) {
       setError("No se pudo rearmar el cuadro con el equipo nuevo. Probá de nuevo.");
@@ -391,28 +390,6 @@ export default function AdminPage({ params }) {
       return;
     }
     setNombreNuevoEquipo("");
-    load();
-  }
-
-  async function copiarLinkInscripcion() {
-    try {
-      await navigator.clipboard.writeText(anotarmeUrl);
-      setLinkInscripcionCopiado(true);
-      setTimeout(() => setLinkInscripcionCopiado(false), 2000);
-    } catch (e) {
-      alert("No se pudo copiar el link.");
-    }
-  }
-
-  async function aprobarEquipo(teamId) {
-    await supabase.from("teams").update({ pendiente_aprobacion: false }).eq("id", teamId);
-    load();
-  }
-
-  async function rechazarEquipo(teamId) {
-    const nombre = teamsById[teamId]?.name || "este equipo";
-    if (!window.confirm(`¿Rechazar la inscripción de "${nombre}"? No se puede deshacer.`)) return;
-    await supabase.from("teams").delete().eq("id", teamId);
     load();
   }
 
@@ -583,12 +560,6 @@ export default function AdminPage({ params }) {
   const mainMatches = matches.filter((m) => m.bracket === "main");
   const repMatches = matches.filter((m) => m.bracket === "repechaje");
   const publicUrl = `${origin}/torneo/${id}`;
-  const anotarmeUrl = `${origin}/torneo/${id}/anotarme`;
-
-  // Equipos que se autoinscribieron (sin login) todavía no cuentan para
-  // nada — el organizador los tiene que aprobar primero.
-  const teamsAprobados = teams.filter((t) => !t.pendiente_aprobacion);
-  const teamsPendientes = teams.filter((t) => t.pendiente_aprobacion);
 
   // Modo Vidón: casilleros de la primera ronda todavía sin jugar (donde se
   // puede reingresar un equipo eliminado) y qué equipos están libres para
@@ -1022,7 +993,7 @@ export default function AdminPage({ params }) {
           <FaseDeGruposPanel
             T={T}
             tournament={tournament}
-            teams={teamsAprobados}
+            teams={teams}
             matches={matches}
             teamsById={teamsById}
             onForzarGanador={forzarGanador}
@@ -1047,57 +1018,6 @@ export default function AdminPage({ params }) {
           />
         ) : !tournament.started ? (
           <>
-            <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-              <h3 className="font-bold text-sm mb-1" style={{ color: T.ink }}>
-                Inscripción sin login (todavía sin publicar)
-              </h3>
-              <p className="text-xs mb-3" style={{ color: T.inkDim }}>
-                Los equipos que se anoten con este link quedan pendientes de tu aprobación — no cuentan para el
-                sorteo hasta que los confirmes acá abajo. Compartilo solo con quien vos quieras.
-              </p>
-              <button
-                onClick={copiarLinkInscripcion}
-                className="w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-              >
-                <IconCopiar color={T.ink} />
-                {linkInscripcionCopiado ? "¡Copiado!" : "Copiar link de inscripción"}
-              </button>
-            </div>
-
-            {teamsPendientes.length > 0 && (
-              <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: "#B85C55" }}>
-                <h3 className="font-bold text-sm mb-3" style={{ color: T.ink }}>
-                  Equipos pendientes de aprobar ({teamsPendientes.length})
-                </h3>
-                <div className="flex flex-col gap-2">
-                  {teamsPendientes.map((t) => (
-                    <div key={t.id} className="rounded-xl p-3" style={{ background: T.bg, border: `1px solid ${T.line}` }}>
-                      <div className="text-sm font-bold mb-2" style={{ color: T.ink }}>
-                        {t.name}
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => aprobarEquipo(t.id)}
-                          className="flex-1 py-1.5 rounded-lg font-bold text-xs"
-                          style={{ background: T.gold, color: T.ink }}
-                        >
-                          Aprobar
-                        </button>
-                        <button
-                          onClick={() => rechazarEquipo(t.id)}
-                          className="flex-1 py-1.5 rounded-lg font-bold text-xs"
-                          style={{ background: T.redDim, color: "#FFFFFF" }}
-                        >
-                          Rechazar
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div className="grid grid-cols-1 lg:grid-cols-2 lg:items-start gap-4 mb-4">
               <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
                 <h2 className="font-bold mb-3" style={{ color: T.gold }}>
@@ -1176,14 +1096,14 @@ export default function AdminPage({ params }) {
                 </div>
               </div>
 
-              {teamsAprobados.length > 0 && (
+              {teams.length > 0 && (
                 <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
                   <button
                     onClick={() => setMostrarEquipos((v) => !v)}
                     className="w-full flex items-center justify-between font-bold"
                     style={{ color: T.gold }}
                   >
-                    <span>Equipos anotados ({teamsAprobados.length})</span>
+                    <span>Equipos anotados ({teams.length})</span>
                     <span style={{ transform: mostrarEquipos ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
                       <IconAbajo color={T.inkDim} />
                     </span>
@@ -1202,7 +1122,7 @@ export default function AdminPage({ params }) {
                         style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
                       />
                       <TeamList
-                        teams={teamsAprobados.filter((t) => t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()))}
+                        teams={teams.filter((t) => t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()))}
                         editable
                         onSetMetodoPago={setMetodoPago}
                         onRemove={removeTeam}
@@ -1248,7 +1168,7 @@ export default function AdminPage({ params }) {
               {formatoElegido === "directa" ? (
                 <button
                   onClick={doSorteo}
-                  disabled={teamsAprobados.length < 3}
+                  disabled={teams.length < 3}
                   className="w-full py-3 rounded-2xl font-black text-lg transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
                   style={{
                     background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`,
@@ -1273,7 +1193,7 @@ export default function AdminPage({ params }) {
                   />
                   <button
                     onClick={armarFaseDeGrupos}
-                    disabled={teamsAprobados.length < cantidadGrupos * 2}
+                    disabled={teams.length < cantidadGrupos * 2}
                     className="w-full py-3 rounded-2xl font-black text-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
                     style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
                   >
@@ -1292,7 +1212,7 @@ export default function AdminPage({ params }) {
                 className="w-full flex items-center justify-between font-bold"
                 style={{ color: T.gold }}
               >
-                <span>Equipos ({teamsAprobados.length})</span>
+                <span>Equipos ({teams.length})</span>
                 <span style={{ transform: mostrarEquipos ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
                   <IconAbajo color={T.inkDim} />
                 </span>
@@ -1307,7 +1227,7 @@ export default function AdminPage({ params }) {
                     style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
                   />
                   <TeamList
-                    teams={teamsAprobados.filter((t) => t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()))}
+                    teams={teams.filter((t) => t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()))}
                     editable
                     onSetMetodoPago={setMetodoPago}
                     onEditPlayers={editarJugadores}
@@ -1449,7 +1369,7 @@ export default function AdminPage({ params }) {
                               ¿Perdió un desempate, se bajó, etc.? Sacalo — el cuadro se rearma solo con los que queden.
                             </p>
                             <div className="flex flex-wrap gap-2">
-                              {teamsAprobados.map((t) => (
+                              {teams.map((t) => (
                                 <span
                                   key={t.id}
                                   className="text-xs pl-3 pr-1.5 py-1.5 rounded-full font-semibold flex items-center gap-1.5"
