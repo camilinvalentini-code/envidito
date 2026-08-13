@@ -4,9 +4,14 @@
 // vez de clases — sin esto se rompería el sitio entero, no es un descuido.
 // Igual bloquea lo importante: nada de terceros pueden inyectar <script>
 // ni <iframe> ajenos, y frame-ancestors 'none' impide el clickjacking.
+//
+// 'unsafe-eval' solo en desarrollo: el Fast Refresh de "next dev" evalúa
+// código con eval() para recargar en caliente — en el build de producción
+// (lo que corre en Vercel) no hace falta, así que ahí queda afuera.
+const esDev = process.env.NODE_ENV === "development";
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${esDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: https:",

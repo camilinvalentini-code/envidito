@@ -116,8 +116,8 @@ export default function BracketDisplay({ matches, teamsById, adminMode, tourname
                       href={`${tournamentUrl}/partido/${m.match_token}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="block text-center text-xs mt-2 underline"
-                      style={{ color: T.goldBright }}
+                      className="block text-center text-xs mt-2 py-1.5 rounded-lg font-semibold"
+                      style={{ color: T.goldBright, background: T.panelLight }}
                     >
                       Abrir anotador de esta mesa →
                     </a>
