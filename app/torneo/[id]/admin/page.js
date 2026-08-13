@@ -39,6 +39,7 @@ export default function AdminPage({ params }) {
   const [simulandoGrupos, setSimulandoGrupos] = useState(false);
   const [mostrarEquipos, setMostrarEquipos] = useState(false);
   const [busquedaEquipos, setBusquedaEquipos] = useState("");
+  const [busquedaAjustarEquipos, setBusquedaAjustarEquipos] = useState("");
   const [mostrarQuitarEquipo, setMostrarQuitarEquipo] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [sorteoAjustesAbierto, setSorteoAjustesAbierto] = useState(true);
@@ -474,6 +475,21 @@ export default function AdminPage({ params }) {
     });
     if (err) {
       setError("No se pudo asignar el equipo a ese casillero. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
+    load();
+  }
+
+  async function quitarDeCasilleroVidon(matchId, teamId) {
+    const nombre = teamsById[teamId]?.name || "este equipo";
+    if (!window.confirm(`¿Sacar a "${nombre}" de este casillero? El equipo no se borra del torneo, solo queda libre para reasignarlo.`)) return;
+    const { error: err } = await supabase.rpc("quitar_de_casillero_vidon", {
+      p_match_id: matchId,
+      p_team_id: teamId,
+    });
+    if (err) {
+      setError("No se pudo sacar el equipo de ese casillero. Probá de nuevo.");
       console.error(err);
       return;
     }
@@ -1204,216 +1220,249 @@ export default function AdminPage({ params }) {
             </div>
           </>
         ) : (
-          <div className="lg:grid lg:grid-cols-[300px_1fr] lg:gap-6 lg:items-start">
-          <div className="flex flex-col gap-4">
-            <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-              <button
-                onClick={() => setMostrarEquipos((v) => !v)}
-                className="w-full flex items-center justify-between font-bold"
-                style={{ color: T.gold }}
-              >
-                <span>Equipos ({teams.length})</span>
-                <span style={{ transform: mostrarEquipos ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
-                  <IconAbajo color={T.inkDim} />
-                </span>
-              </button>
-              {mostrarEquipos && (
-                <div className="mt-3">
-                  <input
-                    value={busquedaEquipos}
-                    onChange={(e) => setBusquedaEquipos(e.target.value)}
-                    placeholder="Buscar equipo (para darle su código)..."
-                    className="w-full px-3 py-2 rounded-xl text-sm mb-3"
-                    style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
-                  />
-                  <TeamList
-                    teams={teams.filter((t) => t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()))}
-                    editable
-                    onSetMetodoPago={setMetodoPago}
-                    onEditPlayers={editarJugadores}
-                    onEditName={editarNombreEquipo}
-                  />
-                </div>
-              )}
-            </div>
-
-            {(() => {
-              const hayPendientes = crucesPendientes().length > 0;
-              return (
-                <div className="flex gap-2">
+          <div className="relative">
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="relative">
                   <button
-                    onClick={compartirCruces}
-                    className="flex-1 py-2.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-105 active:scale-95"
-                    style={{ background: hayPendientes ? "#81C784" : T.panelLight, color: hayPendientes ? "#1B3A2A" : T.inkDim }}
+                    onClick={() => {
+                      setMostrarEquipos((v) => !v);
+                      setSorteoAjustesAbierto(false);
+                    }}
+                    className="h-11 px-4 rounded-xl font-bold text-sm flex items-center gap-2"
+                    style={{ background: T.panel, border: `1px solid ${T.line}`, color: T.ink }}
                   >
-                    {hayPendientes && <IconWhatsApp color="#1B3A2A" />}
-                    {hayPendientes ? "Compartir cruces" : "Sin cruces nuevos"}
+                    Equipos ({teams.length}) <span className="text-[10px]" style={{ color: T.inkDim }}>▾</span>
                   </button>
-                  <button
-                    onClick={copiarCruces}
-                    title="Copiar"
-                    className="w-11 flex-shrink-0 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95"
-                    style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
-                  >
-                    <IconCopiar color={T.ink} />
-                  </button>
+                  {mostrarEquipos && (
+                    <div
+                      className="absolute top-12 left-1/2 -translate-x-1/2 w-[min(90vw,320px)] max-h-[360px] overflow-y-auto rounded-2xl border shadow-lg p-3.5 z-30"
+                      style={{ background: T.panel, borderColor: T.line }}
+                    >
+                      <input
+                        value={busquedaEquipos}
+                        onChange={(e) => setBusquedaEquipos(e.target.value)}
+                        placeholder="Buscar equipo (para darle su código)..."
+                        className="w-full px-3 py-2 rounded-xl text-sm mb-3"
+                        style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+                      />
+                      <TeamList
+                        teams={teams.filter((t) => t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()))}
+                        editable
+                        onSetMetodoPago={setMetodoPago}
+                        onEditPlayers={editarJugadores}
+                        onEditName={editarNombreEquipo}
+                      />
+                    </div>
+                  )}
                 </div>
-              );
-            })()}
 
-            {(fasesListasParaResortear().length > 0 || sorteoSinJugar()) && (
-              <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-                <button
-                  onClick={() => setSorteoAjustesAbierto((v) => !v)}
-                  className="w-full flex items-center justify-between font-bold mb-1"
-                  style={{ color: T.gold }}
-                >
-                  <span>Sorteo y ajustes</span>
-                  <span style={{ transform: sorteoAjustesAbierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
-                    <IconAbajo color={T.inkDim} />
-                  </span>
-                </button>
-                {sorteoAjustesAbierto && (
-                  <div className="mt-2">
-                    {fasesListasParaResortear().map(({ idx, cantidad }) => (
+                {(() => {
+                  const hayPendientes = crucesPendientes().length > 0;
+                  return (
+                    <div className="flex gap-2">
                       <button
-                        key={idx}
-                        onClick={() => resortearFase(idx)}
-                        className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
-                        style={{ background: "transparent", color: T.goldBright, border: `1px solid ${T.gold}` }}
+                        onClick={compartirCruces}
+                        className="h-11 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-105 active:scale-95"
+                        style={{ background: hayPendientes ? "#81C784" : T.panelLight, color: hayPendientes ? "#1B3A2A" : T.inkDim }}
                       >
-                        Resortear {roundLabel(cantidad)} (todavía no se jugó nada ahí)
+                        {hayPendientes && <IconWhatsApp color="#1B3A2A" />}
+                        {hayPendientes ? "Compartir cruces" : "Sin cruces nuevos"}
                       </button>
-                    ))}
+                      <button
+                        onClick={copiarCruces}
+                        title="Copiar"
+                        className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl transition-all duration-200 hover:scale-105 active:scale-95"
+                        style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
+                      >
+                        <IconCopiar color={T.ink} />
+                      </button>
+                    </div>
+                  );
+                })()}
 
-                    {sorteoSinJugar() && (
-                      <div className="rounded-xl p-3 border mb-3" style={{ background: T.bg, borderColor: T.line }}>
-                        <span className="text-xs font-bold" style={{ color: T.inkDim }}>
-                          Formato
-                        </span>
-                        <div className="flex rounded-xl overflow-hidden border mt-1.5 mb-2" style={{ borderColor: T.gold }}>
+                {(fasesListasParaResortear().length > 0 || sorteoSinJugar()) && (
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        setSorteoAjustesAbierto((v) => !v);
+                        setMostrarEquipos(false);
+                      }}
+                      className="h-11 px-4 rounded-xl font-bold text-sm flex items-center gap-2"
+                      style={{ background: T.panel, border: `1px solid ${T.line}`, color: T.ink }}
+                    >
+                      Sorteo y ajustes <span className="text-[10px]" style={{ color: T.inkDim }}>▾</span>
+                    </button>
+                    {sorteoAjustesAbierto && (
+                      <div
+                        className="absolute top-12 left-1/2 -translate-x-1/2 w-[min(90vw,320px)] max-h-[70vh] overflow-y-auto rounded-2xl border shadow-lg p-3.5 z-30"
+                        style={{ background: T.panel, borderColor: T.line }}
+                      >
+                        {fasesListasParaResortear().map(({ idx, cantidad }) => (
                           <button
-                            onClick={() => setFormatoResorteo("directa")}
-                            className="flex-1 py-2 text-xs font-bold"
-                            style={{
-                              background: (formatoResorteo ?? tournament.modo) === "directa" ? T.gold : "transparent",
-                              color: (formatoResorteo ?? tournament.modo) === "directa" ? T.ink : T.inkDim,
-                            }}
+                            key={idx}
+                            onClick={() => resortearFase(idx)}
+                            className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
+                            style={{ background: "transparent", color: T.goldBright, border: `1px solid ${T.gold}` }}
                           >
-                            Eliminación directa
+                            Resortear {roundLabel(cantidad)} (todavía no se jugó nada ahí)
                           </button>
-                          <button
-                            onClick={() => setFormatoResorteo("vidon")}
-                            className="flex-1 py-2 text-xs font-bold"
-                            style={{
-                              background: (formatoResorteo ?? tournament.modo) === "vidon" ? T.gold : "transparent",
-                              color: (formatoResorteo ?? tournament.modo) === "vidon" ? T.ink : T.inkDim,
-                            }}
-                          >
-                            Sistema Vidón Bar
-                          </button>
-                        </div>
-                        <button
-                          onClick={resortear}
-                          className="w-full py-2 rounded-2xl font-bold text-xs transition-all duration-200 hover:scale-105 active:scale-95"
-                          style={{ background: "transparent", color: T.goldBright, border: `1px solid ${T.gold}` }}
-                        >
-                          {(formatoResorteo ?? tournament.modo) === tournament.modo
-                            ? "Resortear (todavía no se jugó nada)"
-                            : "Cambiar formato y resortear"}
-                        </button>
-                      </div>
-                    )}
+                        ))}
 
-                    {sorteoSinJugar() && (
-                      <div className="rounded-xl p-3 border" style={{ background: T.bg, borderColor: T.line }}>
-                        <button
-                          onClick={() => setMostrarQuitarEquipo((v) => !v)}
-                          className="w-full flex items-center justify-between"
-                          style={{ color: T.ink }}
-                        >
-                          <span className="font-bold text-sm">Ajustar equipos antes de sortear</span>
-                          <span className="text-xs font-semibold" style={{ color: T.inkDim }}>
-                            {mostrarQuitarEquipo ? "Ocultar ›" : "Mostrar ›"}
-                          </span>
-                        </button>
-                        {mostrarQuitarEquipo && (
-                          <>
-                            <p className="text-xs mb-2 mt-2" style={{ color: T.inkDim }}>
-                              ¿Se anotó tarde un equipo más? Agregalo acá — el cuadro se rearma con todos.
-                            </p>
-                            <div className="flex gap-2 mb-4">
-                              <input
-                                value={nombreNuevoEquipo}
-                                onChange={(e) => setNombreNuevoEquipo(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    agregarEquipoAlTorneo(nombreNuevoEquipo);
-                                  }
-                                }}
-                                placeholder="Nombre del equipo nuevo"
-                                className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm"
-                                style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
-                              />
+                        {sorteoSinJugar() && (
+                          <div className="rounded-xl p-3 border mb-3" style={{ background: T.bg, borderColor: T.line }}>
+                            <span className="text-xs font-bold" style={{ color: T.inkDim }}>
+                              Formato
+                            </span>
+                            <div className="flex rounded-xl overflow-hidden border mt-1.5 mb-2" style={{ borderColor: T.gold }}>
                               <button
-                                onClick={() => agregarEquipoAlTorneo(nombreNuevoEquipo)}
-                                className="flex-shrink-0 px-4 py-2 rounded-xl font-bold text-sm"
-                                style={{ background: T.gold, color: T.ink }}
+                                onClick={() => setFormatoResorteo("directa")}
+                                className="flex-1 py-2 text-xs font-bold"
+                                style={{
+                                  background: (formatoResorteo ?? tournament.modo) === "directa" ? T.gold : "transparent",
+                                  color: (formatoResorteo ?? tournament.modo) === "directa" ? T.ink : T.inkDim,
+                                }}
                               >
-                                + Agregar
+                                Eliminación directa
+                              </button>
+                              <button
+                                onClick={() => setFormatoResorteo("vidon")}
+                                className="flex-1 py-2 text-xs font-bold"
+                                style={{
+                                  background: (formatoResorteo ?? tournament.modo) === "vidon" ? T.gold : "transparent",
+                                  color: (formatoResorteo ?? tournament.modo) === "vidon" ? T.ink : T.inkDim,
+                                }}
+                              >
+                                Sistema Vidón Bar
                               </button>
                             </div>
+                            <button
+                              onClick={resortear}
+                              className="w-full py-2 rounded-2xl font-bold text-xs transition-all duration-200 hover:scale-105 active:scale-95"
+                              style={{ background: "transparent", color: T.goldBright, border: `1px solid ${T.gold}` }}
+                            >
+                              {(formatoResorteo ?? tournament.modo) === tournament.modo
+                                ? "Resortear (todavía no se jugó nada)"
+                                : "Cambiar formato y resortear"}
+                            </button>
+                          </div>
+                        )}
 
-                            <p className="text-xs mb-2" style={{ color: T.inkDim }}>
-                              ¿Perdió un desempate, se bajó, etc.? Sacalo — el cuadro se rearma solo con los que queden.
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {teams.map((t) => (
-                                <span
-                                  key={t.id}
-                                  className="text-xs pl-3 pr-1.5 py-1.5 rounded-full font-semibold flex items-center gap-1.5"
-                                  style={{ background: T.panel, color: T.ink }}
-                                >
-                                  {t.name}
-                                  <button
-                                    onClick={() => quitarEquipoDelTorneo(t.id)}
-                                    className="w-5 h-5 rounded-full flex items-center justify-center"
-                                    style={{ background: T.redDim, color: "#FFFFFF" }}
-                                    title="Sacar del torneo"
-                                  >
-                                    ✕
-                                  </button>
-                                </span>
-                              ))}
-                            </div>
-                          </>
+                        {sorteoSinJugar() && (
+                          <div className="rounded-xl p-3 border" style={{ background: T.bg, borderColor: T.line }}>
+                            <button
+                              onClick={() => setMostrarQuitarEquipo((v) => !v)}
+                              className="w-full flex items-center justify-between"
+                              style={{ color: T.ink }}
+                            >
+                              <span className="font-bold text-sm">Ajustar equipos antes de sortear</span>
+                              <span className="text-xs font-semibold" style={{ color: T.inkDim }}>
+                                {mostrarQuitarEquipo ? "Ocultar ›" : "Mostrar ›"}
+                              </span>
+                            </button>
+                            {mostrarQuitarEquipo && (
+                              <>
+                                <div className="mt-3">
+                                  <p className="text-xs mb-2" style={{ color: T.inkDim }}>
+                                    ¿Se anotó tarde un equipo más? Agregalo acá — el cuadro se rearma con todos.
+                                  </p>
+                                  <div className="flex gap-2">
+                                    <input
+                                      value={nombreNuevoEquipo}
+                                      onChange={(e) => setNombreNuevoEquipo(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          e.preventDefault();
+                                          agregarEquipoAlTorneo(nombreNuevoEquipo);
+                                        }
+                                      }}
+                                      placeholder="Nombre del equipo nuevo"
+                                      className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm"
+                                      style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+                                    />
+                                    <button
+                                      onClick={() => agregarEquipoAlTorneo(nombreNuevoEquipo)}
+                                      className="flex-shrink-0 px-4 py-2 rounded-xl font-bold text-sm"
+                                      style={{ background: T.gold, color: T.ink }}
+                                    >
+                                      + Agregar
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className="mt-4 pt-3" style={{ borderTop: `1px solid ${T.line}` }}>
+                                  <p className="text-xs mb-2" style={{ color: T.inkDim }}>
+                                    ¿Perdió un desempate, se bajó, etc.? Sacalo — el cuadro se rearma solo con los que
+                                    queden.
+                                  </p>
+                                  {teams.length > 6 && (
+                                    <input
+                                      value={busquedaAjustarEquipos}
+                                      onChange={(e) => setBusquedaAjustarEquipos(e.target.value)}
+                                      placeholder="Buscar equipo..."
+                                      className="w-full px-3 py-2 rounded-xl text-sm mb-2"
+                                      style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+                                    />
+                                  )}
+                                  <div className="flex flex-wrap gap-2">
+                                    {teams
+                                      .filter((t) => t.name.toLowerCase().includes(busquedaAjustarEquipos.toLowerCase()))
+                                      .map((t) => (
+                                        <span
+                                          key={t.id}
+                                          className="text-xs pl-3 pr-1.5 py-1.5 rounded-full font-semibold flex items-center gap-1.5"
+                                          style={{ background: T.panel, color: T.ink }}
+                                        >
+                                          {t.name}
+                                          <button
+                                            onClick={() => quitarEquipoDelTorneo(t.id)}
+                                            className="w-5 h-5 rounded-full flex items-center justify-center"
+                                            style={{ background: T.redDim, color: "#FFFFFF" }}
+                                            title="Sacar del torneo"
+                                          >
+                                            ✕
+                                          </button>
+                                        </span>
+                                      ))}
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
                   </div>
                 )}
               </div>
-            )}
-          </div>
 
-          <div className="mt-4 lg:mt-0">
-            <div className="flex rounded-xl p-0.5 gap-0.5 mb-4 lg:max-w-[340px]" style={{ background: T.panelLight }}>
-              <button
-                onClick={() => setVista("mesas")}
-                className="flex-1 py-2.5 rounded-lg text-sm font-bold transition-colors duration-200"
-                style={{ background: vista === "mesas" ? T.gold : "transparent", color: vista === "mesas" ? T.ink : T.inkDim }}
-              >
-                Mesas
-              </button>
-              <button
-                onClick={() => setVista("cuadro")}
-                className="flex-1 py-2.5 rounded-lg text-sm font-bold transition-colors duration-200"
-                style={{ background: vista === "cuadro" ? T.gold : "transparent", color: vista === "cuadro" ? T.ink : T.inkDim }}
-              >
-                Cuadro completo
-              </button>
+              <div className="flex rounded-xl p-0.5 gap-0.5" style={{ background: T.panelLight }}>
+                <button
+                  onClick={() => setVista("mesas")}
+                  className="flex-1 py-2.5 px-5 rounded-lg text-sm font-bold transition-colors duration-200"
+                  style={{ background: vista === "mesas" ? T.gold : "transparent", color: vista === "mesas" ? T.ink : T.inkDim }}
+                >
+                  Mesas
+                </button>
+                <button
+                  onClick={() => setVista("cuadro")}
+                  className="flex-1 py-2.5 px-5 rounded-lg text-sm font-bold transition-colors duration-200"
+                  style={{ background: vista === "cuadro" ? T.gold : "transparent", color: vista === "cuadro" ? T.ink : T.inkDim }}
+                >
+                  Cuadro completo
+                </button>
+              </div>
             </div>
+
+            {(mostrarEquipos || sorteoAjustesAbierto) && (
+              <div
+                className="fixed inset-0 z-20"
+                onClick={() => {
+                  setMostrarEquipos(false);
+                  setSorteoAjustesAbierto(false);
+                }}
+              />
+            )}
 
             {vista === "mesas" ? (
               <MesasPendientes
@@ -1428,67 +1477,11 @@ export default function AdminPage({ params }) {
                   Cuadro principal — tocá un equipo para forzar el resultado
                 </h2>
 
-                {modoVidon && casillerosVidonSinJugar.length > 0 && (
-                  <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-                    <h3 className="font-bold text-sm mb-1" style={{ color: T.ink }}>
-                      Reingresos (Sistema Vidón Bar)
-                    </h3>
-                    <p className="text-xs mb-3" style={{ color: T.inkDim }}>
-                      Un equipo eliminado quiere volver a jugar (por ejemplo, pagando de nuevo): elegilo para el
-                      casillero libre. Solo se puede en la primera ronda, antes de que se juegue ese partido.
-                    </p>
-
-                    {casillerosVidonLibres.length > 0 ? (
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-                        {casillerosVidonLibres.map((m) => (
-                          <div key={m.id} className="rounded-xl p-3" style={{ background: T.bg, border: `1px solid ${T.line}` }}>
-                            {[m.team1_id, m.team2_id].map((tid, i) => (
-                              <div key={i}>
-                                {i === 1 && <div className="h-px my-2" style={{ background: T.line }} />}
-                                <div className="flex items-center justify-between gap-2">
-                                  {tid ? (
-                                    <span className="text-sm font-semibold truncate" style={{ color: T.ink }}>
-                                      {teamsById[tid]?.name}
-                                    </span>
-                                  ) : (
-                                    <select
-                                      defaultValue=""
-                                      onChange={(e) => {
-                                        if (e.target.value) {
-                                          asignarCasilleroVidon(m.id, e.target.value);
-                                          e.target.value = "";
-                                        }
-                                      }}
-                                      className="flex-1 px-2 py-1.5 rounded-lg text-sm"
-                                      style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-                                    >
-                                      <option value="">— casillero vacío: elegí un equipo —</option>
-                                      {equiposLibresVidon.map((eq) => (
-                                        <option key={eq.id} value={eq.id}>
-                                          {eq.name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs" style={{ color: T.inkDim }}>
-                        No hay ningún casillero libre en este momento — todos los cruces de la primera ronda ya
-                        están completos.
-                      </p>
-                    )}
-
-                    {equiposLibresVidon.length === 0 && casillerosVidonLibres.length > 0 && (
-                      <p className="text-xs mt-3" style={{ color: T.inkDim }}>
-                        Todavía no hay ningún equipo eliminado disponible para reingresar.
-                      </p>
-                    )}
-                  </div>
+                {modoVidon && equiposLibresVidon.length > 0 && (
+                  <p className="text-xs mb-3" style={{ color: T.inkDim }}>
+                    Hay equipos eliminados que pueden reingresar — tocá el casillero vacío en el cuadro de abajo
+                    para elegir quién entra, o el ✕ junto a un equipo ya colocado para sacarlo y elegir otro.
+                  </p>
                 )}
 
                 <div className="mb-2">
@@ -1498,6 +1491,10 @@ export default function AdminPage({ params }) {
                     origin={origin}
                     onDeclareWinner={forzarGanador}
                     onReabrir={reabrirPartido}
+                    modoVidon={modoVidon}
+                    equiposLibresVidon={equiposLibresVidon}
+                    onAsignarCasillero={asignarCasilleroVidon}
+                    onQuitarCasillero={quitarDeCasilleroVidon}
                   />
                 </div>
 
@@ -1548,7 +1545,6 @@ export default function AdminPage({ params }) {
                 )}
               </>
             )}
-          </div>
           </div>
         )}
       </div>
@@ -2311,15 +2307,10 @@ function MesasPendientes({ matches, teamsById, origin, onDeclareWinner }) {
     );
   }
 
-  // Dos columnas solo cuando hay algo de las dos — si "Ya jugados" está
-  // vacío, la grilla igual le reservaba la mitad de la pantalla y "Por
-  // jugar" quedaba apretado a un lado con todo ese espacio muerto al lado.
-  const dosColumnas = pendientes.length > 0 && jugados.length > 0;
-
   return (
-    <div className={dosColumnas ? "lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start" : ""}>
+    <div>
       {pendientes.length > 0 && (
-        <div>
+        <div className="mb-6">
           <button
             onClick={() => setAbiertoPendientes((v) => !v)}
             className="w-full flex items-center justify-between mb-2.5 lg:pointer-events-none"
@@ -2331,7 +2322,10 @@ function MesasPendientes({ matches, teamsById, origin, onDeclareWinner }) {
               {abiertoPendientes ? "▲" : "▼"}
             </span>
           </button>
-          <div className={`${abiertoPendientes ? "flex" : "hidden"} lg:flex flex-col gap-2.5 mb-6 lg:mb-0`}>
+          <div
+            className={`${abiertoPendientes ? "grid" : "hidden"} lg:grid gap-3`}
+            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}
+          >
             {pendientes.map((m) => (
               <div
                 key={m.id}
@@ -2388,7 +2382,10 @@ function MesasPendientes({ matches, teamsById, origin, onDeclareWinner }) {
               {abiertoJugados ? "▲" : "▼"}
             </span>
           </button>
-          <div className={`${abiertoJugados ? "flex" : "hidden"} lg:flex flex-col gap-2.5`}>
+          <div
+            className={`${abiertoJugados ? "grid" : "hidden"} lg:grid gap-2.5`}
+            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))" }}
+          >
             {jugados.map((m) => {
               const gano1 = m.winner_id === m.team1_id;
               const gano2 = m.winner_id === m.team2_id;
@@ -2427,7 +2424,17 @@ function MesasPendientes({ matches, teamsById, origin, onDeclareWinner }) {
 // tanteadores ya jugados con botón para reabrirlos — lo único que
 // BracketDisplay no trae de fábrica. El link directo a cada mesa por
 // jugar ya lo muestra BracketDisplay solo (adminMode + tournamentUrl).
-function BracketDisplayAdmin({ matches, teamsById, origin, onDeclareWinner, onReabrir }) {
+function BracketDisplayAdmin({
+  matches,
+  teamsById,
+  origin,
+  onDeclareWinner,
+  onReabrir,
+  modoVidon,
+  equiposLibresVidon,
+  onAsignarCasillero,
+  onQuitarCasillero,
+}) {
   const { T } = useTheme();
   const [abiertoFinalizados, setAbiertoFinalizados] = useState(false);
   const finalizados = matches.filter((m) => !m.bye && m.team1_id && m.team2_id && m.winner_id && m.match_token);
@@ -2440,6 +2447,10 @@ function BracketDisplayAdmin({ matches, teamsById, origin, onDeclareWinner, onRe
         adminMode
         tournamentUrl={origin}
         onDeclareWinner={onDeclareWinner}
+        modoVidon={modoVidon}
+        equiposLibresVidon={equiposLibresVidon}
+        onAsignarCasillero={onAsignarCasillero}
+        onQuitarCasillero={onQuitarCasillero}
       />
 
       {finalizados.length > 0 && (
