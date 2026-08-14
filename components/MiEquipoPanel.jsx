@@ -26,7 +26,7 @@ function partidoActual(miEquipoId, matches) {
   return mios[0];
 }
 
-export default function MiEquipoPanel({ tournament, teams, matches, teamsById }) {
+export default function MiEquipoPanel({ tournament, teams, matches, teamsById, puedeElegir }) {
   const { T } = useTheme();
   const [miEquipoId, setMiEquipoId] = useState(undefined); // undefined = todavía no leyó localStorage
   const [busqueda, setBusqueda] = useState("");
@@ -50,6 +50,18 @@ export default function MiEquipoPanel({ tournament, teams, matches, teamsById })
   if (miEquipoId === undefined) return null; // evita el parpadeo mientras carga
 
   if (miEquipoId === null) {
+    if (!puedeElegir) {
+      return (
+        <div className="rounded-2xl p-4 mb-5 border shadow-sm text-center" style={{ background: T.panel, borderColor: T.line }}>
+          <p className="text-sm font-bold" style={{ color: T.ink }}>
+            Estás viendo el torneo en modo espectador.
+          </p>
+          <p className="text-xs mt-1" style={{ color: T.inkDim }}>
+            Si jugás, pedile al organizador el link del torneo para elegir tu equipo.
+          </p>
+        </div>
+      );
+    }
     const filtrados = teams.filter((t) => t.name.toLowerCase().includes(busqueda.toLowerCase()));
     return (
       <div className="rounded-2xl p-4 mb-5 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>

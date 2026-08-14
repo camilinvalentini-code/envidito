@@ -583,7 +583,10 @@ export default function AdminPage({ params }) {
   teams.forEach((t) => (teamsById[t.id] = t));
   const mainMatches = matches.filter((m) => m.bracket === "main");
   const repMatches = matches.filter((m) => m.bracket === "repechaje");
-  const publicUrl = `${origin}/torneo/${id}`;
+  // ?jugar=1 habilita elegir equipo en la página pública — así el link
+  // que comparte el organizador funciona distinto de entrar navegando
+  // desde /en-vivo (ahí solo se puede mirar, no elegir equipo).
+  const publicUrl = `${origin}/torneo/${id}?jugar=1`;
 
   // Modo Vidón: casilleros de la primera ronda todavía sin jugar (donde se
   // puede reingresar un equipo eliminado) y qué equipos están libres para
@@ -1794,7 +1797,7 @@ function FaseDeGruposPanel({
         return `📋 ${nombreRonda}\n${lineas.join("\n")}`;
       });
     const fecha = tournament.fecha ? ` — ${tournament.fecha}` : "";
-    const publicUrl = `${origin}/torneo/${tournament.id}`;
+    const publicUrl = `${origin}/torneo/${tournament.id}?jugar=1`;
     const titulo = tituloCopa ? ` — ${tituloCopa}` : "";
     return `⚔️ ${tournament.nombre}${titulo}${fecha}\n\n${bloques.join("\n\n")}\n\n${publicUrl}`;
   }

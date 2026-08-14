@@ -13,6 +13,11 @@ import MiEquipoPanel from "../../../components/MiEquipoPanel";
 export default function TorneoPublico({ params, searchParams }) {
   const { id } = params;
   const volverToken = searchParams?.volver;
+  // Solo se puede elegir equipo entrando por el link que comparte el
+  // organizador (?jugar=1) — si llegaste navegando por /en-vivo, es
+  // modo espectador nada más, para que un desconocido no pueda
+  // hacerse pasar por un equipo que no es suyo.
+  const puedeElegirEquipo = searchParams?.jugar === "1";
   const { T } = useTheme();
   const router = useRouter();
   const [tournament, setTournament] = useState(null);
@@ -154,6 +159,7 @@ export default function TorneoPublico({ params, searchParams }) {
                 teams={teams}
                 matches={tournament.copas_generadas ? [...oroMatches, ...plataMatches] : grupoMatches}
                 teamsById={teamsById}
+                puedeElegir={puedeElegirEquipo}
               />
             )}
 
@@ -213,7 +219,13 @@ export default function TorneoPublico({ params, searchParams }) {
         ) : (
           <>
             {tournament.started && (
-              <MiEquipoPanel tournament={tournament} teams={teams} matches={mainMatches} teamsById={teamsById} />
+              <MiEquipoPanel
+                tournament={tournament}
+                teams={teams}
+                matches={mainMatches}
+                teamsById={teamsById}
+                puedeElegir={puedeElegirEquipo}
+              />
             )}
 
             {!tournament.started ? (
