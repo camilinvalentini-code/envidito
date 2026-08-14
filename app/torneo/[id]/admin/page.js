@@ -110,6 +110,7 @@ export default function AdminPage({ params }) {
       .channel(`admin-${id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "matches", filter: `tournament_id=eq.${id}` }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "tournaments", filter: `id=eq.${id}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "teams", filter: `tournament_id=eq.${id}` }, load)
       .subscribe();
     return () => supabase.removeChannel(channel);
   }, [id, load]);
