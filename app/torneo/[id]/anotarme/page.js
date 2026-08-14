@@ -77,8 +77,8 @@ export default function AnotarmePage({ params }) {
       setError(tournament.categoria === "1v1" ? "Falta tu nombre." : "Falta el nombre del equipo.");
       return;
     }
-    if (RE_SIN_NUMEROS.test(nombre)) {
-      setError(tournament.categoria === "1v1" ? "Tu nombre no puede tener números." : "El nombre del equipo no puede tener números.");
+    if (esUnJugador && RE_SIN_NUMEROS.test(nombre)) {
+      setError("Tu nombre no puede tener números.");
       return;
     }
     if (!jugadores.some((j) => j.name.trim())) {

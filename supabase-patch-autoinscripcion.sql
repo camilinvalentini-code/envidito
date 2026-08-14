@@ -125,7 +125,10 @@ begin
   if v_nombre = '' or v_nombre is null then
     raise exception 'falta el nombre del equipo';
   end if;
-  if v_nombre ~ '[0-9]' then
+  -- El nombre de equipo puede llevar números (ej. "Equipo 22") — solo se
+  -- exige sin números cuando es 1v1, porque ahí ese campo es el nombre
+  -- de la persona.
+  if v_tournament.categoria = '1v1' and v_nombre ~ '[0-9]' then
     raise exception 'el nombre no puede tener números';
   end if;
 
