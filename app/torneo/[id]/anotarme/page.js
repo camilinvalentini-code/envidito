@@ -20,6 +20,16 @@ const RE_SIN_NUMEROS = /[0-9]/;
 const RE_SOLO_NUMEROS = /^[0-9]+$/;
 const RE_TELEFONO = /^[0-9 +-]+$/;
 const RE_EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const EDAD_MINIMA = 16;
+
+function calcularEdad(fechaStr) {
+  const nacimiento = new Date(fechaStr + "T00:00:00");
+  const hoy = new Date();
+  let edad = hoy.getFullYear() - nacimiento.getFullYear();
+  const m = hoy.getMonth() - nacimiento.getMonth();
+  if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) edad--;
+  return edad;
+}
 
 function validarJugador(j, esUnJugador) {
   const nombre = j.name.trim();
@@ -28,6 +38,12 @@ function validarJugador(j, esUnJugador) {
   }
   if (!j.fecha_nacimiento) {
     return esUnJugador ? "Falta tu fecha de nacimiento." : "Falta la fecha de nacimiento de un jugador.";
+  }
+  if (j.fecha_nacimiento > new Date().toISOString().slice(0, 10)) {
+    return "La fecha de nacimiento no puede ser futura.";
+  }
+  if (calcularEdad(j.fecha_nacimiento) < EDAD_MINIMA) {
+    return `Hay que tener al menos ${EDAD_MINIMA} años para anotarse.`;
   }
   if (j.dni.trim() && !RE_SOLO_NUMEROS.test(j.dni.trim())) {
     return "El DNI solo puede tener números.";
@@ -235,6 +251,7 @@ export default function AnotarmePage({ params }) {
                           value={j.fecha_nacimiento}
                           onChange={(e) => actualizarJugador(i, "fecha_nacimiento", e.target.value)}
                           type="date"
+                          max={new Date().toISOString().slice(0, 10)}
                           required
                           className="w-full px-3 py-2 rounded-lg text-sm mt-1"
                           style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}

@@ -106,6 +106,7 @@ declare
   v_dnis text[] := '{}';
   v_emails text[] := '{}';
   v_telefonos text[] := '{}';
+  v_fecha_nac date;
 begin
   if coalesce(trim(p_honeypot), '') <> '' then
     return null;
@@ -149,6 +150,13 @@ begin
 
       if coalesce(item->>'fecha_nacimiento', '') = '' then
         raise exception 'falta la fecha de nacimiento de un jugador';
+      end if;
+      v_fecha_nac := (item->>'fecha_nacimiento')::date;
+      if v_fecha_nac > current_date then
+        raise exception 'la fecha de nacimiento no puede ser futura';
+      end if;
+      if extract(year from age(v_fecha_nac)) < 16 then
+        raise exception 'hay que tener al menos 16 años para anotarse';
       end if;
 
       v_dni := nullif(trim(item->>'dni'), '');
