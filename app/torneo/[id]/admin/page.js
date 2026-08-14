@@ -41,6 +41,10 @@ export default function AdminPage({ params }) {
   const [busquedaEquipos, setBusquedaEquipos] = useState("");
   const [busquedaAjustarEquipos, setBusquedaAjustarEquipos] = useState("");
   const [mostrarQuitarEquipo, setMostrarQuitarEquipo] = useState(false);
+  const [linkInscripcionCopiado, setLinkInscripcionCopiado] = useState(false);
+  const [editandoJugadoresDe, setEditandoJugadoresDe] = useState(null); // team id, o null
+  const [jugadoresEditando, setJugadoresEditando] = useState([]); // [{id, name, dni, telefono, fecha_nacimiento, email}]
+  const [guardandoJugadores, setGuardandoJugadores] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [sorteoAjustesAbierto, setSorteoAjustesAbierto] = useState(false);
   const [formatoResorteo, setFormatoResorteo] = useState(null); // null = todavía no lo tocó, usa el formato actual del torneo
@@ -216,12 +220,12 @@ export default function AdminPage({ params }) {
   }
 
   async function doSorteo() {
-    if (teams.length < 3) {
+    if (teamsAprobados.length < 3) {
       setError("Necesitás al menos 3 equipos anotados para hacer el sorteo.");
       return;
     }
     setError("");
-    const { error: err } = await generarCuadroPrincipal(teams.map((t) => t.id));
+    const { error: err } = await generarCuadroPrincipal(teamsAprobados.map((t) => t.id));
     if (err) {
       setError("No se pudo hacer el sorteo. Probá de nuevo.");
       console.error(err);
@@ -232,7 +236,7 @@ export default function AdminPage({ params }) {
   }
 
   async function armarFaseDeGrupos() {
-    if (teams.length < cantidadGrupos * 2) {
+    if (teamsAprobados.length < cantidadGrupos * 2) {
       setError(`Hacen falta al menos ${cantidadGrupos * 2} equipos para ${cantidadGrupos} grupos.`);
       return;
     }
@@ -342,7 +346,7 @@ export default function AdminPage({ params }) {
         repechaje: modoElegido === "vidon" ? false : tournament.repechaje,
       })
       .eq("id", id);
-    const { error: err } = await generarCuadroPrincipal(teams.map((t) => t.id), modoElegido);
+    const { error: err } = await generarCuadroPrincipal(teamsAprobados.map((t) => t.id), modoElegido);
     if (err) {
       setError("No se pudo resortear. Probá de nuevo.");
       console.error(err);
@@ -356,7 +360,7 @@ export default function AdminPage({ params }) {
     const nombre = teamsById[teamId]?.name || "este equipo";
     if (!window.confirm(`¿Sacar a "${nombre}" del torneo? Se rearma el cuadro con los que queden.`)) return;
     setError("");
-    const restantes = teams.filter((t) => t.id !== teamId).map((t) => t.id);
+    const restantes = teamsAprobados.filter((t) => t.id !== teamId).map((t) => t.id);
     if (restantes.length < 3) {
       setError("No se puede sacar: quedarían menos de 3 equipos.");
       return;
@@ -391,7 +395,7 @@ export default function AdminPage({ params }) {
     await supabase.from("matches").delete().eq("tournament_id", id).eq("bracket", "main");
     await supabase.from("matches").delete().eq("tournament_id", id).eq("bracket", "repechaje");
     await supabase.from("tournaments").update({ champion_id: null, repechaje_champion_id: null }).eq("id", id);
-    const todos = [...teams.map((t) => t.id), nuevo.id];
+    const todos = [...teamsAprobados.map((t) => t.id), nuevo.id];
     const { error: err } = await generarCuadroPrincipal(todos);
     if (err) {
       setError("No se pudo rearmar el cuadro con el equipo nuevo. Probá de nuevo.");
@@ -399,6 +403,64 @@ export default function AdminPage({ params }) {
       return;
     }
     setNombreNuevoEquipo("");
+    load();
+  }
+
+  async function copiarLinkInscripcion() {
+    try {
+      await navigator.clipboard.writeText(anotarmeUrl);
+      setLinkInscripcionCopiado(true);
+      setTimeout(() => setLinkInscripcionCopiado(false), 2000);
+    } catch (e) {
+      alert("No se pudo copiar el link.");
+    }
+  }
+
+  async function aprobarEquipo(teamId) {
+    await supabase.from("teams").update({ pendiente_aprobacion: false }).eq("id", teamId);
+    load();
+  }
+
+  async function rechazarEquipo(teamId) {
+    const nombre = teamsById[teamId]?.name || "este equipo";
+    if (!window.confirm(`¿Rechazar la inscripción de "${nombre}"? No se puede deshacer.`)) return;
+    await supabase.from("teams").delete().eq("id", teamId);
+    load();
+  }
+
+  // Editor de jugadores autoinscriptos: a diferencia de editarJugadores()
+  // (que solo pisa el texto libre teams.players), este edita los campos
+  // estructurados de cada jugador en la tabla players — Nombre, DNI,
+  // Teléfono, Fecha de Nacimiento, Mail.
+  async function abrirEditorJugadores(teamId) {
+    const { data } = await supabase
+      .from("team_players")
+      .select("players(id, name, dni, telefono, fecha_nacimiento, email)")
+      .eq("team_id", teamId);
+    setJugadoresEditando((data || []).map((row) => row.players).filter(Boolean));
+    setEditandoJugadoresDe(teamId);
+  }
+
+  function actualizarJugadorEditando(playerId, campo, valor) {
+    setJugadoresEditando((prev) => prev.map((j) => (j.id === playerId ? { ...j, [campo]: valor } : j)));
+  }
+
+  async function guardarJugadoresEditados() {
+    setGuardandoJugadores(true);
+    for (const j of jugadoresEditando) {
+      await supabase
+        .from("players")
+        .update({
+          name: j.name?.trim() || null,
+          dni: j.dni?.trim() || null,
+          telefono: j.telefono?.trim() || null,
+          fecha_nacimiento: j.fecha_nacimiento || null,
+          email: j.email?.trim() || null,
+        })
+        .eq("id", j.id);
+    }
+    setGuardandoJugadores(false);
+    setEditandoJugadoresDe(null);
     load();
   }
 
@@ -587,6 +649,13 @@ export default function AdminPage({ params }) {
   // que comparte el organizador funciona distinto de entrar navegando
   // desde /en-vivo (ahí solo se puede mirar, no elegir equipo).
   const publicUrl = `${origin}/torneo/${id}?jugar=1`;
+  const anotarmeUrl = `${origin}/torneo/${id}/anotarme`;
+  const esAdmin = profile?.role === "admin";
+
+  // Equipos que se autoinscribieron (sin login) todavía no cuentan para
+  // nada — el organizador los tiene que aprobar primero.
+  const teamsAprobados = teams.filter((t) => !t.pendiente_aprobacion);
+  const teamsPendientes = teams.filter((t) => t.pendiente_aprobacion);
 
   // Modo Vidón: casilleros de la primera ronda todavía sin jugar (donde se
   // puede reingresar un equipo eliminado) y qué equipos están libres para
@@ -1045,6 +1114,183 @@ export default function AdminPage({ params }) {
           />
         ) : !tournament.started ? (
           <>
+            {esAdmin && (
+              <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+                <h3 className="font-bold text-sm mb-1" style={{ color: T.ink }}>
+                  Inscripción sin login
+                </h3>
+                <p className="text-xs mb-3" style={{ color: T.inkDim }}>
+                  Los equipos que se anoten con este link quedan pendientes de tu aprobación — no cuentan para el
+                  sorteo hasta que los confirmes acá abajo. Compartilo solo con quien vos quieras.
+                </p>
+                <button
+                  onClick={copiarLinkInscripcion}
+                  className="w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200 hover:scale-105 active:scale-95"
+                  style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                >
+                  <IconCopiar color={T.ink} />
+                  {linkInscripcionCopiado ? "¡Copiado!" : "Copiar link de inscripción"}
+                </button>
+              </div>
+            )}
+
+            {esAdmin && teamsPendientes.length > 0 && (
+              <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: "#B85C55" }}>
+                <h3 className="font-bold text-sm mb-3" style={{ color: T.ink }}>
+                  Equipos pendientes de aprobar ({teamsPendientes.length})
+                </h3>
+                <div className="flex flex-col gap-2">
+                  {teamsPendientes.map((t) => (
+                    <div key={t.id} className="rounded-xl p-3" style={{ background: T.bg, border: `1px solid ${T.line}` }}>
+                      <div className="text-sm font-bold" style={{ color: T.ink }}>
+                        {t.name}
+                      </div>
+                      {t.players && (
+                        <div className="text-xs mb-2" style={{ color: T.inkDim }}>
+                          {t.players}
+                        </div>
+                      )}
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => aprobarEquipo(t.id)}
+                          className="flex-1 py-1.5 rounded-lg font-bold text-xs"
+                          style={{ background: T.gold, color: T.ink }}
+                        >
+                          Aprobar
+                        </button>
+                        <button
+                          onClick={() => abrirEditorJugadores(t.id)}
+                          className="flex-1 py-1.5 rounded-lg font-bold text-xs"
+                          style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => rechazarEquipo(t.id)}
+                          className="flex-1 py-1.5 rounded-lg font-bold text-xs"
+                          style={{ background: T.redDim, color: "#FFFFFF" }}
+                        >
+                          Rechazar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {esAdmin && teamsAprobados.length > 0 && (
+              <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+                <h3 className="font-bold text-sm mb-3" style={{ color: T.ink }}>
+                  Corregir datos de jugadores
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {teamsAprobados.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => abrirEditorJugadores(t.id)}
+                      className="text-xs px-3 py-1.5 rounded-full font-semibold"
+                      style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                    >
+                      ✎ {t.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {editandoJugadoresDe && (
+              <div
+                className="fixed inset-0 z-40 flex items-center justify-center p-4"
+                style={{ background: "rgba(0,0,0,0.5)" }}
+                onClick={() => setEditandoJugadoresDe(null)}
+              >
+                <div
+                  className="w-full max-w-md max-h-[80vh] overflow-y-auto rounded-2xl p-4 border shadow-lg"
+                  style={{ background: T.panel, borderColor: T.line }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h3 className="font-bold text-sm mb-3" style={{ color: T.gold }}>
+                    Editar jugadores
+                  </h3>
+                  {jugadoresEditando.length === 0 ? (
+                    <p className="text-sm" style={{ color: T.inkDim }}>
+                      Este equipo no tiene jugadores con datos cargados para editar.
+                    </p>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      {jugadoresEditando.map((j) => (
+                        <div key={j.id} className="rounded-xl p-3" style={{ background: T.bg, border: `1px solid ${T.line}` }}>
+                          <div className="flex flex-col gap-2">
+                            <input
+                              value={j.name || ""}
+                              onChange={(e) => actualizarJugadorEditando(j.id, "name", e.target.value)}
+                              placeholder="Nombre"
+                              className="px-3 py-2 rounded-lg text-sm"
+                              style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                            />
+                            <input
+                              value={j.dni || ""}
+                              onChange={(e) => actualizarJugadorEditando(j.id, "dni", e.target.value)}
+                              placeholder="DNI"
+                              className="px-3 py-2 rounded-lg text-sm"
+                              style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                            />
+                            <input
+                              value={j.telefono || ""}
+                              onChange={(e) => actualizarJugadorEditando(j.id, "telefono", e.target.value)}
+                              placeholder="Teléfono"
+                              className="px-3 py-2 rounded-lg text-sm"
+                              style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                            />
+                            <div>
+                              <label className="text-[11px]" style={{ color: T.inkDim }}>
+                                Fecha de nacimiento
+                              </label>
+                              <input
+                                value={j.fecha_nacimiento || ""}
+                                onChange={(e) => actualizarJugadorEditando(j.id, "fecha_nacimiento", e.target.value)}
+                                type="date"
+                                className="w-full px-3 py-2 rounded-lg text-sm mt-1"
+                                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                              />
+                            </div>
+                            <input
+                              value={j.email || ""}
+                              onChange={(e) => actualizarJugadorEditando(j.id, "email", e.target.value)}
+                              placeholder="Mail"
+                              type="email"
+                              className="px-3 py-2 rounded-lg text-sm"
+                              style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      onClick={() => setEditandoJugadoresDe(null)}
+                      className="flex-1 py-2 rounded-xl font-bold text-sm"
+                      style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                    >
+                      Cancelar
+                    </button>
+                    {jugadoresEditando.length > 0 && (
+                      <button
+                        onClick={guardarJugadoresEditados}
+                        disabled={guardandoJugadores}
+                        className="flex-1 py-2 rounded-xl font-black text-sm disabled:opacity-50"
+                        style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
+                      >
+                        {guardandoJugadores ? "Guardando…" : "Guardar"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 lg:items-start gap-4 mb-4">
               <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
                 <h2 className="font-bold mb-3" style={{ color: T.gold }}>
@@ -1123,14 +1369,14 @@ export default function AdminPage({ params }) {
                 </div>
               </div>
 
-              {teams.length > 0 && (
+              {teamsAprobados.length > 0 && (
                 <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
                   <button
                     onClick={() => setMostrarEquipos((v) => !v)}
                     className="w-full flex items-center justify-between font-bold"
                     style={{ color: T.gold }}
                   >
-                    <span>Equipos anotados ({teams.length})</span>
+                    <span>Equipos anotados ({teamsAprobados.length})</span>
                     <span style={{ transform: mostrarEquipos ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
                       <IconAbajo color={T.inkDim} />
                     </span>
@@ -1149,7 +1395,7 @@ export default function AdminPage({ params }) {
                         style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
                       />
                       <TeamList
-                        teams={teams.filter((t) => t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()))}
+                        teams={teamsAprobados.filter((t) => t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()))}
                         editable
                         onSetMetodoPago={setMetodoPago}
                         onRemove={removeTeam}
@@ -1195,7 +1441,7 @@ export default function AdminPage({ params }) {
               {formatoElegido === "directa" ? (
                 <button
                   onClick={doSorteo}
-                  disabled={teams.length < 3}
+                  disabled={teamsAprobados.length < 3}
                   className="w-full py-3 rounded-2xl font-black text-lg transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
                   style={{
                     background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`,
@@ -1220,7 +1466,7 @@ export default function AdminPage({ params }) {
                   />
                   <button
                     onClick={armarFaseDeGrupos}
-                    disabled={teams.length < cantidadGrupos * 2}
+                    disabled={teamsAprobados.length < cantidadGrupos * 2}
                     className="w-full py-3 rounded-2xl font-black text-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
                     style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
                   >
@@ -1243,7 +1489,7 @@ export default function AdminPage({ params }) {
                     className="h-11 px-4 rounded-xl font-bold text-sm flex items-center gap-2"
                     style={{ background: T.panel, border: `1px solid ${T.line}`, color: T.ink }}
                   >
-                    Equipos ({teams.length}) <span className="text-[10px]" style={{ color: T.inkDim }}>▾</span>
+                    Equipos ({teamsAprobados.length}) <span className="text-[10px]" style={{ color: T.inkDim }}>▾</span>
                   </button>
                   {mostrarEquipos && (
                     <div
@@ -1258,7 +1504,7 @@ export default function AdminPage({ params }) {
                         style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
                       />
                       <TeamList
-                        teams={teams.filter((t) => t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()))}
+                        teams={teamsAprobados.filter((t) => t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()))}
                         editable
                         onSetMetodoPago={setMetodoPago}
                         onEditPlayers={editarJugadores}
@@ -1406,7 +1652,7 @@ export default function AdminPage({ params }) {
                                     ¿Perdió un desempate, se bajó, etc.? Sacalo — el cuadro se rearma solo con los que
                                     queden.
                                   </p>
-                                  {teams.length > 6 && (
+                                  {teamsAprobados.length > 6 && (
                                     <input
                                       value={busquedaAjustarEquipos}
                                       onChange={(e) => setBusquedaAjustarEquipos(e.target.value)}
@@ -1416,7 +1662,7 @@ export default function AdminPage({ params }) {
                                     />
                                   )}
                                   <div className="flex flex-wrap gap-2">
-                                    {teams
+                                    {teamsAprobados
                                       .filter((t) => t.name.toLowerCase().includes(busquedaAjustarEquipos.toLowerCase()))
                                       .map((t) => (
                                         <span

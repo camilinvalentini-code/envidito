@@ -48,9 +48,11 @@ const SECTIONS = [
           "Código de acceso asociado al equipo.",
           "Resultados o puntos vinculados a partidas.",
           "Información relacionada con la participación en torneos.",
+          "Cuando el jugador se anota directamente en un torneo (sin necesidad de cuenta): DNI, teléfono, fecha de nacimiento y correo electrónico, para poder identificarlo y, eventualmente, contactarlo por premios u otras cuestiones vinculadas al torneo.",
         ],
       },
       "Los jugadores no necesariamente crean una cuenta propia en Envidito.",
+      "Un equipo anotado directamente por un jugador queda pendiente de confirmación por parte del organizador del torneo antes de participar del sorteo.",
     ],
   },
   {
@@ -62,7 +64,6 @@ const SECTIONS = [
         list: [
           "Fotos de perfil.",
           "Imágenes subidas por usuarios.",
-          "Documentos de identidad.",
           "Datos bancarios de jugadores.",
           "Pagos de inscripciones dentro de la plataforma.",
           "Datos sensibles como salud, religión, ideología política u otros datos especialmente protegidos.",
@@ -254,5 +255,5 @@ const SECTIONS = [
 ];
 
 export default function PoliticaPrivacidadPage() {
-  return <LegalDoc title="Política de Privacidad de Envidito" lastUpdated="29/07/2026" sections={SECTIONS} />;
+  return <LegalDoc title="Política de Privacidad de Envidito" lastUpdated="14/08/2026" sections={SECTIONS} />;
 }

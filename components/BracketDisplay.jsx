@@ -24,7 +24,8 @@ export default function BracketDisplay({
     const playable = adminMode && !!onDeclareWinner && !m.bye && !m.winner_id && m.team1_id && m.team2_id;
     // Vidón (u otro): un equipo quedó solo esperando rival y nadie
     // reingresó — el organizador puede hacerlo pasar directo.
-    const soloEsperando = adminMode && !!onDeclareWinner && !m.bye && !m.winner_id && m.team1_id && !m.team2_id;
+    const soloEsperando =
+      adminMode && !!onDeclareWinner && modoVidon && m.round_index === 0 && !m.winner_id && !m.bye && m.team1_id && !m.team2_id;
     // Reingresos: solo en la ronda 0 de un torneo Vidón, sin jugar
     // todavía, y solo el organizador puede tocarlo.
     const esReingreso = adminMode && modoVidon && m.round_index === 0 && !m.winner_id && !m.bye;
