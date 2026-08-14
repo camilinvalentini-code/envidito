@@ -228,7 +228,7 @@ export default function TorneoPublico({ params, searchParams }) {
                     Las siguientes fases se muestran apenas termine la actual.
                   </p>
                 )}
-                {tournament.repechaje && (
+                {tournament.repechaje && tournament.modo === "directa" && (
                   <div className="mt-6">
                     {tournament.repechaje_champion_id && (
                       <div

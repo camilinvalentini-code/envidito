@@ -42,7 +42,7 @@ export default function AdminPage({ params }) {
   const [busquedaAjustarEquipos, setBusquedaAjustarEquipos] = useState("");
   const [mostrarQuitarEquipo, setMostrarQuitarEquipo] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const [sorteoAjustesAbierto, setSorteoAjustesAbierto] = useState(true);
+  const [sorteoAjustesAbierto, setSorteoAjustesAbierto] = useState(false);
   const [formatoResorteo, setFormatoResorteo] = useState(null); // null = todavía no lo tocó, usa el formato actual del torneo
   const [modoPruebaAbierto, setModoPruebaAbierto] = useState(false);
   const [nombreNuevoEquipo, setNombreNuevoEquipo] = useState("");
@@ -333,7 +333,15 @@ export default function AdminPage({ params }) {
     setError("");
     await supabase.from("matches").delete().eq("tournament_id", id).eq("bracket", "main");
     await supabase.from("matches").delete().eq("tournament_id", id).eq("bracket", "repechaje");
-    await supabase.from("tournaments").update({ champion_id: null, repechaje_champion_id: null, modo: modoElegido }).eq("id", id);
+    await supabase
+      .from("tournaments")
+      .update({
+        champion_id: null,
+        repechaje_champion_id: null,
+        modo: modoElegido,
+        repechaje: modoElegido === "vidon" ? false : tournament.repechaje,
+      })
+      .eq("id", id);
     const { error: err } = await generarCuadroPrincipal(teams.map((t) => t.id), modoElegido);
     if (err) {
       setError("No se pudo resortear. Probá de nuevo.");
