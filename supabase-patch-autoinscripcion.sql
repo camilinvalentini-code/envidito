@@ -103,6 +103,9 @@ declare
   v_player_id uuid;
   v_name_norm text;
   v_alguno boolean := false;
+  v_dnis text[] := '{}';
+  v_emails text[] := '{}';
+  v_telefonos text[] := '{}';
 begin
   if coalesce(trim(p_honeypot), '') <> '' then
     return null;
@@ -143,17 +146,42 @@ begin
       if v_item_name ~ '[0-9]' then
         raise exception 'el nombre de un jugador no puede tener números';
       end if;
+
+      if coalesce(item->>'fecha_nacimiento', '') = '' then
+        raise exception 'falta la fecha de nacimiento de un jugador';
+      end if;
+
       v_dni := nullif(trim(item->>'dni'), '');
-      if v_dni is not null and v_dni !~ '^[0-9]+$' then
-        raise exception 'el DNI solo puede tener números';
+      if v_dni is not null then
+        if v_dni !~ '^[0-9]+$' then
+          raise exception 'el DNI solo puede tener números';
+        end if;
+        if v_dni = any(v_dnis) then
+          raise exception 'dos jugadores del equipo no pueden tener el mismo DNI';
+        end if;
+        v_dnis := array_append(v_dnis, v_dni);
       end if;
+
       v_telefono := nullif(trim(item->>'telefono'), '');
-      if v_telefono is not null and v_telefono !~ '^[0-9 +-]+$' then
-        raise exception 'el teléfono solo puede tener números';
+      if v_telefono is not null then
+        if v_telefono !~ '^[0-9 +-]+$' then
+          raise exception 'el teléfono solo puede tener números';
+        end if;
+        if v_telefono = any(v_telefonos) then
+          raise exception 'dos jugadores del equipo no pueden tener el mismo teléfono';
+        end if;
+        v_telefonos := array_append(v_telefonos, v_telefono);
       end if;
-      v_email := nullif(trim(item->>'email'), '');
-      if v_email is not null and v_email !~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$' then
-        raise exception 'el mail no es válido';
+
+      v_email := lower(nullif(trim(item->>'email'), ''));
+      if v_email is not null then
+        if v_email !~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$' then
+          raise exception 'el mail no es válido';
+        end if;
+        if v_email = any(v_emails) then
+          raise exception 'dos jugadores del equipo no pueden tener el mismo mail';
+        end if;
+        v_emails := array_append(v_emails, v_email);
       end if;
     end if;
   end loop;
@@ -181,6 +209,49 @@ begin
       join tournaments t on t.id = tm.tournament_id
       where p.name_norm = v_name_norm and t.organizador_id = v_tournament.organizador_id
       limit 1;
+
+    -- Ni el DNI, ni el mail ni el teléfono pueden ya pertenecer a OTRO
+    -- jugador de este mismo organizador (si es el mismo jugador que
+    -- reconocimos por nombre arriba, se excluye — puede "repetir" sus
+    -- propios datos).
+    v_dni := nullif(trim(item->>'dni'), '');
+    if v_dni is not null and exists (
+      select 1 from players p2
+      join team_players tp2 on tp2.player_id = p2.id
+      join teams tm2 on tm2.id = tp2.team_id
+      join tournaments t2 on t2.id = tm2.tournament_id
+      where p2.dni = v_dni
+        and t2.organizador_id = v_tournament.organizador_id
+        and (v_player_id is null or p2.id <> v_player_id)
+    ) then
+      raise exception 'ese DNI ya está anotado con otro jugador';
+    end if;
+
+    v_telefono := nullif(trim(item->>'telefono'), '');
+    if v_telefono is not null and exists (
+      select 1 from players p2
+      join team_players tp2 on tp2.player_id = p2.id
+      join teams tm2 on tm2.id = tp2.team_id
+      join tournaments t2 on t2.id = tm2.tournament_id
+      where p2.telefono = v_telefono
+        and t2.organizador_id = v_tournament.organizador_id
+        and (v_player_id is null or p2.id <> v_player_id)
+    ) then
+      raise exception 'ese teléfono ya está anotado con otro jugador';
+    end if;
+
+    v_email := lower(nullif(trim(item->>'email'), ''));
+    if v_email is not null and exists (
+      select 1 from players p2
+      join team_players tp2 on tp2.player_id = p2.id
+      join teams tm2 on tm2.id = tp2.team_id
+      join tournaments t2 on t2.id = tm2.tournament_id
+      where lower(p2.email) = v_email
+        and t2.organizador_id = v_tournament.organizador_id
+        and (v_player_id is null or p2.id <> v_player_id)
+    ) then
+      raise exception 'ese mail ya está anotado con otro jugador';
+    end if;
 
     if v_player_id is null then
       insert into players (name, name_norm, dni, telefono, fecha_nacimiento, email)

@@ -26,6 +26,9 @@ function validarJugador(j, esUnJugador) {
   if (nombre && RE_SIN_NUMEROS.test(nombre)) {
     return esUnJugador ? "Tu nombre no puede tener números." : "El nombre de un jugador no puede tener números.";
   }
+  if (!j.fecha_nacimiento) {
+    return esUnJugador ? "Falta tu fecha de nacimiento." : "Falta la fecha de nacimiento de un jugador.";
+  }
   if (j.dni.trim() && !RE_SOLO_NUMEROS.test(j.dni.trim())) {
     return "El DNI solo puede tener números.";
   }
@@ -34,6 +37,23 @@ function validarJugador(j, esUnJugador) {
   }
   if (j.email.trim() && !RE_EMAIL.test(j.email.trim())) {
     return "El mail no es válido.";
+  }
+  return null;
+}
+
+// Ningún dato de contacto puede repetirse entre los jugadores del mismo
+// equipo (el resto — que no coincida con otro jugador ya anotado con
+// este organizador — lo valida el servidor).
+function buscarRepetidoEnEquipo(jugadores) {
+  const vistos = { dni: new Set(), telefono: new Set(), email: new Set() };
+  const etiquetas = { dni: "DNI", telefono: "teléfono", email: "mail" };
+  for (const j of jugadores) {
+    for (const campo of ["dni", "telefono", "email"]) {
+      const valor = j[campo].trim().toLowerCase();
+      if (!valor) continue;
+      if (vistos[campo].has(valor)) return `Dos jugadores del equipo no pueden tener el mismo ${etiquetas[campo]}.`;
+      vistos[campo].add(valor);
+    }
   }
   return null;
 }
@@ -92,6 +112,11 @@ export default function AnotarmePage({ params }) {
         return;
       }
     }
+    const repetido = buscarRepetidoEnEquipo(jugadores);
+    if (repetido) {
+      setError(repetido);
+      return;
+    }
     if (!aceptaTerminos || !aceptaPrivacidad) {
       setError("Tenés que aceptar los Términos y Condiciones y la Política de Privacidad para continuar.");
       return;
@@ -105,7 +130,7 @@ export default function AnotarmePage({ params }) {
     });
     setEnviando(false);
     if (err) {
-      setError("No se pudo anotar el equipo. Probá de nuevo en un minuto.");
+      setError(err.message || "No se pudo anotar el equipo. Probá de nuevo en un minuto.");
       console.error(err);
       return;
     }
@@ -204,12 +229,13 @@ export default function AnotarmePage({ params }) {
                       />
                       <div>
                         <label className="text-[11px]" style={{ color: T.inkDim }}>
-                          Fecha de nacimiento
+                          Fecha de nacimiento *
                         </label>
                         <input
                           value={j.fecha_nacimiento}
                           onChange={(e) => actualizarJugador(i, "fecha_nacimiento", e.target.value)}
                           type="date"
+                          required
                           className="w-full px-3 py-2 rounded-lg text-sm mt-1"
                           style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
                         />
