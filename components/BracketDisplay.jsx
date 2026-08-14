@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef } from "react";
+import React from "react";
 import { useTheme } from "../lib/theme";
 import SuitIcon, { SUITS } from "./SuitIcon";
 import { groupByRound, roundLabel } from "../lib/bracket";
@@ -16,14 +16,9 @@ export default function BracketDisplay({
   onQuitarCasillero,
 }) {
   const { T } = useTheme();
-  const scrollRef = useRef(null);
   if (!matches || matches.length === 0) return null;
   const rounds = groupByRound(matches);
   const nameOf = (id) => (id ? teamsById[id]?.name || "???" : null);
-
-  function jump(dir) {
-    if (scrollRef.current) scrollRef.current.scrollBy({ left: dir * 260, behavior: "smooth" });
-  }
 
   function renderMatchCard(m) {
     const playable = adminMode && !!onDeclareWinner && !m.bye && !m.winner_id && m.team1_id && m.team2_id;
@@ -145,28 +140,7 @@ export default function BracketDisplay({
 
   return (
     <div className="relative">
-      {rounds.length > 1 && (
-        <>
-          <button
-            onClick={() => jump(-1)}
-            className="hidden sm:flex absolute -left-4 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full items-center justify-center shadow-md"
-            style={{ background: T.gold, color: T.ink }}
-            aria-label="Ronda anterior"
-          >
-            ‹
-          </button>
-          <button
-            onClick={() => jump(1)}
-            className="hidden sm:flex absolute -right-4 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full items-center justify-center shadow-md"
-            style={{ background: T.gold, color: T.ink }}
-            aria-label="Ronda siguiente"
-          >
-            ›
-          </button>
-        </>
-      )}
       <div
-        ref={scrollRef}
         className="grid gap-4 lg:gap-6 overflow-x-auto pb-2 scroll-smooth"
         style={{ gridTemplateColumns: `repeat(${rounds.length}, minmax(210px, 1fr))` }}
       >
