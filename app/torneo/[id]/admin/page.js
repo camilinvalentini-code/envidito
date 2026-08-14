@@ -1244,7 +1244,7 @@ export default function AdminPage({ params }) {
                   </button>
                   {mostrarEquipos && (
                     <div
-                      className="absolute top-12 left-1/2 -translate-x-1/2 w-[min(90vw,320px)] max-h-[360px] overflow-y-auto rounded-2xl border shadow-lg p-3.5 z-30"
+                      className="absolute top-12 left-0 w-[min(90vw,320px)] max-h-[360px] overflow-y-auto rounded-2xl border shadow-lg p-3.5 z-30"
                       style={{ background: T.panel, borderColor: T.line }}
                     >
                       <input
@@ -1303,7 +1303,7 @@ export default function AdminPage({ params }) {
                     </button>
                     {sorteoAjustesAbierto && (
                       <div
-                        className="absolute top-12 left-1/2 -translate-x-1/2 w-[min(90vw,320px)] max-h-[70vh] overflow-y-auto rounded-2xl border shadow-lg p-3.5 z-30"
+                        className="absolute top-12 left-0 w-[min(90vw,320px)] max-h-[70vh] overflow-y-auto rounded-2xl border shadow-lg p-3.5 z-30"
                         style={{ background: T.panel, borderColor: T.line }}
                       >
                         {fasesListasParaResortear().map(({ idx, cantidad }) => (
