@@ -197,7 +197,9 @@ export default function AdminPage({ params }) {
         p_team_id: nuevoEquipo.id,
       });
       if (errTardio) {
-        setError("El equipo se anotó, pero no se pudo meter en la clasificatoria. Probá de nuevo o resorteá.");
+        setError(
+          `El equipo se anotó, pero no se pudo meter en la clasificatoria (${errTardio.message || "error desconocido"}). Probá de nuevo o resorteá.`
+        );
         console.error(errTardio);
       }
     }
