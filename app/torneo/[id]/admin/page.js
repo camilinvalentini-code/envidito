@@ -332,18 +332,28 @@ export default function AdminPage({ params }) {
     load();
   }
 
+  function textoClasificatoria(clasifMatches) {
+    const numeroPorEquipo = {};
+    teams.forEach((t, i) => (numeroPorEquipo[t.id] = i + 1));
+    const conNumero = (teamId) => {
+      const nombre = teamsById[teamId]?.name || "?";
+      const num = numeroPorEquipo[teamId];
+      return num ? `${num} (${nombre})` : nombre;
+    };
+    const ordenados = [...clasifMatches].sort((a, b) => a.match_index - b.match_index);
+    const lineas = ordenados.map((m) => {
+      const n1 = conNumero(m.team1_id);
+      if (!m.team2_id) return `${n1} → espera rival`;
+      const n2 = conNumero(m.team2_id);
+      return `${n1} vs ${n2}`;
+    });
+    const fecha = tournament.fecha ? ` — ${tournament.fecha}` : "";
+    return `⚔️ ${tournament.nombre}${fecha}\n\n📋 Clasificatoria\n${lineas.join("\n")}\n\n${publicUrl}`;
+  }
+
   async function compartirCrucesClasificatoria(clasifMatches) {
-    const pendientes = clasifMatches.filter((m) => !m.winner_id && m.team1_id && m.team2_id);
-    const esperando = clasifMatches.filter((m) => !m.winner_id && m.team1_id && !m.team2_id);
-    if (pendientes.length === 0 && esperando.length === 0) return;
-    const bloques = [
-      ...pendientes.map((m) => {
-        const link = `${origin}/partido/${m.match_token}`;
-        return `${teamsById[m.team1_id]?.name} vs ${teamsById[m.team2_id]?.name}\n${link}`;
-      }),
-      ...esperando.map((m) => `${teamsById[m.team1_id]?.name} → espera rival`),
-    ];
-    const texto = `⚔️ ${tournament.nombre} — Clasificatoria\n\n${bloques.join("\n\n")}`;
+    if (clasifMatches.length === 0) return;
+    const texto = textoClasificatoria(clasifMatches);
     if (navigator.share) {
       try {
         await navigator.share({ text: texto });
@@ -352,6 +362,16 @@ export default function AdminPage({ params }) {
       }
     } else {
       window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank");
+    }
+  }
+
+  async function copiarCrucesClasificatoria(clasifMatches) {
+    if (clasifMatches.length === 0) return;
+    const texto = textoClasificatoria(clasifMatches);
+    try {
+      await navigator.clipboard.writeText(texto);
+    } catch (e) {
+      alert("No se pudo copiar. Probá el botón de compartir.");
     }
   }
 
@@ -1542,6 +1562,7 @@ export default function AdminPage({ params }) {
                 onForzarGanador={forzarGanador}
                 onReabrir={reabrirPartido}
                 onCompartir={() => compartirCrucesClasificatoria(clasifMatches)}
+                onCopiar={() => copiarCrucesClasificatoria(clasifMatches)}
                 perdedoresElegidos={perdedoresElegidos}
                 onToggleLoser={toggleLoserElegido}
                 onSortearLosers={sortearPerdedoresClasificatoria}
@@ -2107,6 +2128,7 @@ function ClasificatoriaPanel({
   onForzarGanador,
   onReabrir,
   onCompartir,
+  onCopiar,
   perdedoresElegidos,
   onToggleLoser,
   onSortearLosers,
@@ -2152,13 +2174,23 @@ function ClasificatoriaPanel({
           <h2 className="font-bold text-sm" style={{ color: T.gold }}>
             Clasificatoria — {ordenados.length} partido{ordenados.length === 1 ? "" : "s"}
           </h2>
-          <button
-            onClick={onCompartir}
-            className="h-9 px-3 rounded-xl font-bold text-xs flex items-center gap-1.5"
-            style={{ background: "#81C784", color: "#1B3A2A" }}
-          >
-            <IconWhatsApp color="#1B3A2A" /> Compartir cruces
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={onCompartir}
+              className="h-9 px-3 rounded-xl font-bold text-xs flex items-center gap-1.5"
+              style={{ background: "#81C784", color: "#1B3A2A" }}
+            >
+              <IconWhatsApp color="#1B3A2A" /> Compartir cruces
+            </button>
+            <button
+              onClick={onCopiar}
+              title="Copiar"
+              className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl"
+              style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
+            >
+              <IconCopiar color={T.ink} />
+            </button>
+          </div>
         </div>
 
         <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
