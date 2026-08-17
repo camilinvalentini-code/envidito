@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "../../../../lib/theme";
@@ -54,6 +54,7 @@ export default function AdminPage({ params }) {
   const [cantidadGrupos, setCantidadGrupos] = useState(4);
   const [perdedoresElegidos, setPerdedoresElegidos] = useState(new Set());
   const [cerrandoClasificatoria, setCerrandoClasificatoria] = useState(false);
+  const clasificatoriaRef = useRef(null);
   const [clasificanPorGrupo, setClasificanPorGrupo] = useState(2);
   const [oroHasta, setOroHasta] = useState(2); // de los que clasifican, cuántos van a la Copa de Oro (el resto, a Plata)
 
@@ -191,7 +192,14 @@ export default function AdminPage({ params }) {
     // igual que cualquier equipo, y esto la mete en un cruce que esté
     // esperando rival (o le arma uno nuevo) — no se resortea nada.
     if (tournament.formato === "clasificatoria" && tournament.clasificatoria_generada && !tournament.clasificatoria_cerrada) {
-      await supabase.rpc("agregar_tardio_clasificatoria", { p_tournament_id: id, p_team_id: nuevoEquipo.id });
+      const { error: errTardio } = await supabase.rpc("agregar_tardio_clasificatoria", {
+        p_tournament_id: id,
+        p_team_id: nuevoEquipo.id,
+      });
+      if (errTardio) {
+        setError("El equipo se anotó, pero no se pudo meter en la clasificatoria. Probá de nuevo o resorteá.");
+        console.error(errTardio);
+      }
     }
     setNewName("");
     setJugadoresChips([]);
@@ -329,7 +337,14 @@ export default function AdminPage({ params }) {
       console.error(err);
       return;
     }
-    load();
+    await load();
+    // Recién armados los cruces, bajamos solos hasta ellos — si no, el
+    // organizador queda arriba donde tocó el botón, sin ver nada nuevo.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        clasificatoriaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
   }
 
   async function resortearClasificatoria() {
@@ -1598,6 +1613,7 @@ export default function AdminPage({ params }) {
             </div>
 
             {enClasificatoria ? (
+              <div ref={clasificatoriaRef}>
               <ClasificatoriaPanel
                 T={T}
                 clasifMatches={clasifMatches}
@@ -1615,6 +1631,7 @@ export default function AdminPage({ params }) {
                 onVolver={() => volverACuadroDirecto("clasificatoria")}
                 error={error}
               />
+              </div>
             ) : (
               <div className="lg:max-w-md lg:mx-auto">
                 {error && (
