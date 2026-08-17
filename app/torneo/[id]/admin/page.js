@@ -1731,10 +1731,13 @@ export default function AdminPage({ params }) {
                   </div>
                 ) : (
                   <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-                    <p className="text-xs mb-3" style={{ color: T.inkDim }}>
+                    <p className="text-xs mb-1.5" style={{ color: T.inkDim }}>
                       {teamsAprobados.length} equipos no da un cuadro redondo. Se arma una ronda donde juegan todos, y
                       con los ganadores + los perdedores que elijas después arma un cuadro limpio.
                     </p>
+                    <Link href="/ayuda/clasificatoria" target="_blank" className="text-xs font-bold underline block mb-3" style={{ color: T.goldBright }}>
+                      ¿Cómo funciona? — guía paso a paso
+                    </Link>
                     <button
                       onClick={generarClasificatoria}
                       disabled={teamsAprobados.length < 3}
