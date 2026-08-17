@@ -1680,7 +1680,7 @@ export default function AdminPage({ params }) {
                   >
                     Fase de grupos
                   </button>
-                  {esAdmin && modoVidon && !esPotenciaDeDos(teamsAprobados.length) && (
+                  {modoVidon && !esPotenciaDeDos(teamsAprobados.length) && (
                     <button
                       onClick={() => setFormatoElegido("clasificatoria")}
                       className="flex-1 py-2 text-xs font-bold rounded-lg"

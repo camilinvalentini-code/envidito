@@ -27,7 +27,7 @@ export default function CrearTorneo() {
   const [categoria, setCategoria] = useState("2v2");
   const [repechaje, setRepechaje] = useState(false);
   const [puntosMax, setPuntosMax] = useState(30);
-  const [modo, setModo] = useState("directa");
+  const [modo, setModo] = useState("vidon");
   const [encargado, setEncargado] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -282,18 +282,18 @@ export default function CrearTorneo() {
               </span>
               <div className="flex rounded-xl overflow-hidden border mt-1.5" style={{ borderColor: T.gold }}>
                 <button
-                  onClick={() => setModo("directa")}
-                  className="flex-1 py-2 text-xs font-bold"
-                  style={{ background: modo === "directa" ? T.gold : "transparent", color: modo === "directa" ? T.ink : T.inkDim }}
-                >
-                  Eliminación directa
-                </button>
-                <button
                   onClick={() => setModo("vidon")}
                   className="flex-1 py-2 text-xs font-bold"
                   style={{ background: modo === "vidon" ? T.gold : "transparent", color: modo === "vidon" ? T.ink : T.inkDim }}
                 >
                   Sistema Vidón Bar
+                </button>
+                <button
+                  onClick={() => setModo("directa")}
+                  className="flex-1 py-2 text-xs font-bold"
+                  style={{ background: modo === "directa" ? T.gold : "transparent", color: modo === "directa" ? T.ink : T.inkDim }}
+                >
+                  Eliminación directa
                 </button>
               </div>
               <p className="text-[11px] mt-1.5" style={{ color: T.inkDim }}>
