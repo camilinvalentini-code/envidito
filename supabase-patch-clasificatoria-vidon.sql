@@ -91,7 +91,7 @@ revoke execute on function public.generar_clasificatoria(uuid) from public;
 
 create or replace function public.agregar_tardio_clasificatoria(p_tournament_id uuid, p_team_id uuid)
 returns void language plpgsql security definer
-set search_path = public, pg_temp as $$
+set search_path = public, extensions, pg_temp as $$
 declare
   t tournaments%rowtype;
   destino matches%rowtype;
