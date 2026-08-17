@@ -342,7 +342,7 @@ function ClasificatoriaPublica({ matches, teamsById }) {
             <div key={m.id} className="rounded-2xl border p-2" style={{ background: T.panel, borderColor: T.line }}>
               <div className="px-3 py-2 rounded-xl text-sm font-semibold flex items-center justify-between gap-2" style={fila(m.winner_id === m.team1_id)}>
                 <span className="truncate">{nombre1}</span>
-                {jugado && (
+                {m.score_a > 0 && (
                   <span className="font-black flex-shrink-0" style={{ color: T.goldBright }}>
                     {m.score_a}
                   </span>
@@ -353,7 +353,7 @@ function ClasificatoriaPublica({ matches, teamsById }) {
                   <div className="h-px my-1" style={{ background: T.line }} />
                   <div className="px-3 py-2 rounded-xl text-sm font-semibold flex items-center justify-between gap-2" style={fila(m.winner_id === m.team2_id)}>
                     <span className="truncate">{nombre2}</span>
-                    {jugado && (
+                    {m.score_b > 0 && (
                       <span className="font-black flex-shrink-0" style={{ color: T.goldBright }}>
                         {m.score_b}
                       </span>

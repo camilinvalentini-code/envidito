@@ -2307,7 +2307,7 @@ function ClasificatoriaPanel({
                   style={filaEstilo(m.winner_id === m.team1_id)}
                 >
                   <span className="truncate">{nombre1}</span>
-                  {jugado && (
+                  {m.score_a > 0 && (
                     <span className="font-black flex-shrink-0" style={{ color: T.goldBright }}>
                       {m.score_a}
                     </span>
@@ -2322,7 +2322,7 @@ function ClasificatoriaPanel({
                       style={filaEstilo(m.winner_id === m.team2_id)}
                     >
                       <span className="truncate">{nombre2}</span>
-                      {jugado && (
+                      {m.score_b > 0 && (
                         <span className="font-black flex-shrink-0" style={{ color: T.goldBright }}>
                           {m.score_b}
                         </span>
