@@ -201,7 +201,37 @@ export default function AdminPage({ params }) {
   }
   async function removeTeam(teamId) {
     if (tournament.started) return;
-    await supabase.from("teams").delete().eq("id", teamId);
+    setError("");
+    // Si ya está anotado en algún cruce sin jugar (clasificatoria o
+    // grupos, antes de cerrar esa fase), hay que soltarlo de ahí primero
+    // — si no, la base rechaza el borrado porque el partido todavía lo
+    // referencia.
+    const { data: enPartidos } = await supabase
+      .from("matches")
+      .select("id, team1_id, team2_id, winner_id")
+      .eq("tournament_id", id)
+      .or(`team1_id.eq.${teamId},team2_id.eq.${teamId}`);
+    const yaJugo = (enPartidos || []).some((m) => m.winner_id);
+    if (yaJugo) {
+      setError("Este equipo ya jugó un partido — no se puede sacar del torneo. Reabrí ese partido primero si hace falta.");
+      return;
+    }
+    for (const m of enPartidos || []) {
+      if (m.team1_id === teamId && m.team2_id) {
+        // el rival queda solo, esperando — se corre al casillero principal
+        await supabase.from("matches").update({ team1_id: m.team2_id, team2_id: null }).eq("id", m.id);
+      } else if (m.team1_id === teamId) {
+        await supabase.from("matches").delete().eq("id", m.id);
+      } else if (m.team2_id === teamId) {
+        await supabase.from("matches").update({ team2_id: null }).eq("id", m.id);
+      }
+    }
+    const { error: err } = await supabase.from("teams").delete().eq("id", teamId);
+    if (err) {
+      setError("No se pudo sacar el equipo. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
     load();
   }
   async function setMetodoPago(teamId, metodo) {
