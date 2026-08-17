@@ -2137,6 +2137,7 @@ function ClasificatoriaPanel({
   onVolver,
   error,
 }) {
+  const [busquedaPerdedores, setBusquedaPerdedores] = useState("");
   const ordenados = [...clasifMatches].sort((a, b) => a.match_index - b.match_index);
   const pendientes = ordenados.filter((m) => !m.winner_id && m.team1_id && m.team2_id);
   const esperando = ordenados.filter((m) => !m.winner_id && m.team1_id && !m.team2_id);
@@ -2282,8 +2283,9 @@ function ClasificatoriaPanel({
             Cerrar clasificatoria
           </h2>
           <p className="text-xs mb-3" style={{ color: T.inkDim }}>
-            {ganadoresConEspera.length} clasifican directo. Elegí {cupo} de los {perdedoresDisponibles.length} perdedores
-            para completar un cuadro de {target}.
+            {cupo === 0
+              ? `${ganadoresConEspera.length} clasifican directo — ya da un cuadro parejo de ${target}, no hace falta elegir a nadie más.`
+              : `${ganadoresConEspera.length} clasifican directo. Elegí ${cupo} de los ${perdedoresDisponibles.length} perdedores para completar un cuadro de ${target}.`}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
             <div>
@@ -2302,42 +2304,55 @@ function ClasificatoriaPanel({
                 ))}
               </div>
             </div>
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-xs font-bold uppercase tracking-wide" style={{ color: T.inkDim }}>
-                  Perdedores ({perdedoresElegidos.size}/{cupo})
+            {cupo > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-bold uppercase tracking-wide" style={{ color: T.inkDim }}>
+                    Perdedores ({perdedoresElegidos.size}/{cupo})
+                  </div>
+                  <button
+                    onClick={() => onSortearLosers(cupo, perdedoresDisponibles)}
+                    className="text-xs font-bold px-2 py-1 rounded-lg"
+                    style={{ background: T.panelLight, color: T.goldBright }}
+                  >
+                    🎲 Sortear
+                  </button>
                 </div>
-                <button
-                  onClick={() => onSortearLosers(cupo, perdedoresDisponibles)}
-                  className="text-xs font-bold px-2 py-1 rounded-lg"
-                  style={{ background: T.panelLight, color: T.goldBright }}
-                >
-                  🎲 Sortear
-                </button>
+                {perdedoresDisponibles.length > 6 && (
+                  <input
+                    value={busquedaPerdedores}
+                    onChange={(e) => setBusquedaPerdedores(e.target.value)}
+                    placeholder="Buscar equipo..."
+                    className="w-full px-2 py-1.5 rounded-lg text-xs mb-1.5"
+                    style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                  />
+                )}
+                <div className="flex flex-col gap-1 max-h-64 overflow-y-auto">
+                  {perdedoresDisponibles
+                    .filter((tid) => (teamsById[tid]?.name || "").toLowerCase().includes(busquedaPerdedores.toLowerCase()))
+                    .map((tid) => {
+                      const marcado = perdedoresElegidos.has(tid);
+                      return (
+                        <button
+                          key={tid}
+                          onClick={() => onToggleLoser(tid)}
+                          className="text-sm px-2 py-1.5 rounded-lg text-left flex items-center gap-2"
+                          style={{ background: marcado ? T.panelLight : "transparent", color: marcado ? T.ink : T.inkDim }}
+                        >
+                          <span
+                            className="w-3.5 h-3.5 rounded flex-shrink-0"
+                            style={{
+                              background: marcado ? T.gold : "transparent",
+                              border: `1.5px solid ${marcado ? T.gold : T.line}`,
+                            }}
+                          />
+                          {teamsById[tid]?.name}
+                        </button>
+                      );
+                    })}
+                </div>
               </div>
-              <div className="flex flex-col gap-1 max-h-64 overflow-y-auto">
-                {perdedoresDisponibles.map((tid) => {
-                  const marcado = perdedoresElegidos.has(tid);
-                  return (
-                    <button
-                      key={tid}
-                      onClick={() => onToggleLoser(tid)}
-                      className="text-sm px-2 py-1.5 rounded-lg text-left flex items-center gap-2"
-                      style={{ background: marcado ? T.panelLight : "transparent", color: marcado ? T.ink : T.inkDim }}
-                    >
-                      <span
-                        className="w-3.5 h-3.5 rounded flex-shrink-0"
-                        style={{
-                          background: marcado ? T.gold : "transparent",
-                          border: `1.5px solid ${marcado ? T.gold : T.line}`,
-                        }}
-                      />
-                      {teamsById[tid]?.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            )}
           </div>
           <button
             onClick={onCerrar}
