@@ -302,6 +302,19 @@ export default function AdminPage({ params }) {
     load();
   }
 
+  async function resortearClasificatoria() {
+    if (!window.confirm("¿Resortear la clasificatoria? Se arman cruces nuevos al azar con los mismos equipos. Nadie jugó nada todavía, es seguro."))
+      return;
+    setError("");
+    const { error: err } = await supabase.rpc("resortear_clasificatoria", { p_tournament_id: id });
+    if (err) {
+      setError(err.message || "No se pudo resortear la clasificatoria. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
+    load();
+  }
+
   function toggleLoserElegido(teamId) {
     setPerdedoresElegidos((prev) => {
       const next = new Set(prev);
@@ -1563,6 +1576,7 @@ export default function AdminPage({ params }) {
                 onReabrir={reabrirPartido}
                 onCompartir={() => compartirCrucesClasificatoria(clasifMatches)}
                 onCopiar={() => copiarCrucesClasificatoria(clasifMatches)}
+                onResortear={resortearClasificatoria}
                 perdedoresElegidos={perdedoresElegidos}
                 onToggleLoser={toggleLoserElegido}
                 onSortearLosers={sortearPerdedoresClasificatoria}
@@ -2129,6 +2143,7 @@ function ClasificatoriaPanel({
   onReabrir,
   onCompartir,
   onCopiar,
+  onResortear,
   perdedoresElegidos,
   onToggleLoser,
   onSortearLosers,
@@ -2176,6 +2191,16 @@ function ClasificatoriaPanel({
             Clasificatoria — {ordenados.length} partido{ordenados.length === 1 ? "" : "s"}
           </h2>
           <div className="flex gap-2">
+            {nadieJugoNada && (
+              <button
+                onClick={onResortear}
+                title="Resortear (todavía no se jugó nada)"
+                className="h-9 px-3 rounded-xl font-bold text-xs"
+                style={{ background: T.panel, color: T.inkDim, border: `1px solid ${T.line}` }}
+              >
+                ↻ Resortear
+              </button>
+            )}
             <button
               onClick={onCompartir}
               className="h-9 px-3 rounded-xl font-bold text-xs flex items-center gap-1.5"
