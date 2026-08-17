@@ -76,12 +76,16 @@ export default function PartidoLigaPage({ params }) {
     setVerificando(true);
     setCodigoError(null);
     const { data, error } = await supabase.rpc("validar_codigo_liga", { p_token: token, p_codigo: limpio });
-    if (!error && data === true) {
+    const resultado = data?.[0];
+    if (!error && resultado?.ok) {
       try {
         window.localStorage.setItem(claveCodigo(partido.id), limpio);
       } catch (e) {}
       setCodigo(limpio);
       setCodigoInput("");
+    } else if (resultado?.bloqueado_hasta && new Date(resultado.bloqueado_hasta) > new Date()) {
+      const minutos = Math.max(1, Math.ceil((new Date(resultado.bloqueado_hasta) - new Date()) / 60000));
+      setCodigoError(`Se probaron muchos códigos seguidos acá — esperá ${minutos} minuto${minutos === 1 ? "" : "s"} y probá de nuevo.`);
     } else {
       setCodigoError("Código incorrecto. Fijate que sea el que te dio la organización.");
     }
