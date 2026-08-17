@@ -437,6 +437,31 @@ export default function AdminPage({ params }) {
     load();
   }
 
+  // Volver de "fase de grupos" o "clasificatoria" a "cuadro directo" sin
+  // tener que crear un torneo nuevo — solo tiene sentido mientras nadie
+  // jugó nada todavía en esa fase (si no, se perdería el resultado real).
+  async function volverACuadroDirecto(bracketAEliminar) {
+    const nombre = bracketAEliminar === "grupos" ? "la fase de grupos" : "la clasificatoria";
+    if (!window.confirm(`¿Volver a "Cuadro directo"? Se borra ${nombre} armada (nadie jugó nada todavía ahí, es seguro) y podés elegir el formato de nuevo.`))
+      return;
+    setError("");
+    await supabase.from("matches").delete().eq("tournament_id", id).eq("bracket", bracketAEliminar);
+    const updates = { formato: "directa" };
+    if (bracketAEliminar === "grupos") updates.grupos_generados = false;
+    if (bracketAEliminar === "clasificatoria") {
+      updates.clasificatoria_generada = false;
+      updates.clasificatoria_cerrada = false;
+    }
+    const { error: err } = await supabase.from("tournaments").update(updates).eq("id", id);
+    if (err) {
+      setError("No se pudo volver a cuadro directo. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
+    setFormatoElegido("directa");
+    load();
+  }
+
   async function quitarEquipoDelTorneo(teamId) {
     const nombre = teamsById[teamId]?.name || "este equipo";
     if (!window.confirm(`¿Sacar a "${nombre}" del torneo? Se rearma el cuadro con los que queden.`)) return;
@@ -1211,6 +1236,7 @@ export default function AdminPage({ params }) {
             setMostrarEquipos={setMostrarEquipos}
             busquedaEquipos={busquedaEquipos}
             setBusquedaEquipos={setBusquedaEquipos}
+            onVolver={() => volverACuadroDirecto("grupos")}
           />
         ) : !tournament.started ? (
           <>
@@ -1521,6 +1547,7 @@ export default function AdminPage({ params }) {
                 onSortearLosers={sortearPerdedoresClasificatoria}
                 onCerrar={cerrarClasificatoria}
                 cerrando={cerrandoClasificatoria}
+                onVolver={() => volverACuadroDirecto("clasificatoria")}
                 error={error}
               />
             ) : (
@@ -2085,12 +2112,14 @@ function ClasificatoriaPanel({
   onSortearLosers,
   onCerrar,
   cerrando,
+  onVolver,
   error,
 }) {
   const ordenados = [...clasifMatches].sort((a, b) => a.match_index - b.match_index);
   const pendientes = ordenados.filter((m) => !m.winner_id && m.team1_id && m.team2_id);
   const esperando = ordenados.filter((m) => !m.winner_id && m.team1_id && !m.team2_id);
   const listoParaCerrar = ordenados.length > 0 && pendientes.length === 0;
+  const nadieJugoNada = ordenados.every((m) => !m.winner_id);
 
   const ganadores = ordenados.filter((m) => m.winner_id).map((m) => m.winner_id);
   const ganadoresConEspera = [...ganadores, ...esperando.map((m) => m.team1_id)];
@@ -2110,6 +2139,12 @@ function ClasificatoriaPanel({
         <p className="text-sm text-center mb-3" style={{ color: T.goldBright }}>
           {error}
         </p>
+      )}
+
+      {nadieJugoNada && (
+        <button onClick={onVolver} className="text-xs font-bold mb-3 flex items-center gap-1" style={{ color: T.inkDim }}>
+          ← Volver a cuadro directo
+        </button>
       )}
 
       <div className="rounded-2xl p-4 border shadow-sm mb-4" style={{ background: T.panel, borderColor: T.line }}>
@@ -2311,11 +2346,13 @@ function FaseDeGruposPanel({
   setMostrarEquipos,
   busquedaEquipos,
   setBusquedaEquipos,
+  onVolver,
 }) {
   const grupoMatches = matches.filter((m) => m.bracket === "grupos");
   const numerosGrupos = [...new Set(teams.map((t) => t.grupo).filter((g) => g != null))].sort((a, b) => a - b);
   const grupoTodosJugados = grupoMatches.length > 0 && grupoMatches.every((m) => m.winner_id);
   const hayPendientesGrupos = grupoMatches.some((m) => !m.winner_id);
+  const nadieJugoNada = grupoMatches.every((m) => !m.winner_id);
   const [gruposAbiertos, setGruposAbiertos] = useState({});
   const [crucesAbiertos, setCrucesAbiertos] = useState({});
   const [verGrupos, setVerGrupos] = useState(false);
@@ -2843,6 +2880,12 @@ function FaseDeGruposPanel({
           <p className="text-sm text-center mb-3" style={{ color: T.goldBright }}>
             {error}
           </p>
+        )}
+
+        {nadieJugoNada && (
+          <button onClick={onVolver} className="text-xs font-bold mb-3 flex items-center gap-1" style={{ color: T.inkDim }}>
+            ← Volver a cuadro directo
+          </button>
         )}
 
         {grupoTodosJugados ? (
