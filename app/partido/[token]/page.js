@@ -266,6 +266,7 @@ export default function PartidoPage({ params }) {
                 onKeyDown={(e) => e.key === "Enter" && verificarCodigo()}
                 placeholder="Código de tu equipo"
                 inputMode="numeric"
+                maxLength={6}
                 className="px-3 py-2 rounded-xl text-sm text-center w-40"
                 style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
               />
