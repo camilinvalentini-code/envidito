@@ -77,6 +77,8 @@ export default function TorneoPublico({ params, searchParams }) {
   const oroMatches = matches.filter((m) => m.bracket === "oro");
   const plataMatches = matches.filter((m) => m.bracket === "plata");
   const enFaseDeGrupos = tournament.formato === "grupos";
+  const enClasificatoria = tournament.formato === "clasificatoria" && !tournament.clasificatoria_cerrada;
+  const clasifMatches = matches.filter((m) => m.bracket === "clasificatoria");
 
   // Los competidores no ven una fase hasta que la anterior termina del
   // todo (mismo criterio que usa el mensaje de WhatsApp del organizador:
@@ -151,7 +153,27 @@ export default function TorneoPublico({ params, searchParams }) {
           </div>
         )}
 
-        {enFaseDeGrupos ? (
+        {enClasificatoria ? (
+          <>
+            {tournament.clasificatoria_generada && (
+              <MiEquipoPanel
+                tournament={tournament}
+                teams={teams}
+                matches={clasifMatches}
+                teamsById={teamsById}
+                puedeElegir={puedeElegirEquipo}
+              />
+            )}
+
+            {!tournament.clasificatoria_generada ? (
+              <p className="text-center text-sm" style={{ color: T.inkDim }}>
+                El sorteo todavía no se hizo.
+              </p>
+            ) : (
+              <ClasificatoriaPublica matches={clasifMatches} teamsById={teamsById} />
+            )}
+          </>
+        ) : enFaseDeGrupos ? (
           <>
             {tournament.grupos_generados && (
               <MiEquipoPanel
@@ -290,6 +312,63 @@ export default function TorneoPublico({ params, searchParams }) {
           ← Volver a mi partido
         </Link>
       )}
+    </div>
+  );
+}
+
+// Vista pública (sin login) de la clasificatoria: la lista de cruces,
+// sin botones de admin — solo mirar. MiEquipoPanel ya se encarga de
+// mostrarle a cada uno su propio partido, esto es el panorama completo.
+function ClasificatoriaPublica({ matches, teamsById }) {
+  const { T } = useTheme();
+  const ordenados = [...matches].sort((a, b) => a.match_index - b.match_index);
+
+  return (
+    <div>
+      <p className="text-center text-sm mb-4" style={{ color: T.inkDim }}>
+        Clasificatoria en curso — de acá salen los que arman el cuadro.
+      </p>
+      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
+        {ordenados.map((m) => {
+          const nombre1 = teamsById[m.team1_id]?.name || "?";
+          const nombre2 = m.team2_id ? teamsById[m.team2_id]?.name : null;
+          const jugado = !!m.winner_id;
+          const fila = (esGanador) => ({
+            color: jugado && !esGanador ? T.inkDim : T.ink,
+            textDecoration: jugado && !esGanador ? "line-through" : "none",
+            opacity: jugado && !esGanador ? 0.6 : 1,
+          });
+          return (
+            <div key={m.id} className="rounded-2xl border p-2" style={{ background: T.panel, borderColor: T.line }}>
+              <div className="px-3 py-2 rounded-xl text-sm font-semibold flex items-center justify-between gap-2" style={fila(m.winner_id === m.team1_id)}>
+                <span className="truncate">{nombre1}</span>
+                {jugado && (
+                  <span className="font-black flex-shrink-0" style={{ color: T.goldBright }}>
+                    {m.score_a}
+                  </span>
+                )}
+              </div>
+              {nombre2 ? (
+                <>
+                  <div className="h-px my-1" style={{ background: T.line }} />
+                  <div className="px-3 py-2 rounded-xl text-sm font-semibold flex items-center justify-between gap-2" style={fila(m.winner_id === m.team2_id)}>
+                    <span className="truncate">{nombre2}</span>
+                    {jugado && (
+                      <span className="font-black flex-shrink-0" style={{ color: T.goldBright }}>
+                        {m.score_b}
+                      </span>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="text-xs text-center mt-1 py-1.5" style={{ color: T.goldBright }}>
+                  espera rival
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
