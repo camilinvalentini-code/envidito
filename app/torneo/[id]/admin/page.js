@@ -50,8 +50,10 @@ export default function AdminPage({ params }) {
   const [formatoResorteo, setFormatoResorteo] = useState(null); // null = todavía no lo tocó, usa el formato actual del torneo
   const [modoPruebaAbierto, setModoPruebaAbierto] = useState(false);
   const [nombreNuevoEquipo, setNombreNuevoEquipo] = useState("");
-  const [formatoElegido, setFormatoElegido] = useState("directa"); // "directa" | "grupos"
+  const [formatoElegido, setFormatoElegido] = useState("directa"); // "directa" | "grupos" | "clasificatoria"
   const [cantidadGrupos, setCantidadGrupos] = useState(4);
+  const [perdedoresElegidos, setPerdedoresElegidos] = useState(new Set());
+  const [cerrandoClasificatoria, setCerrandoClasificatoria] = useState(false);
   const [clasificanPorGrupo, setClasificanPorGrupo] = useState(2);
   const [oroHasta, setOroHasta] = useState(2); // de los que clasifican, cuántos van a la Copa de Oro (el resto, a Plata)
 
@@ -185,6 +187,12 @@ export default function AdminPage({ params }) {
         await supabase.from("team_players").insert({ team_id: nuevoEquipo.id, player_id: playerId });
       }
     }
+    // Pareja tardía mientras la clasificatoria está en juego: se anota
+    // igual que cualquier equipo, y esto la mete en un cruce que esté
+    // esperando rival (o le arma uno nuevo) — no se resortea nada.
+    if (tournament.formato === "clasificatoria" && tournament.clasificatoria_generada && !tournament.clasificatoria_cerrada) {
+      await supabase.rpc("agregar_tardio_clasificatoria", { p_tournament_id: id, p_team_id: nuevoEquipo.id });
+    }
     setNewName("");
     setJugadoresChips([]);
     setJugadorInput("");
@@ -273,6 +281,78 @@ export default function AdminPage({ params }) {
       return;
     }
     load();
+  }
+
+  function esPotenciaDeDos(n) {
+    return n > 0 && (n & (n - 1)) === 0;
+  }
+
+  async function generarClasificatoria() {
+    if (teamsAprobados.length < 3) {
+      setError("Necesitás al menos 3 equipos anotados para armar la clasificatoria.");
+      return;
+    }
+    setError("");
+    const { error: err } = await supabase.rpc("generar_clasificatoria", { p_tournament_id: id });
+    if (err) {
+      setError(err.message || "No se pudo armar la clasificatoria. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
+    load();
+  }
+
+  function toggleLoserElegido(teamId) {
+    setPerdedoresElegidos((prev) => {
+      const next = new Set(prev);
+      if (next.has(teamId)) next.delete(teamId);
+      else next.add(teamId);
+      return next;
+    });
+  }
+
+  function sortearPerdedoresClasificatoria(cupo, disponibles) {
+    const barajados = [...disponibles].sort(() => Math.random() - 0.5);
+    setPerdedoresElegidos(new Set(barajados.slice(0, cupo)));
+  }
+
+  async function cerrarClasificatoria() {
+    setCerrandoClasificatoria(true);
+    const { error: err } = await supabase.rpc("cerrar_clasificatoria", {
+      p_tournament_id: id,
+      p_perdedores_elegidos: Array.from(perdedoresElegidos),
+    });
+    setCerrandoClasificatoria(false);
+    if (err) {
+      setError(err.message || "No se pudo cerrar la clasificatoria. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
+    setPerdedoresElegidos(new Set());
+    load();
+  }
+
+  async function compartirCrucesClasificatoria(clasifMatches) {
+    const pendientes = clasifMatches.filter((m) => !m.winner_id && m.team1_id && m.team2_id);
+    const esperando = clasifMatches.filter((m) => !m.winner_id && m.team1_id && !m.team2_id);
+    if (pendientes.length === 0 && esperando.length === 0) return;
+    const bloques = [
+      ...pendientes.map((m) => {
+        const link = `${origin}/partido/${m.match_token}`;
+        return `${teamsById[m.team1_id]?.name} vs ${teamsById[m.team2_id]?.name}\n${link}`;
+      }),
+      ...esperando.map((m) => `${teamsById[m.team1_id]?.name} → espera rival`),
+    ];
+    const texto = `⚔️ ${tournament.nombre} — Clasificatoria\n\n${bloques.join("\n\n")}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ text: texto });
+      } catch (e) {
+        return;
+      }
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank");
+    }
   }
 
   function sorteoSinJugar() {
@@ -567,6 +647,22 @@ export default function AdminPage({ params }) {
     load();
   }
 
+  async function saltarCasilleroVidon(matchId) {
+    if (
+      !window.confirm(
+        "¿Saltar este casillero? Ya no va a esperar ningún reingreso — el partido de la próxima ronda pasa directo con lo que ya tenga."
+      )
+    )
+      return;
+    const { error: err } = await supabase.rpc("saltar_casillero_vidon", { p_match_id: matchId });
+    if (err) {
+      setError("No se pudo saltar el casillero. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
+    load();
+  }
+
   async function simularTorneoCompleto() {
     if (!window.confirm("Esto va a completar TODO el torneo con resultados al azar (para testear). ¿Seguro?")) return;
     setSimulando(true);
@@ -681,6 +777,9 @@ export default function AdminPage({ params }) {
   });
   const equiposLibresVidon = teams.filter((t) => equiposEliminados.has(t.id) && !equiposActivos.has(t.id));
   const enFaseDeGrupos = tournament.formato === "grupos" && tournament.grupos_generados;
+  const enClasificatoria =
+    tournament.formato === "clasificatoria" && tournament.clasificatoria_generada && !tournament.clasificatoria_cerrada;
+  const clasifMatches = matches.filter((m) => m.bracket === "clasificatoria");
 
   function rondaActualIndex() {
     const porRonda = {};
@@ -1409,73 +1508,117 @@ export default function AdminPage({ params }) {
               )}
             </div>
 
-            <div className="lg:max-w-md lg:mx-auto">
-              {error && (
-                <p className="text-sm text-center mb-3" style={{ color: T.goldBright }}>
-                  {error}
-                </p>
-              )}
+            {enClasificatoria ? (
+              <ClasificatoriaPanel
+                T={T}
+                clasifMatches={clasifMatches}
+                teamsById={teamsById}
+                onForzarGanador={forzarGanador}
+                onReabrir={reabrirPartido}
+                onCompartir={() => compartirCrucesClasificatoria(clasifMatches)}
+                perdedoresElegidos={perdedoresElegidos}
+                onToggleLoser={toggleLoserElegido}
+                onSortearLosers={sortearPerdedoresClasificatoria}
+                onCerrar={cerrarClasificatoria}
+                cerrando={cerrandoClasificatoria}
+                error={error}
+              />
+            ) : (
+              <div className="lg:max-w-md lg:mx-auto">
+                {error && (
+                  <p className="text-sm text-center mb-3" style={{ color: T.goldBright }}>
+                    {error}
+                  </p>
+                )}
 
-              <div className="flex rounded-xl overflow-hidden p-0.5 mb-3" style={{ background: T.panelLight }}>
-                <button
-                  onClick={() => setFormatoElegido("directa")}
-                  className="flex-1 py-2 text-xs font-bold rounded-lg"
-                  style={{
-                    background: formatoElegido === "directa" ? T.gold : "transparent",
-                    color: formatoElegido === "directa" ? T.ink : T.inkDim,
-                  }}
-                >
-                  Cuadro directo
-                </button>
-                <button
-                  onClick={() => setFormatoElegido("grupos")}
-                  className="flex-1 py-2 text-xs font-bold rounded-lg"
-                  style={{
-                    background: formatoElegido === "grupos" ? T.gold : "transparent",
-                    color: formatoElegido === "grupos" ? T.ink : T.inkDim,
-                  }}
-                >
-                  Fase de grupos
-                </button>
-              </div>
-
-              {formatoElegido === "directa" ? (
-                <button
-                  onClick={doSorteo}
-                  disabled={teamsAprobados.length < 3}
-                  className="w-full py-3 rounded-2xl font-black text-lg transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
-                  style={{
-                    background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`,
-                    color: T.ink,
-                    boxShadow: `0 6px 16px ${T.gold}44`,
-                  }}
-                >
-                  ⚔️ Hacer los cruces
-                </button>
-              ) : (
-                <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-                  <label className="text-xs font-bold block mb-1.5" style={{ color: T.inkDim }}>
-                    ¿Cuántos grupos?
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={cantidadGrupos}
-                    onChange={(e) => setCantidadGrupos(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                    className="w-full px-3 py-2 rounded-xl text-sm mb-3"
-                    style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-                  />
+                <div className="flex rounded-xl overflow-hidden p-0.5 mb-3" style={{ background: T.panelLight }}>
                   <button
-                    onClick={armarFaseDeGrupos}
-                    disabled={teamsAprobados.length < cantidadGrupos * 2}
-                    className="w-full py-3 rounded-2xl font-black text-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
-                    style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
+                    onClick={() => setFormatoElegido("directa")}
+                    className="flex-1 py-2 text-xs font-bold rounded-lg"
+                    style={{
+                      background: formatoElegido === "directa" ? T.gold : "transparent",
+                      color: formatoElegido === "directa" ? T.ink : T.inkDim,
+                    }}
                   >
-                    Armar fase de grupos →
+                    Cuadro directo
                   </button>
+                  <button
+                    onClick={() => setFormatoElegido("grupos")}
+                    className="flex-1 py-2 text-xs font-bold rounded-lg"
+                    style={{
+                      background: formatoElegido === "grupos" ? T.gold : "transparent",
+                      color: formatoElegido === "grupos" ? T.ink : T.inkDim,
+                    }}
+                  >
+                    Fase de grupos
+                  </button>
+                  {esAdmin && modoVidon && !esPotenciaDeDos(teamsAprobados.length) && (
+                    <button
+                      onClick={() => setFormatoElegido("clasificatoria")}
+                      className="flex-1 py-2 text-xs font-bold rounded-lg"
+                      style={{
+                        background: formatoElegido === "clasificatoria" ? T.gold : "transparent",
+                        color: formatoElegido === "clasificatoria" ? T.ink : T.inkDim,
+                      }}
+                    >
+                      Clasificatoria
+                    </button>
+                  )}
                 </div>
-              )}
-            </div>
+
+                {formatoElegido === "directa" ? (
+                  <button
+                    onClick={doSorteo}
+                    disabled={teamsAprobados.length < 3}
+                    className="w-full py-3 rounded-2xl font-black text-lg transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                    style={{
+                      background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`,
+                      color: T.ink,
+                      boxShadow: `0 6px 16px ${T.gold}44`,
+                    }}
+                  >
+                    ⚔️ Hacer los cruces
+                  </button>
+                ) : formatoElegido === "grupos" ? (
+                  <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+                    <label className="text-xs font-bold block mb-1.5" style={{ color: T.inkDim }}>
+                      ¿Cuántos grupos?
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={cantidadGrupos}
+                      onChange={(e) => setCantidadGrupos(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                      className="w-full px-3 py-2 rounded-xl text-sm mb-3"
+                      style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                    />
+                    <button
+                      onClick={armarFaseDeGrupos}
+                      disabled={teamsAprobados.length < cantidadGrupos * 2}
+                      className="w-full py-3 rounded-2xl font-black text-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                      style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
+                    >
+                      Armar fase de grupos →
+                    </button>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+                    <p className="text-xs mb-3" style={{ color: T.inkDim }}>
+                      {teamsAprobados.length} equipos no da un cuadro redondo. Se arma una ronda donde juegan todos, y
+                      con los ganadores + los perdedores que elijas después arma un cuadro limpio.
+                    </p>
+                    <button
+                      onClick={generarClasificatoria}
+                      disabled={teamsAprobados.length < 3}
+                      className="w-full py-3 rounded-2xl font-black text-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                      style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
+                    >
+                      Generar clasificatoria →
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         ) : (
           <div className="relative">
@@ -1753,6 +1896,7 @@ export default function AdminPage({ params }) {
                     equiposLibresVidon={equiposLibresVidon}
                     onAsignarCasillero={asignarCasilleroVidon}
                     onQuitarCasillero={quitarDeCasilleroVidon}
+                    onSaltarCasillero={saltarCasilleroVidon}
                   />
                 </div>
 
@@ -1919,6 +2063,224 @@ function ResultadoInlineGrupo({ T, match, nombreLocal, nombreVisitante, puntosMa
         <p className="text-xs mt-1" style={{ color: T.redDim }}>
           {error}
         </p>
+      )}
+    </div>
+  );
+}
+
+// Ronda única "todos contra todos una vez" antes de armar el cuadro
+// principal, para cuando la cantidad de equipos no da una potencia de
+// 2 en modo Vidón. Mismo anotador de siempre para cada partido; al
+// terminar todos, se cierra eligiendo (a mano o por sorteo) qué
+// perdedores completan un cuadro limpio.
+function ClasificatoriaPanel({
+  T,
+  clasifMatches,
+  teamsById,
+  onForzarGanador,
+  onReabrir,
+  onCompartir,
+  perdedoresElegidos,
+  onToggleLoser,
+  onSortearLosers,
+  onCerrar,
+  cerrando,
+  error,
+}) {
+  const ordenados = [...clasifMatches].sort((a, b) => a.match_index - b.match_index);
+  const pendientes = ordenados.filter((m) => !m.winner_id && m.team1_id && m.team2_id);
+  const esperando = ordenados.filter((m) => !m.winner_id && m.team1_id && !m.team2_id);
+  const listoParaCerrar = ordenados.length > 0 && pendientes.length === 0;
+
+  const ganadores = ordenados.filter((m) => m.winner_id).map((m) => m.winner_id);
+  const ganadoresConEspera = [...ganadores, ...esperando.map((m) => m.team1_id)];
+  const perdedoresDisponibles = ordenados
+    .filter((m) => m.winner_id)
+    .map((m) => (m.winner_id === m.team1_id ? m.team2_id : m.team1_id))
+    .filter(Boolean);
+
+  const totalPool = ganadoresConEspera.length + perdedoresDisponibles.length;
+  let target = 1;
+  while (target * 2 <= totalPool) target *= 2;
+  const cupo = Math.max(0, target - ganadoresConEspera.length);
+
+  return (
+    <div>
+      {error && (
+        <p className="text-sm text-center mb-3" style={{ color: T.goldBright }}>
+          {error}
+        </p>
+      )}
+
+      <div className="rounded-2xl p-4 border shadow-sm mb-4" style={{ background: T.panel, borderColor: T.line }}>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h2 className="font-bold text-sm" style={{ color: T.gold }}>
+            Clasificatoria — {ordenados.length} partido{ordenados.length === 1 ? "" : "s"}
+          </h2>
+          <button
+            onClick={onCompartir}
+            className="h-9 px-3 rounded-xl font-bold text-xs flex items-center gap-1.5"
+            style={{ background: "#81C784", color: "#1B3A2A" }}
+          >
+            <IconWhatsApp color="#1B3A2A" /> Compartir cruces
+          </button>
+        </div>
+
+        <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
+          {ordenados.map((m) => {
+            const nombre1 = teamsById[m.team1_id]?.name || "?";
+            const nombre2 = m.team2_id ? teamsById[m.team2_id]?.name : null;
+            const jugado = !!m.winner_id;
+            const playable = !jugado && m.team1_id && m.team2_id;
+            const filaEstilo = (esGanador) => ({
+              color: jugado && !esGanador ? T.inkDim : T.ink,
+              textDecoration: jugado && !esGanador ? "line-through" : "none",
+              opacity: jugado && !esGanador ? 0.6 : 1,
+              cursor: playable ? "pointer" : "default",
+            });
+            const Fila1 = playable ? "button" : "div";
+            const Fila2 = playable ? "button" : "div";
+            return (
+              <div key={m.id} className="rounded-2xl border p-2" style={{ background: T.panelLight, borderColor: T.line }}>
+                <Fila1
+                  onClick={playable ? () => onForzarGanador(m, m.team1_id) : undefined}
+                  className="w-full text-left px-3 py-2 rounded-xl text-sm font-semibold flex items-center justify-between gap-2"
+                  style={filaEstilo(m.winner_id === m.team1_id)}
+                >
+                  <span className="truncate">{nombre1}</span>
+                  {jugado && (
+                    <span className="font-black flex-shrink-0" style={{ color: T.goldBright }}>
+                      {m.score_a}
+                    </span>
+                  )}
+                </Fila1>
+                {nombre2 ? (
+                  <>
+                    <div className="h-px my-1" style={{ background: T.line }} />
+                    <Fila2
+                      onClick={playable ? () => onForzarGanador(m, m.team2_id) : undefined}
+                      className="w-full text-left px-3 py-2 rounded-xl text-sm font-semibold flex items-center justify-between gap-2"
+                      style={filaEstilo(m.winner_id === m.team2_id)}
+                    >
+                      <span className="truncate">{nombre2}</span>
+                      {jugado && (
+                        <span className="font-black flex-shrink-0" style={{ color: T.goldBright }}>
+                          {m.score_b}
+                        </span>
+                      )}
+                    </Fila2>
+                  </>
+                ) : (
+                  <div className="text-xs text-center mt-1 py-1.5" style={{ color: T.goldBright }}>
+                    espera rival
+                  </div>
+                )}
+                {playable && (
+                  <a
+                    href={`/partido/${m.match_token}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block text-center text-xs mt-2 py-1.5 rounded-lg font-semibold"
+                    style={{ color: T.goldBright, background: T.panel }}
+                  >
+                    Abrir anotador de esta mesa →
+                  </a>
+                )}
+                {jugado && (
+                  <button
+                    onClick={() => onReabrir(m)}
+                    className="block w-full text-center text-xs mt-2 py-1.5 rounded-lg font-semibold"
+                    style={{ color: T.inkDim, background: T.panel }}
+                  >
+                    Reabrir
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {!listoParaCerrar && (
+          <div className="flex items-center gap-2 mt-4 pt-4 text-xs" style={{ color: T.inkDim, borderTop: `1px solid ${T.line}` }}>
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: T.gold }} />
+            Falta{pendientes.length === 1 ? "" : "n"} {pendientes.length} partido{pendientes.length === 1 ? "" : "s"} —
+            "Cerrar clasificatoria" se habilita cuando termina el último.
+          </div>
+        )}
+      </div>
+
+      {listoParaCerrar && (
+        <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+          <h2 className="font-bold text-sm mb-1" style={{ color: T.gold }}>
+            Cerrar clasificatoria
+          </h2>
+          <p className="text-xs mb-3" style={{ color: T.inkDim }}>
+            {ganadoresConEspera.length} clasifican directo. Elegí {cupo} de los {perdedoresDisponibles.length} perdedores
+            para completar un cuadro de {target}.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: T.inkDim }}>
+                Clasifican directo ({ganadoresConEspera.length})
+              </div>
+              <div className="flex flex-col gap-1 max-h-64 overflow-y-auto">
+                {ganadoresConEspera.map((tid) => (
+                  <div
+                    key={tid}
+                    className="text-sm px-2 py-1.5 rounded-lg"
+                    style={{ background: "rgba(111,169,134,0.14)", color: T.ink }}
+                  >
+                    {teamsById[tid]?.name}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs font-bold uppercase tracking-wide" style={{ color: T.inkDim }}>
+                  Perdedores ({perdedoresElegidos.size}/{cupo})
+                </div>
+                <button
+                  onClick={() => onSortearLosers(cupo, perdedoresDisponibles)}
+                  className="text-xs font-bold px-2 py-1 rounded-lg"
+                  style={{ background: T.panelLight, color: T.goldBright }}
+                >
+                  🎲 Sortear
+                </button>
+              </div>
+              <div className="flex flex-col gap-1 max-h-64 overflow-y-auto">
+                {perdedoresDisponibles.map((tid) => {
+                  const marcado = perdedoresElegidos.has(tid);
+                  return (
+                    <button
+                      key={tid}
+                      onClick={() => onToggleLoser(tid)}
+                      className="text-sm px-2 py-1.5 rounded-lg text-left flex items-center gap-2"
+                      style={{ background: marcado ? T.panelLight : "transparent", color: marcado ? T.ink : T.inkDim }}
+                    >
+                      <span
+                        className="w-3.5 h-3.5 rounded flex-shrink-0"
+                        style={{
+                          background: marcado ? T.gold : "transparent",
+                          border: `1.5px solid ${marcado ? T.gold : T.line}`,
+                        }}
+                      />
+                      {teamsById[tid]?.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={onCerrar}
+            disabled={cerrando || perdedoresElegidos.size !== cupo}
+            className="w-full py-3 rounded-2xl font-black text-sm disabled:opacity-50"
+            style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
+          >
+            {cerrando ? "Armando…" : `Armar cuadro de ${target} →`}
+          </button>
+        </div>
       )}
     </div>
   );
@@ -2692,6 +3054,7 @@ function BracketDisplayAdmin({
   equiposLibresVidon,
   onAsignarCasillero,
   onQuitarCasillero,
+  onSaltarCasillero,
 }) {
   const { T } = useTheme();
   const [abiertoFinalizados, setAbiertoFinalizados] = useState(false);
@@ -2709,6 +3072,7 @@ function BracketDisplayAdmin({
         equiposLibresVidon={equiposLibresVidon}
         onAsignarCasillero={onAsignarCasillero}
         onQuitarCasillero={onQuitarCasillero}
+        onSaltarCasillero={onSaltarCasillero}
       />
 
       {finalizados.length > 0 && (

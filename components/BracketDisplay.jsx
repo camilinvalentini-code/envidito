@@ -14,6 +14,7 @@ export default function BracketDisplay({
   equiposLibresVidon,
   onAsignarCasillero,
   onQuitarCasillero,
+  onSaltarCasillero,
 }) {
   const { T } = useTheme();
   if (!matches || matches.length === 0) return null;
@@ -29,6 +30,10 @@ export default function BracketDisplay({
     // Reingresos: solo en la ronda 0 de un torneo Vidón, sin jugar
     // todavía, y solo el organizador puede tocarlo.
     const esReingreso = adminMode && modoVidon && m.round_index === 0 && !m.winner_id && !m.bye;
+    // Casillero del todo vacío (ni un equipo): puede que ya no queden
+    // perdedores para llenarlo — el organizador lo puede saltar.
+    const casilleroVacio =
+      adminMode && !!onSaltarCasillero && modoVidon && m.round_index === 0 && !m.winner_id && !m.bye && !m.team1_id && !m.team2_id;
     return (
       <div
         key={m.id}
@@ -122,6 +127,15 @@ export default function BracketDisplay({
             style={{ color: T.goldBright, background: T.panelLight }}
           >
             Nadie reingresó → Pasa directo de ronda.
+          </button>
+        )}
+        {casilleroVacio && (
+          <button
+            onClick={() => onSaltarCasillero(m.id)}
+            className="block w-full text-center text-xs mt-2 py-1.5 rounded-lg font-semibold"
+            style={{ color: T.inkDim, background: T.panelLight }}
+          >
+            No quedan más para reingresar → Saltar casillero.
           </button>
         )}
         {adminMode && !m.bye && !m.winner_id && m.team1_id && m.team2_id && (
