@@ -216,7 +216,7 @@ export default function AdminPage({ params }) {
     // referencia.
     const { data: enPartidos } = await supabase
       .from("matches")
-      .select("id, team1_id, team2_id, winner_id")
+      .select("id, bracket, team1_id, team2_id, winner_id")
       .eq("tournament_id", id)
       .or(`team1_id.eq.${teamId},team2_id.eq.${teamId}`);
     const yaJugo = (enPartidos || []).some((m) => m.winner_id);
@@ -225,13 +225,30 @@ export default function AdminPage({ params }) {
       return;
     }
     for (const m of enPartidos || []) {
-      if (m.team1_id === teamId && m.team2_id) {
-        // el rival queda solo, esperando — se corre al casillero principal
-        await supabase.from("matches").update({ team1_id: m.team2_id, team2_id: null }).eq("id", m.id);
-      } else if (m.team1_id === teamId) {
+      const rivalId = m.team1_id === teamId ? m.team2_id : m.team2_id === teamId ? m.team1_id : null;
+      if (!rivalId) {
+        // no tenía rival (ya era un espera-rival de un solo equipo): no queda nadie, se borra
         await supabase.from("matches").delete().eq("id", m.id);
-      } else if (m.team2_id === teamId) {
-        await supabase.from("matches").update({ team2_id: null }).eq("id", m.id);
+        continue;
+      }
+      // El rival queda solo. Si ya había OTRO cruce esperando rival en esta
+      // misma fase, mejor juntarlos entre sí que dejar dos sueltos.
+      const { data: otroEspera } = await supabase
+        .from("matches")
+        .select("id")
+        .eq("tournament_id", id)
+        .eq("bracket", m.bracket)
+        .is("winner_id", null)
+        .not("team1_id", "is", null)
+        .is("team2_id", null)
+        .neq("id", m.id)
+        .limit(1)
+        .maybeSingle();
+      if (otroEspera) {
+        await supabase.from("matches").update({ team2_id: rivalId }).eq("id", otroEspera.id);
+        await supabase.from("matches").delete().eq("id", m.id);
+      } else {
+        await supabase.from("matches").update({ team1_id: rivalId, team2_id: null }).eq("id", m.id);
       }
     }
     const { error: err } = await supabase.from("teams").delete().eq("id", teamId);
