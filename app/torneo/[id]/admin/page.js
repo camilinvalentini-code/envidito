@@ -1474,6 +1474,7 @@ export default function AdminPage({ params }) {
                                 value={j.fecha_nacimiento || ""}
                                 onChange={(e) => actualizarJugadorEditando(j.id, "fecha_nacimiento", e.target.value)}
                                 type="date"
+                                lang="es-AR"
                                 className="w-full px-3 py-2 rounded-lg text-sm mt-1"
                                 style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
                               />

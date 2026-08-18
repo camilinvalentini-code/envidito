@@ -225,7 +225,7 @@ export default function AnotarmePage({ params }) {
                       <input
                         value={j.name}
                         onChange={(e) => actualizarJugador(i, "name", e.target.value)}
-                        placeholder="Nombre"
+                        placeholder="Nombre completo"
                         className="px-3 py-2 rounded-lg text-sm"
                         style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
                       />
@@ -251,6 +251,7 @@ export default function AnotarmePage({ params }) {
                           value={j.fecha_nacimiento}
                           onChange={(e) => actualizarJugador(i, "fecha_nacimiento", e.target.value)}
                           type="date"
+                          lang="es-AR"
                           max={new Date().toISOString().slice(0, 10)}
                           required
                           className="w-full px-3 py-2 rounded-lg text-sm mt-1"
@@ -260,7 +261,7 @@ export default function AnotarmePage({ params }) {
                       <input
                         value={j.email}
                         onChange={(e) => actualizarJugador(i, "email", e.target.value)}
-                        placeholder="Mail"
+                        placeholder="Correo electrónico"
                         type="email"
                         className="px-3 py-2 rounded-lg text-sm"
                         style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
