@@ -211,7 +211,7 @@ export default function AnotarmePage({ params }) {
                 <input
                   value={nombreEquipo}
                   onChange={(e) => setNombreEquipo(e.target.value)}
-                  placeholder={esUnJugador ? "Tu nombre" : "Nombre del equipo"}
+                  placeholder="Nombre del equipo"
                   className="px-3 py-2.5 rounded-xl text-sm"
                   style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
                 />
