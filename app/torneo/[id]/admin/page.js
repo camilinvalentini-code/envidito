@@ -83,16 +83,17 @@ export default function AdminPage({ params }) {
         porEquipo[row.team_id] = porEquipo[row.team_id] || [];
         if (row.players?.name) porEquipo[row.team_id].push(row.players.name);
       });
-      const telefonoPorEquipo = {};
+      const contactoPorEquipo = {};
       (tp || []).forEach((row) => {
-        if (!telefonoPorEquipo[row.team_id] && row.players?.telefono) {
-          telefonoPorEquipo[row.team_id] = row.players.telefono;
+        if (!contactoPorEquipo[row.team_id] && row.players?.telefono) {
+          contactoPorEquipo[row.team_id] = { nombre: row.players.name, telefono: row.players.telefono };
         }
       });
       teamsConJugadores = (ts || []).map((tm) => ({
         ...tm,
         players: porEquipo[tm.id]?.length ? porEquipo[tm.id].join(", ") : tm.players,
-        telefono: telefonoPorEquipo[tm.id] || null,
+        telefono: contactoPorEquipo[tm.id]?.telefono || null,
+        contactoNombre: contactoPorEquipo[tm.id]?.nombre || null,
       }));
     }
 
@@ -637,8 +638,9 @@ export default function AdminPage({ params }) {
     if (!equipo?.telefono) return;
     const numero = equipo.telefono.replace(/\D/g, "");
     if (!numero) return;
-    const fecha = tournament.fecha ? ` de ${tournament.fecha}` : ` ${tournament.nombre}`;
-    const texto = `Tu equipo fue anotado para el torneo${fecha}, ¡nos vemos ahí!`;
+    const saludo = equipo.contactoNombre ? `Hola ${equipo.contactoNombre},\n\n` : "";
+    const fecha = tournament.fecha ? ` del ${tournament.fecha}` : "";
+    const texto = `${saludo}Tu equipo "${equipo.name}" fue anotado para el ${tournament.nombre}${fecha}. ¡Nos vemos ahí!!`;
     window.open(`https://wa.me/${numero}?text=${encodeURIComponent(texto)}`, "_blank");
   }
 
@@ -1393,18 +1395,18 @@ export default function AdminPage({ params }) {
                       )}
                       <div className="flex gap-2 mt-2">
                         <button
-                          onClick={() => aprobarEquipo(t.id)}
-                          className="flex-1 py-1.5 rounded-lg font-bold text-xs"
-                          style={{ background: T.gold, color: T.ink }}
+                          onClick={() => aprobarYAvisar(t.id)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg font-bold text-xs"
+                          style={{ background: "#25D366", color: "#1B3A2A" }}
                         >
-                          Aprobar
+                          <IconWhatsApp color="#1B3A2A" /> Aprobar y avisar por WhatsApp
                         </button>
                         <button
                           onClick={() => abrirEditorJugadores(t.id)}
                           className="flex-1 py-1.5 rounded-lg font-bold text-xs"
                           style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
                         >
-                          Editar
+                          Editar/revisar info.
                         </button>
                         <button
                           onClick={() => rechazarEquipo(t.id)}
@@ -1414,15 +1416,6 @@ export default function AdminPage({ params }) {
                           Rechazar
                         </button>
                       </div>
-                      {t.telefono && (
-                        <button
-                          onClick={() => aprobarYAvisar(t.id)}
-                          className="w-full flex items-center justify-center gap-1.5 mt-2 py-1.5 rounded-lg font-bold text-xs"
-                          style={{ background: "#25D366", color: "#1B3A2A" }}
-                        >
-                          <IconWhatsApp color="#1B3A2A" /> Aprobar y avisar por WhatsApp
-                        </button>
-                      )}
                     </div>
                   ))}
                 </div>
