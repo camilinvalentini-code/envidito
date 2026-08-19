@@ -228,6 +228,14 @@ export default function PanelOrganizador() {
           className="absolute top-11 right-0 rounded-2xl border shadow-lg py-1.5 z-20"
           style={{ background: T.panel, borderColor: T.line, minWidth: 170 }}
         >
+          <Link
+            href="/organizador/jugadores"
+            onClick={() => setMenuOpen(false)}
+            className="block w-full text-left px-4 py-2.5 text-sm font-semibold"
+            style={{ color: T.ink }}
+          >
+            🎂 Cumpleaños
+          </Link>
           <button
             onClick={() => {
               setConfigOpen(true);
