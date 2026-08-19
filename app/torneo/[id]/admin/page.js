@@ -76,16 +76,23 @@ export default function AdminPage({ params }) {
     if (teamIds.length > 0) {
       const { data: tp } = await supabase
         .from("team_players")
-        .select("team_id, players(name)")
+        .select("team_id, players(name, telefono)")
         .in("team_id", teamIds);
       const porEquipo = {};
       (tp || []).forEach((row) => {
         porEquipo[row.team_id] = porEquipo[row.team_id] || [];
         if (row.players?.name) porEquipo[row.team_id].push(row.players.name);
       });
+      const telefonoPorEquipo = {};
+      (tp || []).forEach((row) => {
+        if (!telefonoPorEquipo[row.team_id] && row.players?.telefono) {
+          telefonoPorEquipo[row.team_id] = row.players.telefono;
+        }
+      });
       teamsConJugadores = (ts || []).map((tm) => ({
         ...tm,
         players: porEquipo[tm.id]?.length ? porEquipo[tm.id].join(", ") : tm.players,
+        telefono: telefonoPorEquipo[tm.id] || null,
       }));
     }
 
@@ -622,6 +629,17 @@ export default function AdminPage({ params }) {
   async function aprobarEquipo(teamId) {
     await supabase.from("teams").update({ pendiente_aprobacion: false }).eq("id", teamId);
     load();
+  }
+
+  async function aprobarYAvisar(teamId) {
+    const equipo = teamsById[teamId];
+    await aprobarEquipo(teamId);
+    if (!equipo?.telefono) return;
+    const numero = equipo.telefono.replace(/\D/g, "");
+    if (!numero) return;
+    const fecha = tournament.fecha ? ` de ${tournament.fecha}` : ` ${tournament.nombre}`;
+    const texto = `Tu equipo fue anotado para el torneo${fecha}, ¡nos vemos ahí!`;
+    window.open(`https://wa.me/${numero}?text=${encodeURIComponent(texto)}`, "_blank");
   }
 
   async function rechazarEquipo(teamId) {
@@ -1396,6 +1414,15 @@ export default function AdminPage({ params }) {
                           Rechazar
                         </button>
                       </div>
+                      {t.telefono && (
+                        <button
+                          onClick={() => aprobarYAvisar(t.id)}
+                          className="w-full flex items-center justify-center gap-1.5 mt-2 py-1.5 rounded-lg font-bold text-xs"
+                          style={{ background: "#25D366", color: "#1B3A2A" }}
+                        >
+                          <IconWhatsApp color="#1B3A2A" /> Aprobar y avisar por WhatsApp
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
