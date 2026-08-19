@@ -15,11 +15,13 @@ export const metadata = {
     siteName: "Envidito",
     locale: "es_AR",
     type: "website",
+    images: ["/og-image.png"],
   },
   twitter: {
     card: "summary_large_image",
     title: "Envidito",
     description: "El torneo se arma solo. Sorteo automático, cuadro en vivo, anotador en cada mesa.",
+    images: ["/og-image.png"],
   },
 };
 

@@ -15,11 +15,13 @@ export async function generateMetadata({ params }) {
       title: nombre,
       description: descripcion,
       url: `/torneo/${id}/anotarme`,
+      images: ["/og-image.png"],
     },
     twitter: {
       card: "summary_large_image",
       title: nombre,
       description: descripcion,
+      images: ["/og-image.png"],
     },
   };
 }
