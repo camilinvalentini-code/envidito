@@ -1395,24 +1395,24 @@ export default function AdminPage({ params }) {
                           {t.players}
                         </div>
                       )}
-                      <div className="flex gap-2 mt-2">
+                      <div className="flex flex-col sm:flex-row gap-2 mt-2">
                         <button
                           onClick={() => aprobarYAvisar(t.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg font-bold text-xs"
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 sm:py-1.5 rounded-lg font-bold text-xs"
                           style={{ background: "#25D366", color: "#1B3A2A" }}
                         >
                           <IconWhatsApp color="#1B3A2A" /> Aprobar y avisar por WhatsApp
                         </button>
                         <button
                           onClick={() => abrirEditorJugadores(t.id)}
-                          className="flex-1 py-1.5 rounded-lg font-bold text-xs"
+                          className="flex-1 py-2 sm:py-1.5 rounded-lg font-bold text-xs"
                           style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
                         >
                           Editar/revisar info.
                         </button>
                         <button
                           onClick={() => rechazarEquipo(t.id)}
-                          className="flex-1 py-1.5 rounded-lg font-bold text-xs"
+                          className="flex-1 py-2 sm:py-1.5 rounded-lg font-bold text-xs"
                           style={{ background: T.redDim, color: "#FFFFFF" }}
                         >
                           Rechazar
