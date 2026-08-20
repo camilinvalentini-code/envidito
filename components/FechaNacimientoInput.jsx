@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
@@ -19,13 +19,31 @@ function partes(value) {
 }
 
 export default function FechaNacimientoInput({ T, value, onChange }) {
-  const { dia, mes, anio } = partes(value);
+  // Estado propio para los 3 campos: si se derivaran de "value" en cada
+  // render, cada tecla en Año (mientras todavía no tiene 4 dígitos)
+  // haría que el padre reciba "" y eso borraría día/mes también. Acá se
+  // sincroniza desde afuera solo cuando "value" cambia de verdad (carga
+  // inicial, o el padre resetea el formulario) — nunca en cada tecla.
+  const [dia, setDia] = useState(() => partes(value).dia);
+  const [mes, setMes] = useState(() => partes(value).mes);
+  const [anio, setAnio] = useState(() => partes(value).anio);
 
-  function emitir(nuevoDia, nuevoMes, nuevoAnio) {
-    if (nuevoDia && nuevoMes && nuevoAnio && String(nuevoAnio).length === 4) {
+  useEffect(() => {
+    const p = partes(value);
+    setDia(p.dia);
+    setMes(p.mes);
+    setAnio(p.anio);
+  }, [value]);
+
+  function actualizar(nuevoDia, nuevoMes, nuevoAnio) {
+    setDia(nuevoDia);
+    setMes(nuevoMes);
+    setAnio(nuevoAnio);
+    // Solo avisamos al padre cuando la fecha queda completa y válida —
+    // mientras se está escribiendo, no tocamos su estado para no pisar
+    // lo que la persona ya cargó en los otros campos.
+    if (nuevoDia && nuevoMes && nuevoAnio && nuevoAnio.length === 4) {
       onChange(`${nuevoAnio}-${String(nuevoMes).padStart(2, "0")}-${String(nuevoDia).padStart(2, "0")}`);
-    } else {
-      onChange("");
     }
   }
 
@@ -33,7 +51,7 @@ export default function FechaNacimientoInput({ T, value, onChange }) {
 
   return (
     <div className="grid grid-cols-3 gap-2">
-      <select value={dia} onChange={(e) => emitir(e.target.value, mes, anio)} className="px-2 py-2 rounded-lg text-sm" style={estilo}>
+      <select value={dia} onChange={(e) => actualizar(e.target.value, mes, anio)} className="px-2 py-2 rounded-lg text-sm" style={estilo}>
         <option value="">Día</option>
         {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
           <option key={d} value={d}>
@@ -41,7 +59,7 @@ export default function FechaNacimientoInput({ T, value, onChange }) {
           </option>
         ))}
       </select>
-      <select value={mes} onChange={(e) => emitir(dia, e.target.value, anio)} className="px-2 py-2 rounded-lg text-sm" style={estilo}>
+      <select value={mes} onChange={(e) => actualizar(dia, e.target.value, anio)} className="px-2 py-2 rounded-lg text-sm" style={estilo}>
         <option value="">Mes</option>
         {MESES.map((m, i) => (
           <option key={m} value={i + 1}>
@@ -51,7 +69,7 @@ export default function FechaNacimientoInput({ T, value, onChange }) {
       </select>
       <input
         value={anio}
-        onChange={(e) => emitir(dia, mes, e.target.value.replace(/\D/g, "").slice(0, 4))}
+        onChange={(e) => actualizar(dia, mes, e.target.value.replace(/\D/g, "").slice(0, 4))}
         type="text"
         inputMode="numeric"
         placeholder="Año"

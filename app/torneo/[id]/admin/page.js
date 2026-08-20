@@ -641,7 +641,8 @@ export default function AdminPage({ params }) {
     if (!numero) return;
     const saludo = equipo.contactoNombre ? `Hola ${equipo.contactoNombre},\n\n` : "";
     const fecha = tournament.fecha ? ` del ${tournament.fecha}` : "";
-    const texto = `${saludo}Tu equipo "${equipo.name}" fue anotado para el ${tournament.nombre}${fecha}. ¡Nos vemos ahí!!`;
+    const codigo = equipo.codigo ? `\n\nTu código para anotar los puntos en el anotador es: ${equipo.codigo}` : "";
+    const texto = `${saludo}Tu equipo "${equipo.name}" fue anotado para el ${tournament.nombre}${fecha}.${codigo}\n\n¡Nos vemos ahí!!`;
     window.open(`https://wa.me/${numero}?text=${encodeURIComponent(texto)}`, "_blank");
   }
 
