@@ -5,6 +5,7 @@ import { useTheme } from "../../../../lib/theme";
 import { supabase } from "../../../../lib/supabaseClient";
 import ThemeToggleButton from "../../../../components/ThemeToggleButton";
 import { IconAtras } from "../../../../components/LineIcons";
+import FechaNacimientoInput from "../../../../components/FechaNacimientoInput";
 
 function cantidadJugadores(categoria) {
   if (categoria === "1v1") return 1;
@@ -247,16 +248,9 @@ export default function AnotarmeClient({ params }) {
                         <label className="text-[11px]" style={{ color: T.inkDim }}>
                           Fecha de nacimiento *
                         </label>
-                        <input
-                          value={j.fecha_nacimiento}
-                          onChange={(e) => actualizarJugador(i, "fecha_nacimiento", e.target.value)}
-                          type="date"
-                          lang="es-AR"
-                          max={new Date().toISOString().slice(0, 10)}
-                          required
-                          className="w-full px-3 py-2 rounded-lg text-sm mt-1"
-                          style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-                        />
+                        <div className="mt-1">
+                          <FechaNacimientoInput T={T} value={j.fecha_nacimiento} onChange={(v) => actualizarJugador(i, "fecha_nacimiento", v)} />
+                        </div>
                       </div>
                       <input
                         value={j.email}

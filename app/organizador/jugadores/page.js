@@ -7,6 +7,7 @@ import { useAuth } from "../../../lib/useAuth";
 import { supabase } from "../../../lib/supabaseClient";
 import ThemeToggleButton from "../../../components/ThemeToggleButton";
 import { IconAtras, IconWhatsApp, IconLapiz, IconBasura } from "../../../components/LineIcons";
+import FechaNacimientoInput from "../../../components/FechaNacimientoInput";
 
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
@@ -238,14 +239,13 @@ export default function JugadoresOrganizador() {
                 <label className="text-[11px]" style={{ color: T.inkDim }}>
                   Fecha de nacimiento
                 </label>
-                <input
-                  value={editando.fecha_nacimiento || ""}
-                  onChange={(e) => actualizarCampoEdicion("fecha_nacimiento", e.target.value)}
-                  type="date"
-                  lang="es-AR"
-                  className="w-full px-3 py-2 rounded-lg text-sm mt-1"
-                  style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-                />
+                <div className="mt-1">
+                  <FechaNacimientoInput
+                    T={T}
+                    value={editando.fecha_nacimiento || ""}
+                    onChange={(v) => actualizarCampoEdicion("fecha_nacimiento", v)}
+                  />
+                </div>
               </div>
               <input
                 value={editando.email || ""}

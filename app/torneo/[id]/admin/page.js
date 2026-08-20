@@ -9,6 +9,7 @@ import TeamList from "../../../../components/TeamList";
 import BracketDisplay from "../../../../components/BracketDisplay";
 import ThemeToggleButton from "../../../../components/ThemeToggleButton";
 import { IconAtras, IconAbajo, IconPuntos, IconCopiar, IconWhatsApp } from "../../../../components/LineIcons";
+import FechaNacimientoInput from "../../../../components/FechaNacimientoInput";
 import { fraseCampeonAlAzar } from "../../../../lib/champFrases";
 import { roundLabel } from "../../../../lib/bracket";
 
@@ -1490,14 +1491,13 @@ export default function AdminPage({ params }) {
                               <label className="text-[11px]" style={{ color: T.inkDim }}>
                                 Fecha de nacimiento
                               </label>
-                              <input
-                                value={j.fecha_nacimiento || ""}
-                                onChange={(e) => actualizarJugadorEditando(j.id, "fecha_nacimiento", e.target.value)}
-                                type="date"
-                                lang="es-AR"
-                                className="w-full px-3 py-2 rounded-lg text-sm mt-1"
-                                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-                              />
+                              <div className="mt-1">
+                                <FechaNacimientoInput
+                                  T={T}
+                                  value={j.fecha_nacimiento || ""}
+                                  onChange={(v) => actualizarJugadorEditando(j.id, "fecha_nacimiento", v)}
+                                />
+                              </div>
                             </div>
                             <input
                               value={j.email || ""}
