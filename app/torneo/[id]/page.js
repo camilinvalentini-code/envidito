@@ -330,8 +330,10 @@ function ClasificatoriaPublica({ matches, teamsById }) {
       </p>
       <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
         {ordenados.map((m) => {
-          const nombre1 = teamsById[m.team1_id]?.name || "?";
-          const nombre2 = m.team2_id ? teamsById[m.team2_id]?.name : null;
+          const equipo1 = teamsById[m.team1_id];
+          const equipo2 = m.team2_id ? teamsById[m.team2_id] : null;
+          const nombre1 = equipo1?.name || "?";
+          const nombre2 = equipo2?.name || null;
           const jugado = !!m.winner_id;
           const fila = (esGanador) => ({
             color: jugado && !esGanador ? T.inkDim : T.ink,
@@ -340,8 +342,11 @@ function ClasificatoriaPublica({ matches, teamsById }) {
           });
           return (
             <div key={m.id} className="rounded-2xl border p-2" style={{ background: T.panel, borderColor: T.line }}>
-              <div className="px-3 py-2 rounded-xl text-sm font-semibold flex items-center justify-between gap-2" style={fila(m.winner_id === m.team1_id)}>
-                <span className="truncate">{nombre1}</span>
+              <div className="px-3 py-2 rounded-xl flex items-center justify-between gap-2" style={fila(m.winner_id === m.team1_id)}>
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold truncate">{nombre1}</div>
+                  {equipo1?.players && <div className="text-[11px] truncate opacity-80">{equipo1.players}</div>}
+                </div>
                 {m.score_a > 0 && (
                   <span className="font-black flex-shrink-0" style={{ color: T.goldBright }}>
                     {m.score_a}
@@ -351,8 +356,11 @@ function ClasificatoriaPublica({ matches, teamsById }) {
               {nombre2 ? (
                 <>
                   <div className="h-px my-1" style={{ background: T.line }} />
-                  <div className="px-3 py-2 rounded-xl text-sm font-semibold flex items-center justify-between gap-2" style={fila(m.winner_id === m.team2_id)}>
-                    <span className="truncate">{nombre2}</span>
+                  <div className="px-3 py-2 rounded-xl flex items-center justify-between gap-2" style={fila(m.winner_id === m.team2_id)}>
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold truncate">{nombre2}</div>
+                      {equipo2?.players && <div className="text-[11px] truncate opacity-80">{equipo2.players}</div>}
+                    </div>
                     {m.score_b > 0 && (
                       <span className="font-black flex-shrink-0" style={{ color: T.goldBright }}>
                         {m.score_b}

@@ -62,7 +62,8 @@ export default function MiEquipoPanel({ tournament, teams, matches, teamsById, p
         </div>
       );
     }
-    const filtrados = teams.filter((t) => t.name.toLowerCase().includes(busqueda.toLowerCase()));
+    const q = busqueda.toLowerCase();
+    const filtrados = teams.filter((t) => t.name.toLowerCase().includes(q) || (t.players || "").toLowerCase().includes(q));
     return (
       <div className="rounded-2xl p-4 mb-5 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
         <h2 className="font-bold text-center mb-1" style={{ color: T.gold }}>
@@ -75,7 +76,7 @@ export default function MiEquipoPanel({ tournament, teams, matches, teamsById, p
         <input
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscá tu equipo..."
+          placeholder="Buscá tu equipo o tu nombre..."
           className="w-full px-3 py-2 rounded-xl text-sm mb-2"
           style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
         />
@@ -87,7 +88,12 @@ export default function MiEquipoPanel({ tournament, teams, matches, teamsById, p
               className="text-left px-3 py-2 rounded-xl text-sm font-semibold transition-colors duration-150"
               style={{ background: T.panelLight, color: T.ink }}
             >
-              {t.name}
+              <div>{t.name}</div>
+              {t.players && (
+                <div className="text-xs font-normal" style={{ color: T.inkDim }}>
+                  {t.players}
+                </div>
+              )}
             </button>
           ))}
           {filtrados.length === 0 && (
