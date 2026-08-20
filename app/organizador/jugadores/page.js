@@ -6,7 +6,7 @@ import { useTheme } from "../../../lib/theme";
 import { useAuth } from "../../../lib/useAuth";
 import { supabase } from "../../../lib/supabaseClient";
 import ThemeToggleButton from "../../../components/ThemeToggleButton";
-import { IconAtras, IconWhatsApp } from "../../../components/LineIcons";
+import { IconAtras, IconWhatsApp, IconLapiz, IconBasura } from "../../../components/LineIcons";
 
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
@@ -45,11 +45,13 @@ export default function JugadoresOrganizador() {
   const [jugadores, setJugadores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState("");
+  const [editando, setEditando] = useState(null); // copia del jugador en edición, o null
+  const [guardando, setGuardando] = useState(false);
 
   const load = useCallback(async () => {
     const { data } = await supabase
       .from("players")
-      .select("id, name, telefono, email, fecha_nacimiento")
+      .select("id, name, dni, telefono, email, fecha_nacimiento")
       .not("fecha_nacimiento", "is", null);
     setJugadores(data || []);
     setLoading(false);
@@ -62,6 +64,38 @@ export default function JugadoresOrganizador() {
   useEffect(() => {
     load();
   }, [load]);
+
+  function abrirEdicion(j) {
+    setEditando({ ...j });
+  }
+
+  function actualizarCampoEdicion(campo, valor) {
+    setEditando((prev) => (prev ? { ...prev, [campo]: valor } : prev));
+  }
+
+  async function guardarEdicion() {
+    if (!editando) return;
+    setGuardando(true);
+    await supabase
+      .from("players")
+      .update({
+        name: editando.name?.trim() || null,
+        dni: editando.dni?.trim() || null,
+        telefono: editando.telefono?.trim() || null,
+        fecha_nacimiento: editando.fecha_nacimiento || null,
+        email: editando.email?.trim() || null,
+      })
+      .eq("id", editando.id);
+    setGuardando(false);
+    setEditando(null);
+    load();
+  }
+
+  async function borrarJugador(j) {
+    if (!window.confirm(`¿Borrar a "${j.name}" de tu lista de jugadores? No se puede deshacer.`)) return;
+    await supabase.from("players").delete().eq("id", j.id);
+    load();
+  }
 
   if (authLoading || loading) return null;
   if (!session) return null;
@@ -130,23 +164,118 @@ export default function JugadoresOrganizador() {
                           }`}
                     </div>
                   </div>
-                  {numero && (
-                    <a
-                      href={`https://wa.me/${numero}?text=${encodeURIComponent(mensajeCumple(j.name))}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: "#25D366" }}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {numero && (
+                      <a
+                        href={`https://wa.me/${numero}?text=${encodeURIComponent(mensajeCumple(j.name))}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-9 h-9 rounded-xl flex items-center justify-center"
+                        style={{ background: "#25D366" }}
+                      >
+                        <IconWhatsApp color="#1B3A2A" />
+                      </a>
+                    )}
+                    <button
+                      onClick={() => abrirEdicion(j)}
+                      className="w-9 h-9 rounded-xl flex items-center justify-center"
+                      style={{ background: esHoy ? "#FFFFFF" : T.panelLight, border: `1px solid ${esHoy ? "#EAC27A" : T.line}` }}
                     >
-                      <IconWhatsApp color="#1B3A2A" />
-                    </a>
-                  )}
+                      <IconLapiz color={esHoy ? "#33453E" : T.ink} />
+                    </button>
+                    <button
+                      onClick={() => borrarJugador(j)}
+                      className="w-9 h-9 rounded-xl flex items-center justify-center"
+                      style={{ background: esHoy ? "#FFFFFF" : T.panelLight, border: `1px solid ${esHoy ? "#EAC27A" : T.line}` }}
+                    >
+                      <IconBasura color={T.redDim} />
+                    </button>
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {editando && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+          onClick={() => setEditando(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl p-4 border shadow-lg"
+            style={{ background: T.panel, borderColor: T.line }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-bold text-sm mb-3" style={{ color: T.gold }}>
+              Editar jugador
+            </h3>
+            <div className="flex flex-col gap-2">
+              <input
+                value={editando.name || ""}
+                onChange={(e) => actualizarCampoEdicion("name", e.target.value)}
+                placeholder="Nombre completo"
+                className="px-3 py-2 rounded-lg text-sm"
+                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+              />
+              <input
+                value={editando.dni || ""}
+                onChange={(e) => actualizarCampoEdicion("dni", e.target.value)}
+                placeholder="DNI"
+                className="px-3 py-2 rounded-lg text-sm"
+                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+              />
+              <input
+                value={editando.telefono || ""}
+                onChange={(e) => actualizarCampoEdicion("telefono", e.target.value)}
+                placeholder="Teléfono"
+                className="px-3 py-2 rounded-lg text-sm"
+                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+              />
+              <div>
+                <label className="text-[11px]" style={{ color: T.inkDim }}>
+                  Fecha de nacimiento
+                </label>
+                <input
+                  value={editando.fecha_nacimiento || ""}
+                  onChange={(e) => actualizarCampoEdicion("fecha_nacimiento", e.target.value)}
+                  type="date"
+                  lang="es-AR"
+                  className="w-full px-3 py-2 rounded-lg text-sm mt-1"
+                  style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                />
+              </div>
+              <input
+                value={editando.email || ""}
+                onChange={(e) => actualizarCampoEdicion("email", e.target.value)}
+                placeholder="Correo electrónico"
+                type="email"
+                className="px-3 py-2 rounded-lg text-sm"
+                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+              />
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => setEditando(null)}
+                className="flex-1 py-2 rounded-xl font-bold text-sm"
+                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={guardarEdicion}
+                disabled={guardando}
+                className="flex-1 py-2 rounded-xl font-black text-sm disabled:opacity-50"
+                style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
+              >
+                {guardando ? "Guardando…" : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
