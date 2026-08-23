@@ -522,6 +522,26 @@ export default function AdminPage({ params }) {
       : "¿Volver a sortear? Se descarta el cuadro actual y se arma uno nuevo desde cero.";
     if (!window.confirm(mensaje)) return;
     setError("");
+
+    // Si el torneo viene de una clasificatoria o fase de grupos ya
+    // cerrada, "resortear" tiene que seguir usando solo a los equipos
+    // que clasificaron — nunca volver a meter a los que quedaron
+    // afuera, aunque sigan "aprobados" en la lista general del torneo.
+    const vieneDeFaseCerrada =
+      (tournament.formato === "clasificatoria" && tournament.clasificatoria_cerrada) ||
+      (tournament.formato === "grupos" && tournament.grupos_generados);
+    let poolIds = teamsAprobados.map((t) => t.id);
+    if (vieneDeFaseCerrada) {
+      const idsEnCuadro = new Set();
+      matches
+        .filter((m) => m.bracket === "main" && m.round_index === 0)
+        .forEach((m) => {
+          if (m.team1_id) idsEnCuadro.add(m.team1_id);
+          if (m.team2_id) idsEnCuadro.add(m.team2_id);
+        });
+      if (idsEnCuadro.size > 0) poolIds = Array.from(idsEnCuadro);
+    }
+
     await supabase.from("matches").delete().eq("tournament_id", id).eq("bracket", "main");
     await supabase.from("matches").delete().eq("tournament_id", id).eq("bracket", "repechaje");
     await supabase
@@ -533,13 +553,39 @@ export default function AdminPage({ params }) {
         repechaje: modoElegido === "vidon" ? false : tournament.repechaje,
       })
       .eq("id", id);
-    const { error: err } = await generarCuadroPrincipal(teamsAprobados.map((t) => t.id), modoElegido);
+    const { error: err } = await generarCuadroPrincipal(poolIds, modoElegido);
     if (err) {
       setError("No se pudo resortear. Probá de nuevo.");
       console.error(err);
       return;
     }
     setFormatoResorteo(null);
+    load();
+  }
+
+  // Reconstruye el cuadro principal a partir de la clasificatoria, aún
+  // después de cerrada — para cuando el cuadro quedó mal armado (ver
+  // resortear() de más arriba) o el organizador se equivocó al elegir
+  // perdedores. Solo tiene sentido mientras nadie jugó nada en el
+  // cuadro principal todavía (lo gatea sorteoSinJugar() en el llamador).
+  async function reconstruirCuadroDesdeClasificatoria(idsElegidos) {
+    if (
+      !window.confirm(
+        "¿Reconstruir el cuadro principal con estos equipos? Se descarta el cuadro actual (nadie jugó nada todavía ahí) y se arma uno nuevo."
+      )
+    )
+      return;
+    setError("");
+    await supabase.from("matches").delete().eq("tournament_id", id).eq("bracket", "main");
+    await supabase.from("matches").delete().eq("tournament_id", id).eq("bracket", "repechaje");
+    await supabase.from("tournaments").update({ champion_id: null, repechaje_champion_id: null }).eq("id", id);
+    const { error: err } = await generarCuadroPrincipal(idsElegidos);
+    if (err) {
+      setError("No se pudo reconstruir el cuadro. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
+    setPerdedoresElegidos(new Set());
     load();
   }
 
@@ -2024,6 +2070,19 @@ export default function AdminPage({ params }) {
               />
             ) : (
               <>
+                {tournament.formato === "clasificatoria" && tournament.clasificatoria_generada && (
+                  <ClasificatoriaHistorial
+                    T={T}
+                    clasifMatches={clasifMatches}
+                    teamsById={teamsById}
+                    puedeReconstruir={sorteoSinJugar()}
+                    perdedoresElegidos={perdedoresElegidos}
+                    onToggleLoser={toggleLoserElegido}
+                    onSortearLosers={sortearPerdedoresClasificatoria}
+                    onReconstruir={reconstruirCuadroDesdeClasificatoria}
+                  />
+                )}
+
                 <h2 className="font-bold mb-3" style={{ color: T.gold }}>
                   Cuadro principal — tocá un equipo para forzar el resultado
                 </h2>
@@ -2475,6 +2534,173 @@ function ClasificatoriaPanel({
           >
             {cerrando ? "Armando…" : `Armar cuadro de ${target} →`}
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Panel siempre disponible (aunque la clasificatoria ya esté cerrada y
+// el torneo esté en el cuadro principal) para poder ver quién clasificó
+// sin tener que ir a buscarlo por SQL, y — mientras nadie jugó nada
+// todavía en el cuadro principal — reconstruirlo si quedó mal armado.
+function ClasificatoriaHistorial({
+  T,
+  clasifMatches,
+  teamsById,
+  puedeReconstruir,
+  perdedoresElegidos,
+  onToggleLoser,
+  onSortearLosers,
+  onReconstruir,
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
+  const ordenados = [...clasifMatches].sort((a, b) => a.match_index - b.match_index);
+  if (ordenados.length === 0) return null;
+
+  const ganadores = ordenados.filter((m) => m.winner_id).map((m) => m.winner_id);
+  const esperando = ordenados.filter((m) => !m.winner_id && m.team1_id && !m.team2_id).map((m) => m.team1_id);
+  const ganadoresConEspera = [...ganadores, ...esperando];
+  const perdedoresDisponibles = ordenados
+    .filter((m) => m.winner_id)
+    .map((m) => (m.winner_id === m.team1_id ? m.team2_id : m.team1_id))
+    .filter(Boolean);
+  const totalPool = ganadoresConEspera.length + perdedoresDisponibles.length;
+  let target = 1;
+  while (target * 2 <= totalPool) target *= 2;
+  const cupo = Math.max(0, target - ganadoresConEspera.length);
+
+  return (
+    <div className="rounded-2xl border shadow-sm mb-4 overflow-hidden" style={{ background: T.panel, borderColor: T.line }}>
+      <button onClick={() => setAbierto((v) => !v)} className="w-full flex items-center justify-between px-4 py-3 text-left">
+        <span className="font-bold text-sm" style={{ color: T.gold }}>
+          {abierto ? "▾" : "▸"} Clasificatoria — quién clasificó
+        </span>
+        <span className="text-xs" style={{ color: T.inkDim }}>
+          {ordenados.length} partido{ordenados.length === 1 ? "" : "s"}
+        </span>
+      </button>
+      {abierto && (
+        <div className="px-4 pb-4">
+          <div className="grid gap-3 mb-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
+            {ordenados.map((m) => {
+              const nombre1 = teamsById[m.team1_id]?.name || "?";
+              const nombre2 = m.team2_id ? teamsById[m.team2_id]?.name : null;
+              const jugado = !!m.winner_id;
+              const filaEstilo = (esGanador) => ({
+                color: jugado && !esGanador ? T.inkDim : T.ink,
+                textDecoration: jugado && !esGanador ? "line-through" : "none",
+                opacity: jugado && !esGanador ? 0.6 : 1,
+              });
+              return (
+                <div key={m.id} className="rounded-xl border p-2" style={{ background: T.panelLight, borderColor: T.line }}>
+                  <div className="px-2 py-1.5 text-sm font-semibold" style={filaEstilo(m.winner_id === m.team1_id)}>
+                    {nombre1}
+                  </div>
+                  {nombre2 ? (
+                    <div className="px-2 py-1.5 text-sm font-semibold" style={filaEstilo(m.winner_id === m.team2_id)}>
+                      {nombre2}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-center py-1" style={{ color: T.goldBright }}>
+                      espera rival
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {!puedeReconstruir ? (
+            <p className="text-xs" style={{ color: T.inkDim }}>
+              Ya se jugó algo en el cuadro principal, así que no se puede reconstruir desde acá sin perder resultados.
+            </p>
+          ) : (
+            <div className="pt-3" style={{ borderTop: `1px solid ${T.line}` }}>
+              <p className="text-xs mb-3" style={{ color: T.inkDim }}>
+                {cupo === 0
+                  ? `${ganadoresConEspera.length} clasifican directo — ya da un cuadro parejo de ${target}.`
+                  : `${ganadoresConEspera.length} clasifican directo. Elegí ${cupo} de los ${perdedoresDisponibles.length} perdedores para completar un cuadro de ${target}.`}{" "}
+                Usá esto si el cuadro principal quedó mal armado — todavía no se jugó nada ahí, así que es seguro.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                <div>
+                  <div className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: T.inkDim }}>
+                    Clasifican directo ({ganadoresConEspera.length})
+                  </div>
+                  <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                    {ganadoresConEspera.map((tid) => (
+                      <div
+                        key={tid}
+                        className="text-sm px-2 py-1.5 rounded-lg"
+                        style={{ background: "rgba(111,169,134,0.14)", color: T.ink }}
+                      >
+                        {teamsById[tid]?.name}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {cupo > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-xs font-bold uppercase tracking-wide" style={{ color: T.inkDim }}>
+                        Perdedores ({perdedoresElegidos.size}/{cupo})
+                      </div>
+                      <button
+                        onClick={() => onSortearLosers(cupo, perdedoresDisponibles)}
+                        className="text-xs font-bold px-2 py-1 rounded-lg"
+                        style={{ background: T.panelLight, color: T.goldBright }}
+                      >
+                        🎲 Sortear
+                      </button>
+                    </div>
+                    {perdedoresDisponibles.length > 6 && (
+                      <input
+                        value={busqueda}
+                        onChange={(e) => setBusqueda(e.target.value)}
+                        placeholder="Buscar equipo..."
+                        className="w-full px-2 py-1.5 rounded-lg text-xs mb-1.5"
+                        style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                      />
+                    )}
+                    <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                      {perdedoresDisponibles
+                        .filter((tid) => (teamsById[tid]?.name || "").toLowerCase().includes(busqueda.toLowerCase()))
+                        .map((tid) => {
+                          const marcado = perdedoresElegidos.has(tid);
+                          return (
+                            <button
+                              key={tid}
+                              onClick={() => onToggleLoser(tid)}
+                              className="text-sm px-2 py-1.5 rounded-lg text-left flex items-center gap-2"
+                              style={{ background: marcado ? T.panelLight : "transparent", color: marcado ? T.ink : T.inkDim }}
+                            >
+                              <span
+                                className="w-3.5 h-3.5 rounded flex-shrink-0"
+                                style={{
+                                  background: marcado ? T.gold : "transparent",
+                                  border: `1.5px solid ${marcado ? T.gold : T.line}`,
+                                }}
+                              />
+                              {teamsById[tid]?.name}
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => onReconstruir([...ganadoresConEspera, ...perdedoresElegidos])}
+                disabled={perdedoresElegidos.size !== cupo}
+                className="w-full py-2.5 rounded-xl font-black text-sm disabled:opacity-50"
+                style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
+              >
+                Reconstruir cuadro principal con estos {target} →
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

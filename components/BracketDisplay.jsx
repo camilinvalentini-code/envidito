@@ -80,7 +80,7 @@ export default function BracketDisplay({
               <div className="flex items-center gap-1">
                 <Tag
                   onClick={playable ? () => onDeclareWinner(m, tid) : undefined}
-                  className="w-full text-left px-3 py-2 rounded-xl text-sm font-semibold truncate flex items-center justify-between gap-2 transition-colors duration-150"
+                  className="w-full text-left px-3 py-2 rounded-xl text-sm font-semibold flex items-center justify-between gap-2 transition-colors duration-150"
                   style={{
                     color: isWinner ? T.goldBright : isLoser ? T.inkDim : T.ink,
                     opacity: isLoser ? 0.5 : 1,
@@ -89,7 +89,12 @@ export default function BracketDisplay({
                     cursor: playable ? "pointer" : "default",
                   }}
                 >
-                  <span className="truncate">{label}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{label}</span>
+                    {tid && teamsById[tid]?.players && (
+                      <span className="block truncate text-[10px] font-normal opacity-75">{teamsById[tid].players}</span>
+                    )}
+                  </span>
                   {!m.bye && score > 0 && (
                     <span className="font-black text-base flex-shrink-0" style={{ color: T.goldBright }}>
                       {score}
