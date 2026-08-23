@@ -891,7 +891,6 @@ export default function AdminPage({ params }) {
   // desde /en-vivo (ahí solo se puede mirar, no elegir equipo).
   const publicUrl = `${origin}/torneo/${id}?jugar=1`;
   const anotarmeUrl = `${origin}/torneo/${id}/anotarme`;
-  const esAdmin = profile?.role === "admin";
 
   // Equipos que se autoinscribieron (sin login) todavía no cuentan para
   // nada — el organizador los tiene que aprobar primero.
@@ -1359,27 +1358,25 @@ export default function AdminPage({ params }) {
           />
         ) : !tournament.started ? (
           <>
-            {esAdmin && (
-              <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-                <h3 className="font-bold text-sm mb-1" style={{ color: T.ink }}>
-                  Inscripción sin login
-                </h3>
-                <p className="text-xs mb-3" style={{ color: T.inkDim }}>
-                  Los equipos que se anoten con este link quedan pendientes de tu aprobación — no cuentan para el
-                  sorteo hasta que los confirmes acá abajo. Compartilo solo con quien vos quieras.
-                </p>
-                <button
-                  onClick={copiarLinkInscripcion}
-                  className="w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200 hover:scale-105 active:scale-95"
-                  style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-                >
-                  <IconCopiar color={T.ink} />
-                  {linkInscripcionCopiado ? "¡Copiado!" : "Copiar link de inscripción"}
-                </button>
-              </div>
-            )}
+            <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+              <h3 className="font-bold text-sm mb-1" style={{ color: T.ink }}>
+                Inscripción sin login
+              </h3>
+              <p className="text-xs mb-3" style={{ color: T.inkDim }}>
+                Los equipos que se anoten con este link quedan pendientes de tu aprobación — no cuentan para el
+                sorteo hasta que los confirmes acá abajo. Compartilo solo con quien vos quieras.
+              </p>
+              <button
+                onClick={copiarLinkInscripcion}
+                className="w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200 hover:scale-105 active:scale-95"
+                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+              >
+                <IconCopiar color={T.ink} />
+                {linkInscripcionCopiado ? "¡Copiado!" : "Copiar link de inscripción"}
+              </button>
+            </div>
 
-            {esAdmin && teamsPendientes.length > 0 && (
+            {teamsPendientes.length > 0 && (
               <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: "#B85C55" }}>
                 <h3 className="font-bold text-sm mb-3" style={{ color: T.ink }}>
                   Equipos pendientes de aprobar ({teamsPendientes.length})
@@ -1424,7 +1421,7 @@ export default function AdminPage({ params }) {
               </div>
             )}
 
-            {esAdmin && teamsAprobados.length > 0 && (
+            {teamsAprobados.length > 0 && (
               <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
                 <h3 className="font-bold text-sm mb-3" style={{ color: T.ink }}>
                   Corregir datos de jugadores
