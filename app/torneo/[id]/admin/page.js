@@ -676,6 +676,21 @@ export default function AdminPage({ params }) {
 
   async function aprobarEquipo(teamId) {
     await supabase.from("teams").update({ pendiente_aprobacion: false }).eq("id", teamId);
+    // Si la clasificatoria ya está armada y en curso, un equipo recién
+    // aprobado también tiene que entrar a un cruce — mismo caso que un
+    // equipo cargado tardío a mano (ver addTeam más arriba).
+    if (tournament.formato === "clasificatoria" && tournament.clasificatoria_generada && !tournament.clasificatoria_cerrada) {
+      const { error: errTardio } = await supabase.rpc("agregar_tardio_clasificatoria", {
+        p_tournament_id: id,
+        p_team_id: teamId,
+      });
+      if (errTardio) {
+        setError(
+          `El equipo se aprobó, pero no se pudo meter en la clasificatoria (${errTardio.message || "error desconocido"}). Probá de nuevo.`
+        );
+        console.error(errTardio);
+      }
+    }
     load();
   }
 
