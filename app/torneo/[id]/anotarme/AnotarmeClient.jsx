@@ -102,9 +102,8 @@ export default function AnotarmeClient({ params }) {
   const cargarAnotados = useCallback(async () => {
     const { data } = await supabase
       .from("teams")
-      .select("id, name, players")
+      .select("id, name, players, pendiente_aprobacion")
       .eq("tournament_id", id)
-      .eq("pendiente_aprobacion", false)
       .order("created_at");
     setEquiposAnotados(data || []);
   }, [id]);
@@ -191,6 +190,8 @@ export default function AnotarmeClient({ params }) {
   }
 
   const esUnJugador = tournament.categoria === "1v1";
+  const equiposConfirmados = equiposAnotados.filter((t) => !t.pendiente_aprobacion);
+  const equiposPendientes = equiposAnotados.filter((t) => t.pendiente_aprobacion);
 
   return (
     <div className="transition-colors duration-500" style={{ background: T.bg }}>
@@ -350,23 +351,49 @@ export default function AnotarmeClient({ params }) {
 
         {equiposAnotados.length > 0 && (
           <div className="mt-8 pt-6" style={{ borderTop: `1px solid ${T.line}` }}>
-            <h2 className="font-bold text-sm mb-3" style={{ color: T.gold }}>
-              Parejas anotadas ({equiposAnotados.length})
-            </h2>
-            <div className="flex flex-col gap-2">
-              {equiposAnotados.map((t) => (
-                <div key={t.id} className="rounded-xl p-3 border" style={{ background: T.panel, borderColor: T.line }}>
-                  <div className="text-sm font-bold" style={{ color: T.ink }}>
-                    {t.name}
-                  </div>
-                  {t.players && (
-                    <div className="text-xs" style={{ color: T.inkDim }}>
-                      {t.players}
+            {equiposConfirmados.length > 0 && (
+              <div className="mb-5">
+                <h2 className="font-bold text-sm mb-3" style={{ color: T.gold }}>
+                  Parejas anotadas ({equiposConfirmados.length})
+                </h2>
+                <div className="flex flex-col gap-2">
+                  {equiposConfirmados.map((t) => (
+                    <div key={t.id} className="rounded-xl p-3 border" style={{ background: T.panel, borderColor: T.line }}>
+                      <div className="text-sm font-bold" style={{ color: T.ink }}>
+                        {t.name}
+                      </div>
+                      {t.players && (
+                        <div className="text-xs" style={{ color: T.inkDim }}>
+                          {t.players}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
+            {equiposPendientes.length > 0 && (
+              <div>
+                <h2 className="font-bold text-sm mb-3" style={{ color: T.inkDim }}>
+                  Equipos pendientes ({equiposPendientes.length})
+                </h2>
+                <div className="flex flex-col gap-2">
+                  {equiposPendientes.map((t) => (
+                    <div key={t.id} className="rounded-xl p-3 border" style={{ background: T.panelLight, borderColor: T.line }}>
+                      <div className="text-sm font-bold" style={{ color: T.ink }}>
+                        {t.name}
+                      </div>
+                      {t.players && (
+                        <div className="text-xs" style={{ color: T.inkDim }}>
+                          {t.players}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
