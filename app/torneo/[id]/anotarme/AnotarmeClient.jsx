@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useTheme } from "../../../../lib/theme";
 import { supabase } from "../../../../lib/supabaseClient";
@@ -46,13 +46,22 @@ function validarJugador(j, esUnJugador) {
   if (calcularEdad(j.fecha_nacimiento) < EDAD_MINIMA) {
     return `Hay que tener al menos ${EDAD_MINIMA} años para anotarse.`;
   }
-  if (j.dni.trim() && !RE_SOLO_NUMEROS.test(j.dni.trim())) {
+  if (!j.dni.trim()) {
+    return esUnJugador ? "Falta tu DNI." : "Falta el DNI de un jugador.";
+  }
+  if (!RE_SOLO_NUMEROS.test(j.dni.trim())) {
     return "El DNI solo puede tener números.";
   }
-  if (j.telefono.trim() && !RE_TELEFONO.test(j.telefono.trim())) {
+  if (!j.telefono.trim()) {
+    return esUnJugador ? "Falta tu teléfono." : "Falta el teléfono de un jugador.";
+  }
+  if (!RE_TELEFONO.test(j.telefono.trim())) {
     return "El teléfono solo puede tener números.";
   }
-  if (j.email.trim() && !RE_EMAIL.test(j.email.trim())) {
+  if (!j.email.trim()) {
+    return esUnJugador ? "Falta tu mail." : "Falta el mail de un jugador.";
+  }
+  if (!RE_EMAIL.test(j.email.trim())) {
     return "El mail no es válido.";
   }
   return null;
@@ -88,6 +97,17 @@ export default function AnotarmeClient({ params }) {
   const [enviado, setEnviado] = useState(false);
   const [error, setError] = useState("");
   const [sitioWeb, setSitioWeb] = useState(""); // campo trampa contra bots — invisible para una persona real
+  const [equiposAnotados, setEquiposAnotados] = useState([]);
+
+  const cargarAnotados = useCallback(async () => {
+    const { data } = await supabase
+      .from("teams")
+      .select("id, name, players")
+      .eq("tournament_id", id)
+      .eq("pendiente_aprobacion", false)
+      .order("created_at");
+    setEquiposAnotados(data || []);
+  }, [id]);
 
   useEffect(() => {
     async function load() {
@@ -101,7 +121,8 @@ export default function AnotarmeClient({ params }) {
       setLoading(false);
     }
     load();
-  }, [id]);
+    cargarAnotados();
+  }, [id, cargarAnotados]);
 
   function actualizarJugador(i, campo, valor) {
     setJugadores((prev) => prev.map((j, idx) => (idx === i ? { ...j, [campo]: valor } : j)));
@@ -233,14 +254,14 @@ export default function AnotarmeClient({ params }) {
                       <input
                         value={j.dni}
                         onChange={(e) => actualizarJugador(i, "dni", e.target.value)}
-                        placeholder="DNI"
+                        placeholder="DNI *"
                         className="px-3 py-2 rounded-lg text-sm"
                         style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
                       />
                       <input
                         value={j.telefono}
                         onChange={(e) => actualizarJugador(i, "telefono", e.target.value)}
-                        placeholder="Teléfono"
+                        placeholder="Teléfono *"
                         className="px-3 py-2 rounded-lg text-sm"
                         style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
                       />
@@ -255,7 +276,7 @@ export default function AnotarmeClient({ params }) {
                       <input
                         value={j.email}
                         onChange={(e) => actualizarJugador(i, "email", e.target.value)}
-                        placeholder="Correo electrónico"
+                        placeholder="Correo electrónico *"
                         type="email"
                         className="px-3 py-2 rounded-lg text-sm"
                         style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
@@ -325,6 +346,28 @@ export default function AnotarmeClient({ params }) {
               </div>
             </div>
           </>
+        )}
+
+        {equiposAnotados.length > 0 && (
+          <div className="mt-8 pt-6" style={{ borderTop: `1px solid ${T.line}` }}>
+            <h2 className="font-bold text-sm mb-3" style={{ color: T.gold }}>
+              Parejas anotadas ({equiposAnotados.length})
+            </h2>
+            <div className="flex flex-col gap-2">
+              {equiposAnotados.map((t) => (
+                <div key={t.id} className="rounded-xl p-3 border" style={{ background: T.panel, borderColor: T.line }}>
+                  <div className="text-sm font-bold" style={{ color: T.ink }}>
+                    {t.name}
+                  </div>
+                  {t.players && (
+                    <div className="text-xs" style={{ color: T.inkDim }}>
+                      {t.players}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>
