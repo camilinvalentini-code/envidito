@@ -197,6 +197,13 @@ export default function AdminPage({ params }) {
         await supabase.from("team_players").insert({ team_id: nuevoEquipo.id, player_id: playerId });
       }
     }
+    // Mismo criterio que anotarse_equipo: solo el primer nombre de cada
+    // jugador va al campo público (teams.players), para que se vea en
+    // el cuadro/clasificatoria/inscripción sin exponer apellido.
+    if (jugadoresChips.length > 0) {
+      const nombresPublicos = jugadoresChips.map((j) => j.name.trim().split(" ")[0]).join(", ");
+      await supabase.from("teams").update({ players: nombresPublicos }).eq("id", nuevoEquipo.id);
+    }
     // Pareja tardía mientras la clasificatoria está en juego: se anota
     // igual que cualquier equipo, y esto la mete en un cruce que esté
     // esperando rival (o le arma uno nuevo) — no se resortea nada.

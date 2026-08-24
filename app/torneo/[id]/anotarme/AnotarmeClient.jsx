@@ -123,6 +123,17 @@ export default function AnotarmeClient({ params }) {
     cargarAnotados();
   }, [id, cargarAnotados]);
 
+  // Para que la lista se actualice sola cuando otro equipo se anota o
+  // el organizador aprueba a alguien, sin que cada uno tenga que
+  // refrescar la página a mano.
+  useEffect(() => {
+    const channel = supabase
+      .channel(`anotarme-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "teams", filter: `tournament_id=eq.${id}` }, cargarAnotados)
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [id, cargarAnotados]);
+
   function actualizarJugador(i, campo, valor) {
     setJugadores((prev) => prev.map((j, idx) => (idx === i ? { ...j, [campo]: valor } : j)));
   }
