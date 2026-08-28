@@ -136,6 +136,11 @@ export default function AnotarmeClient({ params }) {
 
   function actualizarJugador(i, campo, valor) {
     setJugadores((prev) => prev.map((j, idx) => (idx === i ? { ...j, [campo]: valor } : j)));
+    // El error que se muestra es de la última vez que tocaron "Anotarme"
+    // — si no se limpia acá, puede quedar diciendo "falta tu DNI" aunque
+    // la persona ya lo haya completado, solo porque todavía no volvió a
+    // tocar el botón.
+    setError("");
   }
 
   async function enviar() {
@@ -244,7 +249,10 @@ export default function AnotarmeClient({ params }) {
               <div className="flex flex-col gap-3">
                 <input
                   value={nombreEquipo}
-                  onChange={(e) => setNombreEquipo(e.target.value)}
+                  onChange={(e) => {
+                    setNombreEquipo(e.target.value);
+                    setError("");
+                  }}
                   placeholder="Nombre del equipo"
                   className="px-3 py-2.5 rounded-xl text-sm"
                   style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
