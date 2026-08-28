@@ -1048,6 +1048,34 @@ export default function AdminPage({ params }) {
     router.push("/organizador/panel");
   }
 
+  // Borra todos los equipos y cruces de este torneo y lo deja como
+  // recién creado (mismo nombre/fecha/formato de puntaje), sin borrar
+  // el torneo en sí — para cuando alguien cargó equipos de prueba a
+  // mano en un torneo real y quiere arrancar de cero sin perder el
+  // link ya compartido. Doble confirmación porque es irreversible.
+  async function reiniciarTorneo() {
+    const nombreEsperado = tournament.nombre || "este torneo";
+    const confirmado = window.confirm(
+      `¿Reiniciar "${nombreEsperado}"? Esto borra TODOS los equipos anotados (${teams.length}) y los cruces armados — queda como recién creado, listo para cargar los equipos de nuevo. El nombre, fecha, ubicación y formato de puntaje NO se tocan. No se puede deshacer.`
+    );
+    if (!confirmado) return;
+    const escrito = window.prompt(`Para confirmar, escribí el nombre exacto del torneo:\n"${nombreEsperado}"`);
+    if (escrito === null) return;
+    if (escrito !== nombreEsperado) {
+      setError("El nombre no coincidió — no se reinició nada.");
+      return;
+    }
+    setError("");
+    const { error: err } = await supabase.rpc("reiniciar_torneo", { p_tournament_id: id });
+    if (err) {
+      setError(`No se pudo reiniciar el torneo (${err.message || "error desconocido"}).`);
+      console.error(err);
+      return;
+    }
+    setMenuAbierto(false);
+    load();
+  }
+
   const esDueño = session && tournament && (tournament.organizador_id === session.user.id || profile?.role === "admin");
 
   if (loading || authLoading) {
@@ -1255,7 +1283,7 @@ export default function AdminPage({ params }) {
   const badgeCerrado = tournament.cerrado && !tournament.champion_id;
   const infoLinea = [tournament.ubicacion, tournament.fecha, tournament.categoria].filter(Boolean).join(" · ");
 
-  const kebab = tournament.es_prueba && (
+  const kebab = (
     <div className="relative">
       <button
         onClick={() => setMenuAbierto((v) => !v)}
@@ -1270,15 +1298,24 @@ export default function AdminPage({ params }) {
           className="absolute right-0 mt-2 w-56 rounded-2xl border shadow-lg z-30 p-1.5"
           style={{ background: T.panel, borderColor: T.line }}
         >
+          {tournament.es_prueba && (
+            <button
+              onClick={() => {
+                setMenuAbierto(false);
+                setModoPruebaAbierto((v) => !v);
+              }}
+              className="w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl"
+              style={{ color: T.inkDim }}
+            >
+              Herramientas de prueba
+            </button>
+          )}
           <button
-            onClick={() => {
-              setMenuAbierto(false);
-              setModoPruebaAbierto((v) => !v);
-            }}
+            onClick={reiniciarTorneo}
             className="w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl"
-            style={{ color: T.inkDim }}
+            style={{ color: T.redDim }}
           >
-            Herramientas de prueba
+            Reiniciar torneo (borra equipos y cruces)
           </button>
         </div>
       )}
