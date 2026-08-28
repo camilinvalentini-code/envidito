@@ -144,7 +144,15 @@ export default function AdminPage({ params }) {
     const { data } = await supabase.rpc("buscar_jugadores", { q: texto.trim() });
     setSugerencias(data || []);
   }
+  function maxJugadoresPorEquipo() {
+    return tournament.categoria === "3v3" ? 3 : 2;
+  }
   function agregarChip(jugador) {
+    const max = maxJugadoresPorEquipo();
+    if (jugadoresChips.length >= max) {
+      setError(`Un equipo de ${tournament.categoria} tiene ${max} jugadores — sacá uno antes de agregar otro.`);
+      return;
+    }
     const yaEsta = jugadoresChips.some((j) => normalizarNombre(j.name) === normalizarNombre(jugador.name));
     if (!yaEsta) setJugadoresChips((prev) => [...prev, jugador]);
     setJugadorInput("");
@@ -1692,8 +1700,13 @@ export default function AdminPage({ params }) {
                           value={jugadorInput}
                           onChange={(e) => buscarJugadores(e.target.value)}
                           onKeyDown={onJugadorKeyDown}
-                          placeholder="Agregar jugador"
-                          className="w-full px-3 py-2 rounded-xl text-sm"
+                          disabled={jugadoresChips.length >= maxJugadoresPorEquipo()}
+                          placeholder={
+                            jugadoresChips.length >= maxJugadoresPorEquipo()
+                              ? `Ya tenés los ${maxJugadoresPorEquipo()} jugadores de un ${tournament.categoria}`
+                              : "Agregar jugador"
+                          }
+                          className="w-full px-3 py-2 rounded-xl text-sm disabled:opacity-50"
                           style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
                         />
                         {sugerencias.length > 0 && (

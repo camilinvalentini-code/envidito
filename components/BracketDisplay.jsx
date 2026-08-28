@@ -160,6 +160,17 @@ export default function BracketDisplay({
 
   return (
     <div className="relative">
+      {rounds.length > 1 && (
+        // Solo en celular parado — apenas lo giran a lo ancho, esta
+        // media query lo esconde sola (no hace falta JS ni detectar
+        // orientación a mano).
+        <div
+          className="sm:hidden [@media(orientation:landscape)]:hidden text-center text-xs font-semibold mb-3 px-3 py-2 rounded-xl"
+          style={{ background: T.panelLight, color: T.inkDim }}
+        >
+          💡 Girá el celular de costado — se ve mucho más del cuadro de una vez
+        </div>
+      )}
       <div
         className="grid gap-4 lg:gap-6 overflow-x-auto pb-2 scroll-smooth"
         style={{ gridTemplateColumns: `repeat(${rounds.length}, minmax(210px, 1fr))` }}
