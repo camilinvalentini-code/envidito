@@ -5,6 +5,15 @@
 -- y quiere arrancar de cero sin tener que crear otro torneo (y sin
 -- perder el link que ya compartió).
 --
+-- v2: el borrado de "jugadores sin equipo" de la primera versión no
+-- estaba limitado a este torneo — corría sobre TODA la tabla players
+-- de TODA la plataforma. No causó daño porque no había huérfanos de
+-- otros torneos en ese momento, pero era un riesgo real. Ahora se
+-- guarda primero la lista de jugadores de ESTE torneo puntual, y solo
+-- se borran esos (y solo si además quedaron sin ningún otro equipo en
+-- ningún otro torneo) — nunca toca jugadores de otro torneo u
+-- organizador.
+--
 -- Todo pasa en una sola función (una sola transacción): o se aplica
 -- todo, o no se aplica nada — no puede quedar a medias.
 
@@ -13,6 +22,7 @@ returns void language plpgsql security definer
 set search_path = public, pg_temp as $$
 declare
   t tournaments%rowtype;
+  jugadores_del_torneo uuid[];
 begin
   select * into t from tournaments where id = p_tournament_id for update;
   if not found then raise exception 'torneo no encontrado'; end if;
@@ -23,13 +33,21 @@ begin
     raise exception 'no autorizado';
   end if;
 
+  -- Guarda quiénes eran los jugadores de ESTE torneo antes de borrar
+  -- nada, para poder limpiar después solo a ellos (si quedan huérfanos).
+  select array_agg(distinct tp.player_id) into jugadores_del_torneo
+    from team_players tp
+    join teams tm on tm.id = tp.team_id
+    where tm.tournament_id = p_tournament_id;
+
   delete from matches where tournament_id = p_tournament_id;
   delete from teams where tournament_id = p_tournament_id; -- cascada: borra team_players también
 
-  -- Jugadores que quedaron sin ningún equipo (en NINGÚN torneo) — para
-  -- que no queden colgados con fechas de nacimiento falsas en la
-  -- página de Cumpleaños del organizador.
-  delete from players where id not in (select distinct player_id from team_players);
+  -- Solo los que eran de este torneo, y solo si quedaron sin ningún
+  -- equipo en ningún otro torneo tampoco.
+  delete from players
+    where id = any(coalesce(jugadores_del_torneo, array[]::uuid[]))
+      and id not in (select distinct player_id from team_players);
 
   update tournaments set
     formato = 'directa',

@@ -1048,21 +1048,41 @@ export default function AdminPage({ params }) {
     router.push("/organizador/panel");
   }
 
-  // Borra todos los equipos y cruces de este torneo y lo deja como
+  // Mantiene los equipos anotados tal cual (nombres, códigos,
+  // jugadores) y solo borra los cruces/resultados armados, dejando el
+  // torneo como recién a punto de sortear. Para "cargué los equipos
+  // reales pero el sorteo salió mal / quiero probar otro formato".
+  async function reiniciarSorteo() {
+    const confirmado = window.confirm(
+      `¿Reiniciar el sorteo de "${tournament.nombre}"? Se borran los cruces y resultados armados (${matches.length} partidos) y volvés a elegir el formato — pero los ${teams.length} equipos anotados NO se tocan, quedan igual que están. No se puede deshacer.`
+    );
+    if (!confirmado) return;
+    setError("");
+    const { error: err } = await supabase.rpc("reiniciar_sorteo", { p_tournament_id: id });
+    if (err) {
+      setError(`No se pudo reiniciar el sorteo (${err.message || "error desconocido"}).`);
+      console.error(err);
+      return;
+    }
+    setMenuAbierto(false);
+    load();
+  }
+
+  // Borra TODOS los equipos y cruces de este torneo y lo deja como
   // recién creado (mismo nombre/fecha/formato de puntaje), sin borrar
-  // el torneo en sí — para cuando alguien cargó equipos de prueba a
-  // mano en un torneo real y quiere arrancar de cero sin perder el
-  // link ya compartido. Doble confirmación porque es irreversible.
-  async function reiniciarTorneo() {
+  // el torneo en sí — para cuando los equipos cargados son de prueba
+  // (no los reales) y hay que arrancar de cero sin perder el link ya
+  // compartido. Doble confirmación porque es irreversible.
+  async function reiniciarEquipos() {
     const nombreEsperado = tournament.nombre || "este torneo";
     const confirmado = window.confirm(
-      `¿Reiniciar "${nombreEsperado}"? Esto borra TODOS los equipos anotados (${teams.length}) y los cruces armados — queda como recién creado, listo para cargar los equipos de nuevo. El nombre, fecha, ubicación y formato de puntaje NO se tocan. No se puede deshacer.`
+      `¿Borrar TODOS los equipos de "${nombreEsperado}"? Esto borra los ${teams.length} equipos anotados (con sus jugadores y códigos) y los cruces armados — queda como recién creado, listo para cargar equipos de nuevo. Usá esto solo si los equipos cargados son de prueba y no los reales; si son los reales y solo querés rehacer el sorteo, usá "Reiniciar sorteo" en vez de esto. El nombre, fecha, ubicación y formato de puntaje NO se tocan. No se puede deshacer.`
     );
     if (!confirmado) return;
     const escrito = window.prompt(`Para confirmar, escribí el nombre exacto del torneo:\n"${nombreEsperado}"`);
     if (escrito === null) return;
     if (escrito !== nombreEsperado) {
-      setError("El nombre no coincidió — no se reinició nada.");
+      setError("El nombre no coincidió — no se borró nada.");
       return;
     }
     setError("");
@@ -1311,11 +1331,24 @@ export default function AdminPage({ params }) {
             </button>
           )}
           <button
-            onClick={reiniciarTorneo}
+            onClick={() => {
+              setMenuAbierto(false);
+              reiniciarSorteo();
+            }}
+            className="w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl"
+            style={{ color: T.inkDim }}
+          >
+            Reiniciar sorteo (mantiene los equipos)
+          </button>
+          <button
+            onClick={() => {
+              setMenuAbierto(false);
+              reiniciarEquipos();
+            }}
             className="w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl"
             style={{ color: T.redDim }}
           >
-            Reiniciar torneo (borra equipos y cruces)
+            Borrar todos los equipos
           </button>
         </div>
       )}
