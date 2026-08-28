@@ -57,8 +57,9 @@ export default function AdminPage({ params }) {
   const [perdedoresElegidos, setPerdedoresElegidos] = useState(new Set());
   const [cerrandoClasificatoria, setCerrandoClasificatoria] = useState(false);
   const clasificatoriaRef = useRef(null);
-  const [clasificanPorGrupo, setClasificanPorGrupo] = useState(2);
-  const [oroHasta, setOroHasta] = useState(2); // de los que clasifican, cuántos van a la Copa de Oro (el resto, a Plata)
+  const [armandoGrupos, setArmandoGrupos] = useState(false);
+  const [directosPorGrupo, setDirectosPorGrupo] = useState(2); // cuántos clasifican siempre, de cada grupo
+  const [mejoresSiguientes, setMejoresSiguientes] = useState(0); // además, los N mejores del puesto siguiente, de todos los grupos, por diferencia de tantos
 
   useEffect(() => {
     if (typeof window !== "undefined") setOrigin(window.location.origin);
@@ -229,6 +230,21 @@ export default function AdminPage({ params }) {
         console.error(errTardio);
       }
     }
+    // Mismo caso para la fase de grupos: si ya está armada y todavía no
+    // se cerró, este equipo cargado a mano entra al grupo con menos
+    // integrantes.
+    if (tournament.formato === "grupos" && tournament.grupos_generados && !tournament.copas_generadas) {
+      const { error: errTardio } = await supabase.rpc("agregar_tardio_grupo", {
+        p_tournament_id: id,
+        p_team_id: nuevoEquipo.id,
+      });
+      if (errTardio) {
+        setError(
+          `El equipo se anotó, pero no se pudo meter en la fase de grupos (${errTardio.message || "error desconocido"}). Probá de nuevo.`
+        );
+        console.error(errTardio);
+      }
+    }
     setNewName("");
     setJugadoresChips([]);
     setJugadorInput("");
@@ -361,17 +377,20 @@ export default function AdminPage({ params }) {
   }
 
   async function armarFaseDeGrupos() {
+    if (armandoGrupos) return;
     if (teamsAprobados.length < cantidadGrupos * 2) {
       setError(`Hacen falta al menos ${cantidadGrupos * 2} equipos para ${cantidadGrupos} grupos.`);
       return;
     }
     setError("");
+    setArmandoGrupos(true);
     const { error: err } = await supabase.rpc("generar_fase_grupos", {
       p_tournament_id: id,
       p_cantidad_grupos: cantidadGrupos,
     });
+    setArmandoGrupos(false);
     if (err) {
-      setError("No se pudo armar la fase de grupos. Probá de nuevo.");
+      setError(`No se pudo armar la fase de grupos (${err.message || "error desconocido"}). Probá de nuevo.`);
       console.error(err);
       return;
     }
@@ -379,20 +398,22 @@ export default function AdminPage({ params }) {
   }
 
   async function cerrarFaseDeGrupos() {
-    const oroHastaFinal = Math.min(oroHasta, clasificanPorGrupo);
-    const hayPlata = oroHastaFinal < clasificanPorGrupo;
-    const mensaje = hayPlata
-      ? `¿Cerrar la fase de grupos? Clasifican los primeros ${clasificanPorGrupo} de cada grupo: del 1° al ${oroHastaFinal}° van a la Copa de Oro, y del ${oroHastaFinal + 1}° al ${clasificanPorGrupo}° van a la Copa de Plata.`
-      : `¿Cerrar la fase de grupos? Clasifican los primeros ${clasificanPorGrupo} de cada grupo y se arma el cuadro con ellos.`;
+    const numGrupos = [...new Set(teams.map((t) => t.grupo).filter((g) => g != null))].length;
+    const directos = numGrupos * directosPorGrupo;
+    const total = directos + mejoresSiguientes;
+    const mensaje =
+      mejoresSiguientes > 0
+        ? `¿Cerrar la fase de grupos? Clasifican el 1° al ${directosPorGrupo}° de cada grupo (${directos} equipos), más los ${mejoresSiguientes} mejores ${directosPorGrupo + 1}°s de todos los grupos (por partidos ganados y diferencia de tantos). En total, ${total} equipos al cuadro.`
+        : `¿Cerrar la fase de grupos? Clasifican los primeros ${directosPorGrupo} de cada grupo (${directos} equipos) y se arma el cuadro con ellos.`;
     if (!window.confirm(mensaje)) return;
     setError("");
     const { error: err } = await supabase.rpc("cerrar_fase_grupos_simple", {
       p_tournament_id: id,
-      p_top_n: clasificanPorGrupo,
-      p_oro_hasta: oroHastaFinal,
+      p_directos_por_grupo: directosPorGrupo,
+      p_mejores_siguientes: mejoresSiguientes,
     });
     if (err) {
-      setError("No se pudo cerrar la fase de grupos. Probá de nuevo.");
+      setError(`No se pudo cerrar la fase de grupos (${err.message || "error desconocido"}). Probá de nuevo.`);
       console.error(err);
       return;
     }
@@ -737,6 +758,21 @@ export default function AdminPage({ params }) {
       if (errTardio) {
         setError(
           `El equipo se aprobó, pero no se pudo meter en la clasificatoria (${errTardio.message || "error desconocido"}). Probá de nuevo.`
+        );
+        console.error(errTardio);
+      }
+    }
+    // Mismo caso, para la fase de grupos: si ya está armada y todavía
+    // no se cerró, un equipo recién aprobado entra al grupo con menos
+    // integrantes.
+    if (tournament.formato === "grupos" && tournament.grupos_generados && !tournament.copas_generadas) {
+      const { error: errTardio } = await supabase.rpc("agregar_tardio_grupo", {
+        p_tournament_id: id,
+        p_team_id: teamId,
+      });
+      if (errTardio) {
+        setError(
+          `El equipo se aprobó, pero no se pudo meter en la fase de grupos (${errTardio.message || "error desconocido"}). Probá de nuevo.`
         );
         console.error(errTardio);
       }
@@ -1516,10 +1552,10 @@ export default function AdminPage({ params }) {
             matches={matches}
             teamsById={teamsById}
             onForzarGanador={forzarGanador}
-            clasificanPorGrupo={clasificanPorGrupo}
-            setClasificanPorGrupo={setClasificanPorGrupo}
-            oroHasta={oroHasta}
-            setOroHasta={setOroHasta}
+            directosPorGrupo={directosPorGrupo}
+            setDirectosPorGrupo={setDirectosPorGrupo}
+            mejoresSiguientes={mejoresSiguientes}
+            setMejoresSiguientes={setMejoresSiguientes}
             onCerrarFase={cerrarFaseDeGrupos}
             error={error}
             origin={origin}
@@ -1932,11 +1968,11 @@ export default function AdminPage({ params }) {
                     />
                     <button
                       onClick={armarFaseDeGrupos}
-                      disabled={teamsAprobados.length < cantidadGrupos * 2}
+                      disabled={armandoGrupos || teamsAprobados.length < cantidadGrupos * 2}
                       className="w-full py-3 rounded-2xl font-black text-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
                       style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
                     >
-                      Armar fase de grupos →
+                      {armandoGrupos ? "Armando…" : "Armar fase de grupos →"}
                     </button>
                   </div>
                 ) : (
@@ -2862,10 +2898,10 @@ function FaseDeGruposPanel({
   matches,
   teamsById,
   onForzarGanador,
-  clasificanPorGrupo,
-  setClasificanPorGrupo,
-  oroHasta,
-  setOroHasta,
+  directosPorGrupo,
+  setDirectosPorGrupo,
+  mejoresSiguientes,
+  setMejoresSiguientes,
   onCerrarFase,
   error,
   origin,
@@ -3430,50 +3466,62 @@ function FaseDeGruposPanel({
 
         {grupoTodosJugados ? (
           <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-            <p className="text-sm mb-3" style={{ color: T.ink }}>
-              Todos los partidos de grupos están jugados. ¿Cuántos clasifican de cada grupo?
+            <p className="text-sm mb-1" style={{ color: T.ink }}>
+              Todos los partidos de grupos están jugados. ¿Cómo armamos el cuadro?
             </p>
-            <div className="flex items-center gap-2 mb-3">
-              <input
-                type="number"
-                min={1}
-                value={clasificanPorGrupo}
-                onChange={(e) => {
-                  const v = Math.max(1, parseInt(e.target.value, 10) || 1);
-                  setClasificanPorGrupo(v);
-                  if (oroHasta > v) setOroHasta(v);
-                }}
-                className="w-20 px-3 py-2 rounded-xl text-sm text-center"
-                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-              />
-              <span className="text-xs" style={{ color: T.inkDim }}>
-                clasifican por grupo
-              </span>
-            </div>
 
-            {clasificanPorGrupo > 1 && (
-              <div className="mb-4">
-                <label className="text-xs block mb-1.5" style={{ color: T.inkDim }}>
-                  ¿Cuántos de esos van a la Copa de Oro? (el resto arma la Copa de Plata)
-                </label>
+            <div className="mb-3 mt-3">
+              <label className="text-xs block mb-1.5" style={{ color: T.inkDim }}>
+                ¿Cuántos clasifican directo de cada grupo?
+              </label>
+              <div className="flex items-center gap-2">
                 <input
                   type="number"
                   min={1}
-                  max={clasificanPorGrupo}
-                  value={oroHasta}
-                  onChange={(e) =>
-                    setOroHasta(Math.min(clasificanPorGrupo, Math.max(1, parseInt(e.target.value, 10) || 1)))
-                  }
+                  value={directosPorGrupo}
+                  onChange={(e) => setDirectosPorGrupo(Math.max(1, parseInt(e.target.value, 10) || 1))}
                   className="w-20 px-3 py-2 rounded-xl text-sm text-center"
                   style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
                 />
+                <span className="text-xs" style={{ color: T.inkDim }}>
+                  directos por grupo
+                </span>
+              </div>
+              <p className="text-xs mt-1.5" style={{ color: T.inkDim }}>
+                Ej: con 2, el 1° y el 2° de cada grupo pasan siempre.
+              </p>
+            </div>
+
+            {numerosGrupos.length > 1 && (
+              <div className="mb-4">
+                <label className="text-xs block mb-1.5" style={{ color: T.inkDim }}>
+                  ¿Sumar los mejores {directosPorGrupo + 1}°s de todos los grupos, para completar el cuadro? (opcional)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    value={mejoresSiguientes}
+                    onChange={(e) => setMejoresSiguientes(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                    className="w-20 px-3 py-2 rounded-xl text-sm text-center"
+                    style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                  />
+                  <span className="text-xs" style={{ color: T.inkDim }}>
+                    mejores {directosPorGrupo + 1}°s
+                  </span>
+                </div>
                 <p className="text-xs mt-1.5" style={{ color: T.inkDim }}>
-                  {oroHasta < clasificanPorGrupo
-                    ? `1° a ${oroHasta}° → Copa de Oro. ${oroHasta + 1}° a ${clasificanPorGrupo}° → Copa de Plata.`
-                    : "Todos los clasificados van a un solo cuadro (sin Copa de Plata)."}
+                  Ej: con 6 grupos, 2 directos (12 equipos) y 4 acá, se suman los 4 mejores {directosPorGrupo + 1}°s
+                  de todo el torneo (por partidos ganados y diferencia de tantos) para llegar a 16.
                 </p>
               </div>
             )}
+
+            <p className="text-sm font-bold mb-4" style={{ color: T.goldBright }}>
+              Van a clasificar: {numerosGrupos.length * directosPorGrupo} directos
+              {mejoresSiguientes > 0 ? ` + ${mejoresSiguientes} mejores ${directosPorGrupo + 1}°s` : ""} ={" "}
+              {numerosGrupos.length * directosPorGrupo + mejoresSiguientes} equipos al cuadro.
+            </p>
 
             <button
               onClick={onCerrarFase}
