@@ -10,13 +10,28 @@ function siguienteMetodo(actual) {
   return "efectivo";
 }
 
-export default function TeamList({ teams, onSetMetodoPago, onRemove, onEditPlayers, onEditName, editable }) {
+export default function TeamList({
+  teams,
+  onSetMetodoPago,
+  onRemove,
+  onEditName,
+  maxJugadores,
+  onCargarRosterInicial,
+  onBuscarJugadoresRoster,
+  onGuardarRoster,
+  editable,
+}) {
   const { T } = useTheme();
   const [editandoId, setEditandoId] = useState(null);
   const [valorNombre, setValorNombre] = useState("");
-  const [valorEdit, setValorEdit] = useState("");
   const [confirmarBorrar, setConfirmarBorrar] = useState(null);
   const [orden, setOrden] = useState("nombre_asc");
+
+  const [rosterChips, setRosterChips] = useState([]);
+  const [rosterInput, setRosterInput] = useState("");
+  const [rosterSugerencias, setRosterSugerencias] = useState([]);
+  const [cargandoRoster, setCargandoRoster] = useState(false);
+  const [guardandoRoster, setGuardandoRoster] = useState(false);
 
   const ordenados = [...teams].sort((a, b) => {
     if (orden === "nombre_asc") return a.name.localeCompare(b.name);
@@ -27,16 +42,57 @@ export default function TeamList({ teams, onSetMetodoPago, onRemove, onEditPlaye
     return 0;
   });
 
-  function empezarEdicion(t) {
+  async function empezarEdicion(t) {
     setEditandoId(t.id);
     setValorNombre(t.name || "");
-    setValorEdit(t.players || "");
+    setRosterInput("");
+    setRosterSugerencias([]);
+    setRosterChips([]);
+    if (onCargarRosterInicial) {
+      setCargandoRoster(true);
+      const chips = await onCargarRosterInicial(t.id);
+      setRosterChips(chips);
+      setCargandoRoster(false);
+    }
   }
-  function guardarEdicion(teamId) {
+
+  function agregarRosterChip(jugador) {
+    if (maxJugadores && rosterChips.length >= maxJugadores) return;
+    const yaEsta = rosterChips.some((j) => j.name.toLowerCase() === jugador.name.toLowerCase());
+    if (!yaEsta) setRosterChips((prev) => [...prev, jugador]);
+    setRosterInput("");
+    setRosterSugerencias([]);
+  }
+  function quitarRosterChip(jugador) {
+    setRosterChips((prev) => prev.filter((j) => (j.id || j.name) !== (jugador.id || jugador.name)));
+  }
+  async function buscarRosterJugadores(texto) {
+    setRosterInput(texto);
+    if (!onBuscarJugadoresRoster || texto.trim().length < 2) {
+      setRosterSugerencias([]);
+      return;
+    }
+    const sugs = await onBuscarJugadoresRoster(texto);
+    setRosterSugerencias(sugs);
+  }
+  function onRosterKeyDown(e) {
+    if (e.key === "Enter" && rosterInput.trim()) {
+      e.preventDefault();
+      agregarRosterChip({ name: rosterInput.trim() });
+    }
+  }
+
+  async function guardarEdicion(teamId) {
     if (onEditName && valorNombre.trim()) onEditName(teamId, valorNombre.trim());
-    if (onEditPlayers) onEditPlayers(teamId, valorEdit.trim());
+    if (onGuardarRoster) {
+      setGuardandoRoster(true);
+      await onGuardarRoster(teamId, rosterChips);
+      setGuardandoRoster(false);
+    }
     setEditandoId(null);
   }
+
+  const rosterLleno = maxJugadores && rosterChips.length >= maxJugadores;
 
   return (
     <div>
@@ -83,23 +139,63 @@ export default function TeamList({ teams, onSetMetodoPago, onRemove, onEditPlaye
                       style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
                     />
                   )}
-                  {onEditPlayers && (
-                    <input
-                      value={valorEdit}
-                      onChange={(e) => setValorEdit(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && guardarEdicion(t.id)}
-                      placeholder="Nombres de los jugadores"
-                      autoFocus={!onEditName}
-                      className="w-full px-2 py-1 rounded-lg text-xs"
-                      style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
-                    />
+                  {onGuardarRoster && (
+                    <>
+                      {rosterChips.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {rosterChips.map((j) => (
+                            <span
+                              key={j.id || j.name}
+                              className="text-[11px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-1"
+                              style={{ background: T.bg, color: T.ink }}
+                            >
+                              {j.name}
+                              <button onClick={() => quitarRosterChip(j)} style={{ color: T.redDim }}>
+                                ✕
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <div className="relative">
+                        <input
+                          value={rosterInput}
+                          onChange={(e) => buscarRosterJugadores(e.target.value)}
+                          onKeyDown={onRosterKeyDown}
+                          disabled={cargandoRoster || rosterLleno}
+                          placeholder={
+                            cargandoRoster ? "Cargando…" : rosterLleno ? `Ya tenés los ${maxJugadores} jugadores` : "Agregar jugador"
+                          }
+                          className="w-full px-2 py-1 rounded-lg text-xs disabled:opacity-50"
+                          style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+                        />
+                        {rosterSugerencias.length > 0 && (
+                          <div
+                            className="absolute z-10 w-full mt-1 rounded-lg border shadow-md overflow-hidden"
+                            style={{ background: T.panel, borderColor: T.line }}
+                          >
+                            {rosterSugerencias.map((s) => (
+                              <button
+                                key={s.id}
+                                onClick={() => agregarRosterChip(s)}
+                                className="w-full text-left px-2 py-1 text-xs"
+                                style={{ color: T.ink }}
+                              >
+                                {s.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
                   )}
                   <button
                     onClick={() => guardarEdicion(t.id)}
-                    className="self-start text-xs font-bold px-2.5 py-1 rounded-lg"
+                    disabled={guardandoRoster}
+                    className="self-start text-xs font-bold px-2.5 py-1 rounded-lg disabled:opacity-60"
                     style={{ background: T.gold, color: INK_ON_LIGHT }}
                   >
-                    OK
+                    {guardandoRoster ? "Guardando…" : "OK"}
                   </button>
                 </div>
               ) : (
@@ -133,7 +229,7 @@ export default function TeamList({ teams, onSetMetodoPago, onRemove, onEditPlaye
             >
               {t.metodo_pago === "efectivo" ? "Efectivo" : t.metodo_pago === "transferencia" ? "Transf." : "Debe"}
             </button>
-            {editable && (onEditName || onEditPlayers) && editandoId !== t.id && (
+            {editable && (onEditName || onGuardarRoster) && editandoId !== t.id && (
               <button
                 onClick={() => empezarEdicion(t)}
                 title="Editar equipo"

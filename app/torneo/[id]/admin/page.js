@@ -289,8 +289,41 @@ export default function AdminPage({ params }) {
     await supabase.from("teams").update({ metodo_pago: metodo, paid: !!metodo }).eq("id", teamId);
     load();
   }
-  async function editarJugadores(teamId, players) {
-    await supabase.from("teams").update({ players }).eq("id", teamId);
+  // Editar la lista de jugadores de un equipo ya anotado, con el mismo
+  // sistema de chips + autocompletar que "Anotar equipo" — reemplaza al
+  // viejo campo de texto libre, que dejaba escribir cualquier cosa sin
+  // límite y sin enlazar de verdad con la tabla players.
+  async function cargarRosterInicial(teamId) {
+    const { data } = await supabase.from("team_players").select("player_id, players(id, name)").eq("team_id", teamId);
+    return (data || []).map((row) => ({ id: row.players?.id, name: row.players?.name })).filter((j) => j.id);
+  }
+
+  async function buscarJugadoresParaRoster(texto) {
+    if (texto.trim().length < 2) return [];
+    const { data } = await supabase.rpc("buscar_jugadores", { q: texto.trim() });
+    return data || [];
+  }
+
+  async function guardarRoster(teamId, chips) {
+    const { data: actuales } = await supabase.from("team_players").select("player_id").eq("team_id", teamId);
+    const idsActuales = new Set((actuales || []).map((r) => r.player_id));
+    const idsFinales = new Set();
+    for (const j of chips) {
+      let pid = j.id;
+      if (!pid) pid = await ensurePlayerId(j.name);
+      if (!pid) continue;
+      idsFinales.add(pid);
+      if (!idsActuales.has(pid)) {
+        await supabase.from("team_players").upsert({ team_id: teamId, player_id: pid }, { onConflict: "team_id,player_id", ignoreDuplicates: true });
+      }
+    }
+    for (const pid of idsActuales) {
+      if (!idsFinales.has(pid)) {
+        await supabase.from("team_players").delete().eq("team_id", teamId).eq("player_id", pid);
+      }
+    }
+    const nombresPublicos = chips.map((j) => j.name.trim().split(" ")[0]).join(", ");
+    await supabase.from("teams").update({ players: nombresPublicos }).eq("id", teamId);
     load();
   }
 
@@ -729,8 +762,8 @@ export default function AdminPage({ params }) {
     load();
   }
 
-  // Editor de jugadores autoinscriptos: a diferencia de editarJugadores()
-  // (que solo pisa el texto libre teams.players), este edita los campos
+  // Editor de jugadores autoinscriptos: a diferencia de guardarRoster()
+  // (que solo agrega/saca jugadores del equipo), este edita los campos
   // estructurados de cada jugador en la tabla players — Nombre, DNI,
   // Teléfono, Fecha de Nacimiento, Mail.
   async function abrirEditorJugadores(teamId) {
@@ -1472,7 +1505,10 @@ export default function AdminPage({ params }) {
             simulando={simulandoGrupos}
             onReabrir={reabrirPartido}
             setMetodoPago={setMetodoPago}
-            editarJugadores={editarJugadores}
+            maxJugadores={maxJugadoresPorEquipo()}
+            onCargarRosterInicial={cargarRosterInicial}
+            onBuscarJugadoresRoster={buscarJugadoresParaRoster}
+            onGuardarRoster={guardarRoster}
             editarNombreEquipo={editarNombreEquipo}
             mostrarEquipos={mostrarEquipos}
             setMostrarEquipos={setMostrarEquipos}
@@ -1770,7 +1806,10 @@ export default function AdminPage({ params }) {
                         editable
                         onSetMetodoPago={setMetodoPago}
                         onRemove={removeTeam}
-                        onEditPlayers={editarJugadores}
+                        maxJugadores={maxJugadoresPorEquipo()}
+                        onCargarRosterInicial={cargarRosterInicial}
+                        onBuscarJugadoresRoster={buscarJugadoresParaRoster}
+                        onGuardarRoster={guardarRoster}
                         onEditName={editarNombreEquipo}
                       />
                     </div>
@@ -1930,7 +1969,10 @@ export default function AdminPage({ params }) {
                         teams={teamsAprobados.filter((t) => t.name.toLowerCase().includes(busquedaEquipos.toLowerCase()))}
                         editable
                         onSetMetodoPago={setMetodoPago}
-                        onEditPlayers={editarJugadores}
+                        maxJugadores={maxJugadoresPorEquipo()}
+                        onCargarRosterInicial={cargarRosterInicial}
+                        onBuscarJugadoresRoster={buscarJugadoresParaRoster}
+                        onGuardarRoster={guardarRoster}
                         onEditName={editarNombreEquipo}
                       />
                     </div>
@@ -2809,7 +2851,10 @@ function FaseDeGruposPanel({
   simulando,
   onReabrir,
   setMetodoPago,
-  editarJugadores,
+  maxJugadores,
+  onCargarRosterInicial,
+  onBuscarJugadoresRoster,
+  onGuardarRoster,
   editarNombreEquipo,
   mostrarEquipos,
   setMostrarEquipos,
@@ -3194,7 +3239,10 @@ function FaseDeGruposPanel({
               )}
               editable
               onSetMetodoPago={setMetodoPago}
-              onEditPlayers={editarJugadores}
+              maxJugadores={maxJugadores}
+              onCargarRosterInicial={onCargarRosterInicial}
+              onBuscarJugadoresRoster={onBuscarJugadoresRoster}
+              onGuardarRoster={onGuardarRoster}
               onEditName={editarNombreEquipo}
             />
           </div>
