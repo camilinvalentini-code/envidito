@@ -1234,7 +1234,7 @@ export default function AdminPage({ params }) {
 
   return (
     <div className="transition-colors duration-500" style={{ background: T.bg }}>
-      <div className="w-full max-w-[430px] lg:max-w-none mx-auto px-4 lg:px-9 py-[18px] lg:py-7">
+      <div className="w-full max-w-[430px] [@media(orientation:landscape)]:max-w-none lg:max-w-none mx-auto px-4 lg:px-9 py-[18px] lg:py-7">
         {/* ── Header móvil ── */}
         <div className="lg:hidden">
           <div className="flex justify-between items-center mb-5">
