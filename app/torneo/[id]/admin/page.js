@@ -35,6 +35,7 @@ export default function AdminPage({ params }) {
   const [infoUbicacion, setInfoUbicacion] = useState("");
   const [infoFecha, setInfoFecha] = useState("");
   const [infoEncargado, setInfoEncargado] = useState("");
+  const [infoPuntosMax, setInfoPuntosMax] = useState(30);
   const [vista, setVista] = useState("mesas"); // "mesas" | "cuadro"
   const [simulando, setSimulando] = useState(false);
   const [simulandoGrupos, setSimulandoGrupos] = useState(false);
@@ -106,6 +107,7 @@ export default function AdminPage({ params }) {
     setInfoUbicacion((prev) => prev || t.ubicacion || "");
     setInfoFecha((prev) => prev || t.fecha || "");
     setInfoEncargado((prev) => prev || t.encargado || "");
+    setInfoPuntosMax((prev) => prev || t.puntos_max || 30);
   }, [id]);
 
   useEffect(() => {
@@ -811,6 +813,7 @@ export default function AdminPage({ params }) {
         ubicacion: infoUbicacion.trim(),
         fecha: infoFecha.trim(),
         encargado: infoEncargado.trim() || null,
+        puntos_max: infoPuntosMax,
       })
       .eq("id", id);
     setEditandoInfo(false);
@@ -1444,6 +1447,26 @@ export default function AdminPage({ params }) {
                 className="px-3 py-2 rounded-xl text-sm"
                 style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
               />
+              <div className="mt-1">
+                <span className="text-xs font-bold" style={{ color: T.inkDim }}>
+                  Tanteador a
+                </span>
+                <div className="grid grid-cols-3 rounded-xl overflow-hidden border mt-1.5" style={{ borderColor: T.gold }}>
+                  {[15, 18, 20, 24, 30, 40].map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setInfoPuntosMax(p)}
+                      className="py-2 text-sm font-bold"
+                      style={{ background: infoPuntosMax === p ? T.gold : "transparent", color: infoPuntosMax === p ? T.ink : T.inkDim }}
+                    >
+                      {p} puntos
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] mt-1.5" style={{ color: T.inkDim }}>
+                  Cambia el tanteador de los partidos que todavía no se jugaron. Los que ya tienen resultado cargado no se tocan.
+                </p>
+              </div>
               <div className="flex gap-2 mt-1">
                 <button
                   onClick={guardarInfo}

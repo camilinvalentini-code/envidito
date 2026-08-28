@@ -122,6 +122,23 @@ export default function PartidoPage({ params }) {
     return () => supabase.removeChannel(channel);
   }, [match?.id]);
 
+  // Si el organizador cambia el tanteador del torneo (p.ej. se dieron cuenta
+  // de que era 2v2 a 30 y no 1v1 a 15) mientras esta mesa ya está anotando,
+  // el celular de la mesa tiene que enterarse solo — sin esto se quedaba
+  // con el tope viejo hasta que alguien recargara la página a mano.
+  useEffect(() => {
+    if (!match?.tournament_id) return;
+    const channel = supabase
+      .channel(`tournament-puntos-${match.tournament_id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "tournaments", filter: `id=eq.${match.tournament_id}` },
+        (payload) => setPuntosMax(payload.new?.puntos_max || 30)
+      )
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [match?.tournament_id]);
+
   async function onChange(side, delta) {
     if (!match || busy || match.winner_id || match.confirmacion_pendiente || !desbloqueado) return;
     const field = side === "A" ? "score_a" : "score_b";
