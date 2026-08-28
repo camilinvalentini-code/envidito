@@ -34,7 +34,10 @@ function calcularEdad(fechaStr) {
 
 function validarJugador(j, esUnJugador) {
   const nombre = j.name.trim();
-  if (nombre && RE_SIN_NUMEROS.test(nombre)) {
+  if (!nombre) {
+    return esUnJugador ? "Falta tu nombre." : "Falta el nombre de un jugador.";
+  }
+  if (RE_SIN_NUMEROS.test(nombre)) {
     return esUnJugador ? "Tu nombre no puede tener números." : "El nombre de un jugador no puede tener números.";
   }
   if (!j.fecha_nacimiento) {
@@ -57,6 +60,9 @@ function validarJugador(j, esUnJugador) {
   }
   if (!RE_TELEFONO.test(j.telefono.trim())) {
     return "El teléfono solo puede tener números.";
+  }
+  if (j.telefono.replace(/[^0-9]/g, "").length < 10) {
+    return esUnJugador ? "Tu teléfono tiene que tener al menos 10 dígitos." : "El teléfono de un jugador tiene que tener al menos 10 dígitos.";
   }
   if (!j.email.trim()) {
     return esUnJugador ? "Falta tu mail." : "Falta el mail de un jugador.";
