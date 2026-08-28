@@ -171,7 +171,7 @@ export default function GuiaClasificatoria() {
             <p className="text-sm leading-relaxed" style={{ color: T.inkDim }}>
               Es opcional, nunca obligatoria. Al anotar equipos para un torneo Vidón Bar, si la cantidad no es
               potencia de 2 (16, 32, 64...), aparece una tercera pestaña{" "}
-              <b style={{ color: T.ink }}>"Clasificatoria"</b> junto a "Cuadro directo" y "Fase de grupos". Si ya
+              <b style={{ color: T.ink }}>"Clasificatoria"</b> junto a "Sorteo normal" y "Fase de grupos". Si ya
               está anotada la lista completa, usala. Si todavía pueden entrar parejas durante la noche, seguí con el
               Vidón clásico de siempre — para eso está.
             </p>
@@ -220,7 +220,7 @@ export default function GuiaClasificatoria() {
                 Mientras nadie jugó nada todavía, rearma los cruces de cero con los mismos equipos — por si el primer
                 sorteo no te convenció.
               </Herramienta>
-              <Herramienta T={T} icono="←" titulo="Volver a cuadro directo">
+              <Herramienta T={T} icono="←" titulo="Volver a sorteo normal">
                 Deshace la clasificatoria (o la fase de grupos) y te deja elegir el formato de nuevo — solo mientras
                 nadie jugó nada ahí.
               </Herramienta>

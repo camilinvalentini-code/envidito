@@ -604,12 +604,12 @@ export default function AdminPage({ params }) {
     load();
   }
 
-  // Volver de "fase de grupos" o "clasificatoria" a "cuadro directo" sin
+  // Volver de "fase de grupos" o "clasificatoria" a "sorteo normal" sin
   // tener que crear un torneo nuevo — solo tiene sentido mientras nadie
   // jugó nada todavía en esa fase (si no, se perdería el resultado real).
   async function volverACuadroDirecto(bracketAEliminar) {
     const nombre = bracketAEliminar === "grupos" ? "la fase de grupos" : "la clasificatoria";
-    if (!window.confirm(`¿Volver a "Cuadro directo"? Se borra ${nombre} armada (nadie jugó nada todavía ahí, es seguro) y podés elegir el formato de nuevo.`))
+    if (!window.confirm(`¿Volver a "Sorteo normal"? Se borra ${nombre} armada (nadie jugó nada todavía ahí, es seguro) y podés elegir el formato de nuevo.`))
       return;
     setError("");
     await supabase.from("matches").delete().eq("tournament_id", id).eq("bracket", bracketAEliminar);
@@ -621,7 +621,7 @@ export default function AdminPage({ params }) {
     }
     const { error: err } = await supabase.from("tournaments").update(updates).eq("id", id);
     if (err) {
-      setError("No se pudo volver a cuadro directo. Probá de nuevo.");
+      setError("No se pudo volver a sorteo normal. Probá de nuevo.");
       console.error(err);
       return;
     }
@@ -1816,7 +1816,7 @@ export default function AdminPage({ params }) {
                       color: formatoElegido === "directa" ? T.ink : T.inkDim,
                     }}
                   >
-                    Cuadro directo
+                    Sorteo normal
                   </button>
                   <button
                     onClick={() => setFormatoElegido("grupos")}
@@ -2411,7 +2411,7 @@ function ClasificatoriaPanel({
 
       {nadieJugoNada && (
         <button onClick={onVolver} className="text-xs font-bold mb-3 flex items-center gap-1" style={{ color: T.inkDim }}>
-          ← Volver a cuadro directo
+          ← Volver a sorteo normal
         </button>
       )}
 
@@ -3353,7 +3353,7 @@ function FaseDeGruposPanel({
 
         {nadieJugoNada && (
           <button onClick={onVolver} className="text-xs font-bold mb-3 flex items-center gap-1" style={{ color: T.inkDim }}>
-            ← Volver a cuadro directo
+            ← Volver a sorteo normal
           </button>
         )}
 

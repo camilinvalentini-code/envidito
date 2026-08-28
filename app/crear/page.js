@@ -278,7 +278,7 @@ export default function CrearTorneo() {
 
             <div className="mt-1">
               <span className="text-xs font-bold" style={{ color: T.inkDim }}>
-                Formato
+                Modo de juego
               </span>
               <div className="flex rounded-xl overflow-hidden border mt-1.5" style={{ borderColor: T.gold }}>
                 <button
