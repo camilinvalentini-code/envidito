@@ -878,7 +878,14 @@ export default function AdminPage({ params }) {
   async function simularTorneoCompleto() {
     if (!window.confirm("Esto va a completar TODO el torneo con resultados al azar (para testear). ¿Seguro?")) return;
     setSimulando(true);
-    for (let i = 0; i < 200; i++) {
+    // Si el torneo arrancó con clasificatoria, "tournament" en memoria
+    // queda desactualizado apenas la cerramos nosotros mismos acá abajo
+    // — por eso el estado de "ya se cerró" se seguí a mano, con esta
+    // variable local, en vez de volver a leer tournament.clasificatoria_cerrada.
+    const enClasificatoria = tournament.formato === "clasificatoria" && tournament.clasificatoria_generada;
+    let clasifCerrada = !enClasificatoria || tournament.clasificatoria_cerrada;
+
+    for (let i = 0; i < 300; i++) {
       const { data: pend } = await supabase
         .from("matches")
         .select("*")
@@ -887,10 +894,51 @@ export default function AdminPage({ params }) {
         .is("winner_id", null)
         .not("team1_id", "is", null)
         .not("team2_id", "is", null);
-      if (!pend || pend.length === 0) break;
-      const m = pend[0];
-      const winnerId = Math.random() < 0.5 ? m.team1_id : m.team2_id;
-      await supabase.rpc("declarar_ganador", { p_match_id: m.id, p_winner_id: winnerId });
+
+      if (pend && pend.length > 0) {
+        const m = pend[0];
+        const winnerId = Math.random() < 0.5 ? m.team1_id : m.team2_id;
+        await supabase.rpc("declarar_ganador", { p_match_id: m.id, p_winner_id: winnerId });
+        continue;
+      }
+
+      // No queda ningún partido jugable. Si veníamos de una clasificatoria
+      // sin cerrar todavía, la cerramos sola (sorteando el cupo que haga
+      // falta con los perdedores disponibles) para poder seguir
+      // simulando el cuadro final que arma.
+      if (enClasificatoria && !clasifCerrada) {
+        const { data: clasifMatches } = await supabase
+          .from("matches")
+          .select("*")
+          .eq("tournament_id", id)
+          .eq("bracket", "clasificatoria");
+        const ganadores = (clasifMatches || []).filter((m) => m.winner_id).map((m) => m.winner_id);
+        const esperando = (clasifMatches || [])
+          .filter((m) => !m.winner_id && m.team1_id && !m.team2_id)
+          .map((m) => m.team1_id);
+        const ganadoresConEspera = [...ganadores, ...esperando];
+        const perdedoresDisponibles = (clasifMatches || [])
+          .filter((m) => m.winner_id)
+          .map((m) => (m.winner_id === m.team1_id ? m.team2_id : m.team1_id))
+          .filter(Boolean);
+        const totalPool = ganadoresConEspera.length + perdedoresDisponibles.length;
+        let target = 1;
+        while (target * 2 <= totalPool) target *= 2;
+        const cupo = Math.max(0, target - ganadoresConEspera.length);
+        const barajados = [...perdedoresDisponibles].sort(() => Math.random() - 0.5);
+        const { error: errCerrar } = await supabase.rpc("cerrar_clasificatoria", {
+          p_tournament_id: id,
+          p_perdedores_elegidos: barajados.slice(0, cupo),
+        });
+        clasifCerrada = true;
+        if (errCerrar) {
+          console.error(errCerrar);
+          break;
+        }
+        continue;
+      }
+
+      break;
     }
     setSimulando(false);
     load();
