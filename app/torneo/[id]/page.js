@@ -507,6 +507,11 @@ function FaseDeGruposPublica({ teams, matches, teamsById }) {
                               <span className="font-bold flex-shrink-0" style={{ color: T.goldBright }}>
                                 {m.score_a}-{m.score_b}
                               </span>
+                            ) : m.score_a > 0 || m.score_b > 0 ? (
+                              <span className="flex-shrink-0 flex items-center gap-1 font-bold" style={{ color: T.goldBright }}>
+                                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: T.goldBright }} />
+                                {m.score_a}-{m.score_b}
+                              </span>
                             ) : (
                               <span className="text-[11px] flex-shrink-0" style={{ color: T.inkDim }}>
                                 por jugar

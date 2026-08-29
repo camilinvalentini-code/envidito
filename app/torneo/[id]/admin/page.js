@@ -3024,6 +3024,18 @@ function FaseDeGruposPanel({
   const [verGrupos, setVerGrupos] = useState(false);
   const [soloClasificados, setSoloClasificados] = useState(false);
   const [copiaFeedback, setCopiaFeedback] = useState(null); // key del último texto copiado, para el "¡Copiado!"
+  const [fechaOverride, setFechaOverride] = useState({}); // `${grupo}-${ronda}` -> abierta/cerrada, cuando el organizador la tocó a mano
+
+  // Por default, la fecha "activa" de un grupo (la primera que todavía
+  // tiene algo pendiente) arranca desplegada, y el resto contraída —
+  // salvo que el organizador la haya tocado a mano, ahí se respeta eso.
+  function fechaEstaAbierta(numGrupo, ronda, esActiva) {
+    const key = `${numGrupo}-${ronda}`;
+    return key in fechaOverride ? fechaOverride[key] : esActiva;
+  }
+  function toggleFecha(numGrupo, ronda, estaAbiertaAhora) {
+    setFechaOverride((prev) => ({ ...prev, [`${numGrupo}-${ronda}`]: !estaAbiertaAhora }));
+  }
 
   // Copiar al portapapeles, sin depender de que el navegador tenga
   // Web Share (en desktop no lo tiene, y ahí el botón de compartir
@@ -3284,15 +3296,37 @@ function FaseDeGruposPanel({
                     )}
                   </div>
 
-                  {crucesAbierto(num) && (
-                    <div className="flex flex-col gap-3">
-                      {agruparPorFecha(partidosGrupo).map(({ ronda, partidos }) => (
-                        <div key={ronda}>
-                          <div className="text-[10px] font-extrabold uppercase tracking-wide mb-1.5" style={{ color: T.inkDim }}>
-                            Fecha {ronda + 1}
-                          </div>
-                          <div className="flex flex-col gap-1.5">
-                            {partidos.map((m) => (
+                  {crucesAbierto(num) &&
+                    (() => {
+                      const fechasDelGrupo = agruparPorFecha(partidosGrupo);
+                      const rondaActiva = fechasDelGrupo.find(({ partidos }) => partidos.some((m) => !m.winner_id))?.ronda;
+                      return (
+                        <div className="flex flex-col gap-2">
+                          {fechasDelGrupo.map(({ ronda, partidos }) => {
+                            const esActiva = ronda === rondaActiva;
+                            const abierta = fechaEstaAbierta(num, ronda, esActiva);
+                            const completa = partidos.every((m) => m.winner_id);
+                            return (
+                              <div key={ronda}>
+                                <button
+                                  onClick={() => toggleFecha(num, ronda, abierta)}
+                                  className="w-full flex items-center justify-between mb-1.5"
+                                >
+                                  <span
+                                    className="text-[10px] font-extrabold uppercase tracking-wide"
+                                    style={{ color: esActiva ? T.goldBright : T.inkDim }}
+                                  >
+                                    {esActiva && "▶ "}
+                                    Fecha {ronda + 1}
+                                    {completa && " ✓"}
+                                  </span>
+                                  <span style={{ transform: abierta ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+                                    <IconAbajo color={T.inkDim} size={10} />
+                                  </span>
+                                </button>
+                                {abierta && (
+                                  <div className="flex flex-col gap-1.5">
+                                    {partidos.map((m) => (
                               <div key={m.id} className="text-xs px-2.5 py-2.5 rounded-lg" style={{ background: T.panelLight }}>
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-1 min-w-0 flex-1">
@@ -3330,6 +3364,19 @@ function FaseDeGruposPanel({
                                         </button>
                                       )}
                                     </div>
+                                  )}
+                                  {!m.winner_id && (m.score_a > 0 || m.score_b > 0) && (
+                                    <span
+                                      className="flex-shrink-0 flex items-center gap-1 font-bold"
+                                      style={{ color: T.goldBright }}
+                                      title="Se está jugando ahora — el marcador se actualiza solo"
+                                    >
+                                      <span
+                                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                        style={{ background: T.goldBright }}
+                                      />
+                                      {m.score_a}-{m.score_b}
+                                    </span>
                                   )}
                                 </div>
                                 {!m.winner_id &&
@@ -3372,11 +3419,14 @@ function FaseDeGruposPanel({
                                   ))}
                               </div>
                             ))}
-                          </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      );
+                    })()}
                 </>
               )}
             </div>
@@ -3643,36 +3693,62 @@ function FaseDeGruposPanel({
   // fecha en cualquier grupo.
   function renderFechasCard() {
     const fechas = [...new Set(grupoMatches.map((m) => m.round_index))].sort((a, b) => a - b);
-    const conPendientes = fechas.filter((ronda) => textoFechaGlobal(ronda));
-    if (conPendientes.length === 0) return null;
+    if (fechas.length === 0) return null;
+    // La "fecha actual" es la primera que todavía tiene algo pendiente
+    // — para resaltarla y que se note de un vistazo en qué anda hoy el
+    // torneo, sin entrar grupo por grupo.
+    const primeraSinTerminar = fechas.find((ronda) => grupoMatches.some((m) => m.round_index === ronda && !m.winner_id));
     return (
       <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
         <h3 className="font-bold text-sm mb-3" style={{ color: T.gold }}>
-          Compartir por fecha
+          Fechas
         </h3>
         <div className="flex flex-col gap-2">
-          {conPendientes.map((ronda) => {
+          {fechas.map((ronda) => {
+            const deEstaFecha = grupoMatches.filter((m) => m.round_index === ronda);
+            const jugados = deEstaFecha.filter((m) => m.winner_id).length;
+            const total = deEstaFecha.length;
+            const completa = total > 0 && jugados === total;
+            const esActual = ronda === primeraSinTerminar;
             const key = `fecha-${ronda}`;
             const texto = textoFechaGlobal(ronda);
             return (
-              <div key={ronda} className="flex items-center gap-1.5">
-                <span className="text-xs font-semibold flex-1" style={{ color: T.ink }}>
-                  Fecha {ronda + 1}
-                </span>
-                <button
-                  onClick={() => copiarTexto(texto, key)}
-                  className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg flex-shrink-0"
-                  style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-                >
-                  {copiaFeedback === key ? "¡Copiado!" : "Copiar"}
-                </button>
-                <button
-                  onClick={() => compartirTextoWhatsapp(texto)}
-                  className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg flex-shrink-0"
-                  style={{ background: "#81C784", color: "#1B3A2A" }}
-                >
-                  WhatsApp
-                </button>
+              <div
+                key={ronda}
+                className="rounded-xl p-2.5"
+                style={{
+                  background: T.panelLight,
+                  border: esActual ? `1px solid ${T.gold}` : "1px solid transparent",
+                }}
+              >
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-xs font-bold" style={{ color: completa ? T.goldBright : T.ink }}>
+                    {esActual && "▶ "}
+                    Fecha {ronda + 1}
+                    {completa && " ✓"}
+                  </span>
+                  <span className="text-[11px] font-semibold" style={{ color: T.inkDim }}>
+                    {jugados}/{total} jugados
+                  </span>
+                </div>
+                {texto && (
+                  <div className="flex gap-1.5 mt-1.5">
+                    <button
+                      onClick={() => copiarTexto(texto, key)}
+                      className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg flex-shrink-0"
+                      style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
+                    >
+                      {copiaFeedback === key ? "¡Copiado!" : "Copiar"}
+                    </button>
+                    <button
+                      onClick={() => compartirTextoWhatsapp(texto)}
+                      className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg flex-shrink-0"
+                      style={{ background: "#81C784", color: "#1B3A2A" }}
+                    >
+                      WhatsApp
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
