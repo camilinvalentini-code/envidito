@@ -3023,6 +3023,35 @@ function FaseDeGruposPanel({
   const [crucesAbiertos, setCrucesAbiertos] = useState({});
   const [verGrupos, setVerGrupos] = useState(false);
   const [soloClasificados, setSoloClasificados] = useState(false);
+  const [copiaFeedback, setCopiaFeedback] = useState(null); // key del último texto copiado, para el "¡Copiado!"
+
+  // Copiar al portapapeles, sin depender de que el navegador tenga
+  // Web Share (en desktop no lo tiene, y ahí el botón de compartir
+  // termina forzando WhatsApp Web aunque el organizador quiera pegar
+  // el texto en otro lado — Notas, Telegram, lo que sea).
+  async function copiarTexto(texto, key) {
+    if (!texto) return;
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiaFeedback(key);
+      setTimeout(() => setCopiaFeedback(null), 2000);
+    } catch (e) {
+      alert("No se pudo copiar. Probá el botón de WhatsApp.");
+    }
+  }
+
+  async function compartirTextoWhatsapp(texto) {
+    if (!texto) return;
+    if (navigator.share) {
+      try {
+        await navigator.share({ text: texto });
+      } catch (e) {
+        return;
+      }
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank");
+    }
+  }
 
   function grupoAbierto(num) {
     return gruposAbiertos[num] === true; // cerrado por default
@@ -3037,9 +3066,9 @@ function FaseDeGruposPanel({
     setCrucesAbiertos((prev) => ({ ...prev, [num]: !crucesAbierto(num) }));
   }
 
-  async function compartirCrucesGrupo(numGrupo, partidosGrupo) {
+  function textoCrucesGrupo(numGrupo, partidosGrupo) {
     const pendientes = partidosGrupo.filter((m) => !m.winner_id);
-    if (pendientes.length === 0) return;
+    if (pendientes.length === 0) return null;
     const bloques = agruparPorFecha(pendientes).map(({ ronda, partidos }) => {
       const lineas = partidos.map((m) => {
         const link = `${origin}/partido/${m.match_token}`;
@@ -3047,16 +3076,40 @@ function FaseDeGruposPanel({
       });
       return `📅 Fecha ${ronda + 1}\n${lineas.join("\n\n")}`;
     });
-    const texto = `${tournament.nombre} — Grupo ${numGrupo}\n\n${bloques.join("\n\n")}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ text: texto });
-      } catch (e) {
-        return;
-      }
-    } else {
-      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank");
-    }
+    return `${tournament.nombre} — Grupo ${numGrupo}\n\n${bloques.join("\n\n")}`;
+  }
+
+  async function compartirCrucesGrupo(numGrupo, partidosGrupo) {
+    await compartirTextoWhatsapp(textoCrucesGrupo(numGrupo, partidosGrupo));
+  }
+
+  async function copiarCrucesGrupo(numGrupo, partidosGrupo) {
+    await copiarTexto(textoCrucesGrupo(numGrupo, partidosGrupo), `grupo-${numGrupo}`);
+  }
+
+  // Cruces de UNA fecha, juntando todos los grupos que tengan partidos
+  // pendientes en esa fecha — para compartir/copiar "esto se juega hoy",
+  // sin tener que ir grupo por grupo.
+  function textoFechaGlobal(ronda) {
+    const porGrupo = {};
+    grupoMatches
+      .filter((m) => m.round_index === ronda && !m.winner_id)
+      .forEach((m) => {
+        porGrupo[m.grupo] = porGrupo[m.grupo] || [];
+        porGrupo[m.grupo].push(m);
+      });
+    const numeros = Object.keys(porGrupo)
+      .map(Number)
+      .sort((a, b) => a - b);
+    if (numeros.length === 0) return null;
+    const bloques = numeros.map((num) => {
+      const lineas = porGrupo[num].map((m) => {
+        const link = `${origin}/partido/${m.match_token}`;
+        return `${teamsById[m.team1_id]?.name} vs ${teamsById[m.team2_id]?.name}\n${link}`;
+      });
+      return `Grupo ${num}:\n${lineas.join("\n\n")}`;
+    });
+    return `${tournament.nombre} — Fecha ${ronda + 1}\n\n${bloques.join("\n\n")}`;
   }
 
   const [formResultadoId, setFormResultadoId] = useState(null);
@@ -3212,13 +3265,22 @@ function FaseDeGruposPanel({
                       </span>
                     </button>
                     {pendientesGrupo.length > 0 && (
-                      <button
-                        onClick={() => compartirCrucesGrupo(num, partidosGrupo)}
-                        className="text-xs font-bold px-3 py-1.5 rounded-lg"
-                        style={{ background: "#81C784", color: "#1B3A2A" }}
-                      >
-                        Compartir
-                      </button>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => copiarCrucesGrupo(num, partidosGrupo)}
+                          className="text-xs font-bold px-3 py-1.5 rounded-lg"
+                          style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
+                        >
+                          {copiaFeedback === `grupo-${num}` ? "¡Copiado!" : "Copiar"}
+                        </button>
+                        <button
+                          onClick={() => compartirCrucesGrupo(num, partidosGrupo)}
+                          className="text-xs font-bold px-3 py-1.5 rounded-lg"
+                          style={{ background: "#81C784", color: "#1B3A2A" }}
+                        >
+                          WhatsApp
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -3575,9 +3637,56 @@ function FaseDeGruposPanel({
     );
   }
 
+  // Cruces de todas las fechas de la fase de grupos, juntando todos los
+  // grupos — para compartir/copiar "esto se juega en la Fecha N" de una,
+  // sin ir grupo por grupo. Solo aparece si hay algo pendiente en esa
+  // fecha en cualquier grupo.
+  function renderFechasCard() {
+    const fechas = [...new Set(grupoMatches.map((m) => m.round_index))].sort((a, b) => a - b);
+    const conPendientes = fechas.filter((ronda) => textoFechaGlobal(ronda));
+    if (conPendientes.length === 0) return null;
+    return (
+      <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+        <h3 className="font-bold text-sm mb-3" style={{ color: T.gold }}>
+          Compartir por fecha
+        </h3>
+        <div className="flex flex-col gap-2">
+          {conPendientes.map((ronda) => {
+            const key = `fecha-${ronda}`;
+            const texto = textoFechaGlobal(ronda);
+            return (
+              <div key={ronda} className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold flex-1" style={{ color: T.ink }}>
+                  Fecha {ronda + 1}
+                </span>
+                <button
+                  onClick={() => copiarTexto(texto, key)}
+                  className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg flex-shrink-0"
+                  style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                >
+                  {copiaFeedback === key ? "¡Copiado!" : "Copiar"}
+                </button>
+                <button
+                  onClick={() => compartirTextoWhatsapp(texto)}
+                  className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg flex-shrink-0"
+                  style={{ background: "#81C784", color: "#1B3A2A" }}
+                >
+                  WhatsApp
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="lg:grid lg:grid-cols-[300px_1fr] lg:gap-6 lg:items-start">
-      <div className="flex flex-col gap-4">{renderEquiposCard()}</div>
+      <div className="flex flex-col gap-4">
+        {renderEquiposCard()}
+        {renderFechasCard()}
+      </div>
 
       <div className="mt-4 lg:mt-0">
         {renderTablasDeGrupos()}
