@@ -384,6 +384,21 @@ function ClasificatoriaPublica({ matches, teamsById }) {
 // Vista pública (sin login) de la fase de grupos: tabla de posiciones y
 // cruces de cada grupo, de solo lectura — nada de códigos ni links de
 // anotador acá, esos solo se comparten en privado con cada equipo.
+// Agrupa los partidos de un grupo por round_index ("Fecha N"), para
+// que se entienda de un vistazo qué se juega junto — mismo criterio
+// que usa el panel del organizador.
+function agruparPorFecha(partidos) {
+  const porRonda = {};
+  partidos.forEach((m) => {
+    porRonda[m.round_index] = porRonda[m.round_index] || [];
+    porRonda[m.round_index].push(m);
+  });
+  return Object.keys(porRonda)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map((ronda) => ({ ronda, partidos: porRonda[ronda] }));
+}
+
 function FaseDeGruposPublica({ teams, matches, teamsById }) {
   const { T } = useTheme();
   const numerosGrupos = [...new Set(teams.map((t) => t.grupo).filter((g) => g != null))].sort((a, b) => a - b);
@@ -464,33 +479,42 @@ function FaseDeGruposPublica({ teams, matches, teamsById }) {
                   ))}
                 </div>
 
-                <div className="flex flex-col gap-1.5">
-                  {partidosGrupo.map((m) => (
-                    <div
-                      key={m.id}
-                      className="text-xs px-2.5 py-2 rounded-lg flex items-center justify-between gap-2"
-                      style={{ background: T.panelLight }}
-                    >
-                      <div className="flex items-center gap-1 min-w-0 flex-1">
-                        <span className="truncate" style={{ color: m.winner_id === m.team1_id ? T.goldBright : T.ink }}>
-                          {teamsById[m.team1_id]?.name}
-                        </span>
-                        <b className="flex-shrink-0" style={{ color: T.inkDim, fontSize: 10 }}>
-                          vs
-                        </b>
-                        <span className="truncate" style={{ color: m.winner_id === m.team2_id ? T.goldBright : T.ink }}>
-                          {teamsById[m.team2_id]?.name}
-                        </span>
+                <div className="flex flex-col gap-3">
+                  {agruparPorFecha(partidosGrupo).map(({ ronda, partidos }) => (
+                    <div key={ronda}>
+                      <div className="text-[10px] font-extrabold uppercase tracking-wide mb-1.5" style={{ color: T.inkDim }}>
+                        Fecha {ronda + 1}
                       </div>
-                      {m.winner_id ? (
-                        <span className="font-bold flex-shrink-0" style={{ color: T.goldBright }}>
-                          {m.score_a}-{m.score_b}
-                        </span>
-                      ) : (
-                        <span className="text-[11px] flex-shrink-0" style={{ color: T.inkDim }}>
-                          por jugar
-                        </span>
-                      )}
+                      <div className="flex flex-col gap-1.5">
+                        {partidos.map((m) => (
+                          <div
+                            key={m.id}
+                            className="text-xs px-2.5 py-2 rounded-lg flex items-center justify-between gap-2"
+                            style={{ background: T.panelLight }}
+                          >
+                            <div className="flex items-center gap-1 min-w-0 flex-1">
+                              <span className="truncate" style={{ color: m.winner_id === m.team1_id ? T.goldBright : T.ink }}>
+                                {teamsById[m.team1_id]?.name}
+                              </span>
+                              <b className="flex-shrink-0" style={{ color: T.inkDim, fontSize: 10 }}>
+                                vs
+                              </b>
+                              <span className="truncate" style={{ color: m.winner_id === m.team2_id ? T.goldBright : T.ink }}>
+                                {teamsById[m.team2_id]?.name}
+                              </span>
+                            </div>
+                            {m.winner_id ? (
+                              <span className="font-bold flex-shrink-0" style={{ color: T.goldBright }}>
+                                {m.score_a}-{m.score_b}
+                              </span>
+                            ) : (
+                              <span className="text-[11px] flex-shrink-0" style={{ color: T.inkDim }}>
+                                por jugar
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
