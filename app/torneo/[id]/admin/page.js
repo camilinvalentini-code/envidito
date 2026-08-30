@@ -57,9 +57,8 @@ export default function AdminPage({ params }) {
   const [perdedoresElegidos, setPerdedoresElegidos] = useState(new Set());
   const [cerrandoClasificatoria, setCerrandoClasificatoria] = useState(false);
   const clasificatoriaRef = useRef(null);
-  const [armandoGrupos, setArmandoGrupos] = useState(false);
-  const [directosPorGrupo, setDirectosPorGrupo] = useState(2); // cuántos clasifican siempre, de cada grupo
-  const [mejoresSiguientes, setMejoresSiguientes] = useState(0); // además, los N mejores del puesto siguiente, de todos los grupos, por diferencia de tantos
+  const [clasificanPorGrupo, setClasificanPorGrupo] = useState(2);
+  const [oroHasta, setOroHasta] = useState(2); // de los que clasifican, cuántos van a la Copa de Oro (el resto, a Plata)
 
   useEffect(() => {
     if (typeof window !== "undefined") setOrigin(window.location.origin);
@@ -230,21 +229,6 @@ export default function AdminPage({ params }) {
         console.error(errTardio);
       }
     }
-    // Mismo caso para la fase de grupos: si ya está armada y todavía no
-    // se cerró, este equipo cargado a mano entra al grupo con menos
-    // integrantes.
-    if (tournament.formato === "grupos" && tournament.grupos_generados && !tournament.copas_generadas) {
-      const { error: errTardio } = await supabase.rpc("agregar_tardio_grupo", {
-        p_tournament_id: id,
-        p_team_id: nuevoEquipo.id,
-      });
-      if (errTardio) {
-        setError(
-          `El equipo se anotó, pero no se pudo meter en la fase de grupos (${errTardio.message || "error desconocido"}). Probá de nuevo.`
-        );
-        console.error(errTardio);
-      }
-    }
     setNewName("");
     setJugadoresChips([]);
     setJugadorInput("");
@@ -377,20 +361,17 @@ export default function AdminPage({ params }) {
   }
 
   async function armarFaseDeGrupos() {
-    if (armandoGrupos) return;
     if (teamsAprobados.length < cantidadGrupos * 2) {
       setError(`Hacen falta al menos ${cantidadGrupos * 2} equipos para ${cantidadGrupos} grupos.`);
       return;
     }
     setError("");
-    setArmandoGrupos(true);
     const { error: err } = await supabase.rpc("generar_fase_grupos", {
       p_tournament_id: id,
       p_cantidad_grupos: cantidadGrupos,
     });
-    setArmandoGrupos(false);
     if (err) {
-      setError(`No se pudo armar la fase de grupos (${err.message || "error desconocido"}). Probá de nuevo.`);
+      setError("No se pudo armar la fase de grupos. Probá de nuevo.");
       console.error(err);
       return;
     }
@@ -398,22 +379,20 @@ export default function AdminPage({ params }) {
   }
 
   async function cerrarFaseDeGrupos() {
-    const numGrupos = [...new Set(teams.map((t) => t.grupo).filter((g) => g != null))].length;
-    const directos = numGrupos * directosPorGrupo;
-    const total = directos + mejoresSiguientes;
-    const mensaje =
-      mejoresSiguientes > 0
-        ? `¿Cerrar la fase de grupos? Clasifican el 1° al ${directosPorGrupo}° de cada grupo (${directos} equipos), más los ${mejoresSiguientes} mejores ${directosPorGrupo + 1}°s de todos los grupos (por partidos ganados y diferencia de tantos). En total, ${total} equipos al cuadro.`
-        : `¿Cerrar la fase de grupos? Clasifican los primeros ${directosPorGrupo} de cada grupo (${directos} equipos) y se arma el cuadro con ellos.`;
+    const oroHastaFinal = Math.min(oroHasta, clasificanPorGrupo);
+    const hayPlata = oroHastaFinal < clasificanPorGrupo;
+    const mensaje = hayPlata
+      ? `¿Cerrar la fase de grupos? Clasifican los primeros ${clasificanPorGrupo} de cada grupo: del 1° al ${oroHastaFinal}° van a la Copa de Oro, y del ${oroHastaFinal + 1}° al ${clasificanPorGrupo}° van a la Copa de Plata.`
+      : `¿Cerrar la fase de grupos? Clasifican los primeros ${clasificanPorGrupo} de cada grupo y se arma el cuadro con ellos.`;
     if (!window.confirm(mensaje)) return;
     setError("");
     const { error: err } = await supabase.rpc("cerrar_fase_grupos_simple", {
       p_tournament_id: id,
-      p_directos_por_grupo: directosPorGrupo,
-      p_mejores_siguientes: mejoresSiguientes,
+      p_top_n: clasificanPorGrupo,
+      p_oro_hasta: oroHastaFinal,
     });
     if (err) {
-      setError(`No se pudo cerrar la fase de grupos (${err.message || "error desconocido"}). Probá de nuevo.`);
+      setError("No se pudo cerrar la fase de grupos. Probá de nuevo.");
       console.error(err);
       return;
     }
@@ -762,21 +741,6 @@ export default function AdminPage({ params }) {
         console.error(errTardio);
       }
     }
-    // Mismo caso, para la fase de grupos: si ya está armada y todavía
-    // no se cerró, un equipo recién aprobado entra al grupo con menos
-    // integrantes.
-    if (tournament.formato === "grupos" && tournament.grupos_generados && !tournament.copas_generadas) {
-      const { error: errTardio } = await supabase.rpc("agregar_tardio_grupo", {
-        p_tournament_id: id,
-        p_team_id: teamId,
-      });
-      if (errTardio) {
-        setError(
-          `El equipo se aprobó, pero no se pudo meter en la fase de grupos (${errTardio.message || "error desconocido"}). Probá de nuevo.`
-        );
-        console.error(errTardio);
-      }
-    }
     load();
   }
 
@@ -872,23 +836,6 @@ export default function AdminPage({ params }) {
       return;
     }
     load();
-  }
-
-  // Igual que reabrirPartido, pero para la fase de grupos: acá no hay
-  // "siguiente partido" al que le importe el resultado (los cruces de
-  // grupos no dependen unos de otros), así que alcanza con limpiar
-  // este partido puntual. Bloqueado por la propia base si ya se
-  // armaron las copas con esta fase de grupos.
-  async function reabrirPartidoGrupo(matchId) {
-    if (!window.confirm("¿Corregir este resultado? El puntaje actual se borra y lo volvés a cargar.")) return false;
-    const { error: err } = await supabase.rpc("reabrir_partido_grupo", { p_match_id: matchId });
-    if (err) {
-      setError(`No se pudo corregir el resultado (${err.message || "error desconocido"}).`);
-      console.error(err);
-      return false;
-    }
-    await load();
-    return true;
   }
 
   async function forzarGanador(match, winnerId) {
@@ -1063,54 +1010,6 @@ export default function AdminPage({ params }) {
     if (!window.confirm("¿Eliminar este torneo de prueba? Se borra junto con sus equipos y partidos, no se puede deshacer.")) return;
     await supabase.from("tournaments").delete().eq("id", id);
     router.push("/organizador/panel");
-  }
-
-  // Mantiene los equipos anotados tal cual (nombres, códigos,
-  // jugadores) y solo borra los cruces/resultados armados, dejando el
-  // torneo como recién a punto de sortear. Para "cargué los equipos
-  // reales pero el sorteo salió mal / quiero probar otro formato".
-  async function reiniciarSorteo() {
-    const confirmado = window.confirm(
-      `¿Reiniciar el sorteo de "${tournament.nombre}"? Se borran los cruces y resultados armados (${matches.length} partidos) y volvés a elegir el formato — pero los ${teams.length} equipos anotados NO se tocan, quedan igual que están. No se puede deshacer.`
-    );
-    if (!confirmado) return;
-    setError("");
-    const { error: err } = await supabase.rpc("reiniciar_sorteo", { p_tournament_id: id });
-    if (err) {
-      setError(`No se pudo reiniciar el sorteo (${err.message || "error desconocido"}).`);
-      console.error(err);
-      return;
-    }
-    setMenuAbierto(false);
-    load();
-  }
-
-  // Borra TODOS los equipos y cruces de este torneo y lo deja como
-  // recién creado (mismo nombre/fecha/formato de puntaje), sin borrar
-  // el torneo en sí — para cuando los equipos cargados son de prueba
-  // (no los reales) y hay que arrancar de cero sin perder el link ya
-  // compartido. Doble confirmación porque es irreversible.
-  async function reiniciarEquipos() {
-    const nombreEsperado = tournament.nombre || "este torneo";
-    const confirmado = window.confirm(
-      `¿Borrar TODOS los equipos de "${nombreEsperado}"? Esto borra los ${teams.length} equipos anotados (con sus jugadores y códigos) y los cruces armados — queda como recién creado, listo para cargar equipos de nuevo. Usá esto solo si los equipos cargados son de prueba y no los reales; si son los reales y solo querés rehacer el sorteo, usá "Reiniciar sorteo" en vez de esto. El nombre, fecha, ubicación y formato de puntaje NO se tocan. No se puede deshacer.`
-    );
-    if (!confirmado) return;
-    const escrito = window.prompt(`Para confirmar, escribí el nombre exacto del torneo:\n"${nombreEsperado}"`);
-    if (escrito === null) return;
-    if (escrito !== nombreEsperado) {
-      setError("El nombre no coincidió — no se borró nada.");
-      return;
-    }
-    setError("");
-    const { error: err } = await supabase.rpc("reiniciar_torneo", { p_tournament_id: id });
-    if (err) {
-      setError(`No se pudo reiniciar el torneo (${err.message || "error desconocido"}).`);
-      console.error(err);
-      return;
-    }
-    setMenuAbierto(false);
-    load();
   }
 
   const esDueño = session && tournament && (tournament.organizador_id === session.user.id || profile?.role === "admin");
@@ -1320,7 +1219,7 @@ export default function AdminPage({ params }) {
   const badgeCerrado = tournament.cerrado && !tournament.champion_id;
   const infoLinea = [tournament.ubicacion, tournament.fecha, tournament.categoria].filter(Boolean).join(" · ");
 
-  const kebab = (
+  const kebab = tournament.es_prueba && (
     <div className="relative">
       <button
         onClick={() => setMenuAbierto((v) => !v)}
@@ -1335,37 +1234,15 @@ export default function AdminPage({ params }) {
           className="absolute right-0 mt-2 w-56 rounded-2xl border shadow-lg z-30 p-1.5"
           style={{ background: T.panel, borderColor: T.line }}
         >
-          {tournament.es_prueba && (
-            <button
-              onClick={() => {
-                setMenuAbierto(false);
-                setModoPruebaAbierto((v) => !v);
-              }}
-              className="w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl"
-              style={{ color: T.inkDim }}
-            >
-              Herramientas de prueba
-            </button>
-          )}
           <button
             onClick={() => {
               setMenuAbierto(false);
-              reiniciarSorteo();
+              setModoPruebaAbierto((v) => !v);
             }}
             className="w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl"
             style={{ color: T.inkDim }}
           >
-            Reiniciar sorteo (mantiene los equipos)
-          </button>
-          <button
-            onClick={() => {
-              setMenuAbierto(false);
-              reiniciarEquipos();
-            }}
-            className="w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl"
-            style={{ color: T.redDim }}
-          >
-            Borrar todos los equipos
+            Herramientas de prueba
           </button>
         </div>
       )}
@@ -1639,12 +1516,11 @@ export default function AdminPage({ params }) {
             matches={matches}
             teamsById={teamsById}
             onForzarGanador={forzarGanador}
-            directosPorGrupo={directosPorGrupo}
-            setDirectosPorGrupo={setDirectosPorGrupo}
-            mejoresSiguientes={mejoresSiguientes}
-            setMejoresSiguientes={setMejoresSiguientes}
+            clasificanPorGrupo={clasificanPorGrupo}
+            setClasificanPorGrupo={setClasificanPorGrupo}
+            oroHasta={oroHasta}
+            setOroHasta={setOroHasta}
             onCerrarFase={cerrarFaseDeGrupos}
-            onReabrirGrupo={reabrirPartidoGrupo}
             error={error}
             origin={origin}
             onRecargar={load}
@@ -2056,11 +1932,11 @@ export default function AdminPage({ params }) {
                     />
                     <button
                       onClick={armarFaseDeGrupos}
-                      disabled={armandoGrupos || teamsAprobados.length < cantidadGrupos * 2}
+                      disabled={teamsAprobados.length < cantidadGrupos * 2}
                       className="w-full py-3 rounded-2xl font-black text-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
                       style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
                     >
-                      {armandoGrupos ? "Armando…" : "Armar fase de grupos →"}
+                      Armar fase de grupos →
                     </button>
                   </div>
                 ) : (
@@ -2444,43 +2320,37 @@ export default function AdminPage({ params }) {
 // poder mostrar "Abrir anotador" y "Cargar resultado a mano" lado a lado
 // cuando está cerrado, y que el formulario ocupe todo el ancho al abrirse
 // en vez de quedar apretado contra el link de al lado.
-// En truco no existe un resultado tipo "3 a 2 y sigue" — el que gana
-// llega al puntaje máximo del torneo. Pero para cargar rápido en el
-// bar alcanza con escribir los dos números tal cual quedaron (quién
-// ganó se deduce solo, es el que tiene más puntos). Si viene de
-// "Corregir" (valorInicial), arranca con el resultado anterior ya
-// puesto, para solo tocar el número que estaba mal.
-function ResultadoInlineGrupo({ T, match, nombreLocal, nombreVisitante, puntosMax, valorInicial, onCancelar, onGuardado }) {
-  const [scoreA, setScoreA] = useState(valorInicial ? String(valorInicial.a) : "");
-  const [scoreB, setScoreB] = useState(valorInicial ? String(valorInicial.b) : "");
+// En truco no existe un resultado tipo "3 a 2": el que gana siempre
+// llega al puntaje máximo del torneo. Así que acá solo se elige quién
+// ganó, y con cuántos puntos quedó el que perdió.
+function ResultadoInlineGrupo({ T, match, nombreLocal, nombreVisitante, puntosMax, onCancelar, onGuardado }) {
+  const [ganador, setGanador] = useState(null); // "A" | "B" | null
+  const [perdedor, setPerdedor] = useState("");
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(false);
 
   async function guardar() {
-    const a = parseInt(scoreA, 10);
-    const b = parseInt(scoreB, 10);
-    if (isNaN(a) || isNaN(b)) {
-      setError("Cargá los dos puntajes.");
+    if (!ganador) {
+      setError("Elegí quién ganó.");
       return;
     }
-    if (a < 0 || a > puntosMax || b < 0 || b > puntosMax) {
-      setError(`Los puntos van de 0 a ${puntosMax}.`);
-      return;
-    }
-    if (a === b) {
-      setError("En truco no hay empates.");
+    const pp = parseInt(perdedor, 10);
+    if (isNaN(pp) || pp < 0 || pp >= puntosMax) {
+      setError(`El que perdió tiene que tener entre 0 y ${puntosMax - 1}.`);
       return;
     }
     setError("");
     setGuardando(true);
+    const scoreA = ganador === "A" ? puntosMax : pp;
+    const scoreB = ganador === "B" ? puntosMax : pp;
     const { error: err } = await supabase.rpc("cargar_resultado_grupo", {
       p_match_id: match.id,
-      p_score_a: a,
-      p_score_b: b,
+      p_score_a: scoreA,
+      p_score_b: scoreB,
     });
     setGuardando(false);
     if (err) {
-      setError(err.message || "No se pudo guardar. Revisá el tope de puntos de esta fase.");
+      setError("No se pudo guardar. Revisá el tope de puntos de esta fase.");
       return;
     }
     onGuardado();
@@ -2488,33 +2358,51 @@ function ResultadoInlineGrupo({ T, match, nombreLocal, nombreVisitante, puntosMa
 
   return (
     <div className="mt-2 w-full">
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold flex-1 min-w-0 truncate text-right" style={{ color: T.ink }}>
-          {nombreLocal}
-        </span>
-        <input
-          value={scoreA}
-          onChange={(e) => setScoreA(e.target.value.replace(/\D/g, "").slice(0, 2))}
-          inputMode="numeric"
-          placeholder="0"
-          className="w-12 flex-shrink-0 text-center px-1 py-2 rounded-lg text-sm font-bold"
-          style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
-        />
-        <span className="text-xs flex-shrink-0" style={{ color: T.inkDim }}>
-          x
-        </span>
-        <input
-          value={scoreB}
-          onChange={(e) => setScoreB(e.target.value.replace(/\D/g, "").slice(0, 2))}
-          inputMode="numeric"
-          placeholder="0"
-          className="w-12 flex-shrink-0 text-center px-1 py-2 rounded-lg text-sm font-bold"
-          style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
-        />
-        <span className="text-xs font-semibold flex-1 min-w-0 truncate" style={{ color: T.ink }}>
-          {nombreVisitante}
-        </span>
+      <div className="text-xs mb-1.5" style={{ color: T.inkDim }}>
+        ¿Quién ganó? (llega a {puntosMax})
       </div>
+      <div className="flex gap-1.5">
+        <button
+          onClick={() => setGanador("A")}
+          className="flex-1 text-center text-xs font-bold py-2 rounded-lg truncate"
+          style={
+            ganador === "A"
+              ? { background: T.gold, color: T.ink }
+              : { background: T.panel, color: T.ink, border: `1px solid ${T.line}` }
+          }
+        >
+          {nombreLocal}
+        </button>
+        <button
+          onClick={() => setGanador("B")}
+          className="flex-1 text-center text-xs font-bold py-2 rounded-lg truncate"
+          style={
+            ganador === "B"
+              ? { background: T.gold, color: T.ink }
+              : { background: T.panel, color: T.ink, border: `1px solid ${T.line}` }
+          }
+        >
+          {nombreVisitante}
+        </button>
+      </div>
+      {ganador && (
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-xs flex-shrink-0" style={{ color: T.inkDim }}>
+            Perdió con:
+          </span>
+          <input
+            value={perdedor}
+            onChange={(e) => setPerdedor(e.target.value.replace(/\D/g, "").slice(0, 2))}
+            inputMode="numeric"
+            placeholder="0"
+            className="w-14 flex-shrink-0 text-center px-1 py-2 rounded-lg text-sm"
+            style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
+          />
+          <span className="text-xs" style={{ color: T.inkDim }}>
+            de {puntosMax}
+          </span>
+        </div>
+      )}
       <div className="flex gap-2 mt-2">
         <button
           onClick={guardar}
@@ -2967,21 +2855,6 @@ function ClasificatoriaHistorial({
   );
 }
 
-// Agrupa una lista de partidos de grupos por round_index ("Fecha N"),
-// ordenados. El sorteo ya garantiza que ningún equipo juega dos veces
-// en la misma fecha, así que esto solo es para mostrarlo prolijo.
-function agruparPorFecha(partidos) {
-  const porRonda = {};
-  partidos.forEach((m) => {
-    porRonda[m.round_index] = porRonda[m.round_index] || [];
-    porRonda[m.round_index].push(m);
-  });
-  return Object.keys(porRonda)
-    .map(Number)
-    .sort((a, b) => a - b)
-    .map((ronda) => ({ ronda, partidos: porRonda[ronda] }));
-}
-
 function FaseDeGruposPanel({
   T,
   tournament,
@@ -2989,12 +2862,11 @@ function FaseDeGruposPanel({
   matches,
   teamsById,
   onForzarGanador,
-  directosPorGrupo,
-  setDirectosPorGrupo,
-  mejoresSiguientes,
-  setMejoresSiguientes,
+  clasificanPorGrupo,
+  setClasificanPorGrupo,
+  oroHasta,
+  setOroHasta,
   onCerrarFase,
-  onReabrirGrupo,
   error,
   origin,
   onRecargar,
@@ -3019,51 +2891,9 @@ function FaseDeGruposPanel({
   const hayPendientesGrupos = grupoMatches.some((m) => !m.winner_id);
   const nadieJugoNada = grupoMatches.every((m) => !m.winner_id);
   const [gruposAbiertos, setGruposAbiertos] = useState({});
-  const [prefill, setPrefill] = useState(null); // { matchId, a, b } | null — resultado anterior al corregir
   const [crucesAbiertos, setCrucesAbiertos] = useState({});
   const [verGrupos, setVerGrupos] = useState(false);
   const [soloClasificados, setSoloClasificados] = useState(false);
-  const [copiaFeedback, setCopiaFeedback] = useState(null); // key del último texto copiado, para el "¡Copiado!"
-  const [fechaOverride, setFechaOverride] = useState({}); // `${grupo}-${ronda}` -> abierta/cerrada, cuando el organizador la tocó a mano
-
-  // Por default, la fecha "activa" de un grupo (la primera que todavía
-  // tiene algo pendiente) arranca desplegada, y el resto contraída —
-  // salvo que el organizador la haya tocado a mano, ahí se respeta eso.
-  function fechaEstaAbierta(numGrupo, ronda, esActiva) {
-    const key = `${numGrupo}-${ronda}`;
-    return key in fechaOverride ? fechaOverride[key] : esActiva;
-  }
-  function toggleFecha(numGrupo, ronda, estaAbiertaAhora) {
-    setFechaOverride((prev) => ({ ...prev, [`${numGrupo}-${ronda}`]: !estaAbiertaAhora }));
-  }
-
-  // Copiar al portapapeles, sin depender de que el navegador tenga
-  // Web Share (en desktop no lo tiene, y ahí el botón de compartir
-  // termina forzando WhatsApp Web aunque el organizador quiera pegar
-  // el texto en otro lado — Notas, Telegram, lo que sea).
-  async function copiarTexto(texto, key) {
-    if (!texto) return;
-    try {
-      await navigator.clipboard.writeText(texto);
-      setCopiaFeedback(key);
-      setTimeout(() => setCopiaFeedback(null), 2000);
-    } catch (e) {
-      alert("No se pudo copiar. Probá el botón de WhatsApp.");
-    }
-  }
-
-  async function compartirTextoWhatsapp(texto) {
-    if (!texto) return;
-    if (navigator.share) {
-      try {
-        await navigator.share({ text: texto });
-      } catch (e) {
-        return;
-      }
-    } else {
-      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank");
-    }
-  }
 
   function grupoAbierto(num) {
     return gruposAbiertos[num] === true; // cerrado por default
@@ -3078,50 +2908,23 @@ function FaseDeGruposPanel({
     setCrucesAbiertos((prev) => ({ ...prev, [num]: !crucesAbierto(num) }));
   }
 
-  function textoCrucesGrupo(numGrupo, partidosGrupo) {
-    const pendientes = partidosGrupo.filter((m) => !m.winner_id);
-    if (pendientes.length === 0) return null;
-    const bloques = agruparPorFecha(pendientes).map(({ ronda, partidos }) => {
-      const lineas = partidos.map((m) => {
-        const link = `${origin}/partido/${m.match_token}`;
-        return `${teamsById[m.team1_id]?.name} vs ${teamsById[m.team2_id]?.name}\n${link}`;
-      });
-      return `📅 Fecha ${ronda + 1}\n${lineas.join("\n\n")}`;
-    });
-    return `${tournament.nombre} — Grupo ${numGrupo}\n\n${bloques.join("\n\n")}`;
-  }
-
   async function compartirCrucesGrupo(numGrupo, partidosGrupo) {
-    await compartirTextoWhatsapp(textoCrucesGrupo(numGrupo, partidosGrupo));
-  }
-
-  async function copiarCrucesGrupo(numGrupo, partidosGrupo) {
-    await copiarTexto(textoCrucesGrupo(numGrupo, partidosGrupo), `grupo-${numGrupo}`);
-  }
-
-  // Cruces de UNA fecha, juntando todos los grupos que tengan partidos
-  // pendientes en esa fecha — para compartir/copiar "esto se juega hoy",
-  // sin tener que ir grupo por grupo.
-  function textoFechaGlobal(ronda) {
-    const porGrupo = {};
-    grupoMatches
-      .filter((m) => m.round_index === ronda && !m.winner_id)
-      .forEach((m) => {
-        porGrupo[m.grupo] = porGrupo[m.grupo] || [];
-        porGrupo[m.grupo].push(m);
-      });
-    const numeros = Object.keys(porGrupo)
-      .map(Number)
-      .sort((a, b) => a - b);
-    if (numeros.length === 0) return null;
-    const bloques = numeros.map((num) => {
-      const lineas = porGrupo[num].map((m) => {
-        const link = `${origin}/partido/${m.match_token}`;
-        return `${teamsById[m.team1_id]?.name} vs ${teamsById[m.team2_id]?.name}\n${link}`;
-      });
-      return `Grupo ${num}:\n${lineas.join("\n\n")}`;
+    const pendientes = partidosGrupo.filter((m) => !m.winner_id);
+    if (pendientes.length === 0) return;
+    const bloques = pendientes.map((m) => {
+      const link = `${origin}/partido/${m.match_token}`;
+      return `${teamsById[m.team1_id]?.name} vs ${teamsById[m.team2_id]?.name}\n${link}`;
     });
-    return `${tournament.nombre} — Fecha ${ronda + 1}\n\n${bloques.join("\n\n")}`;
+    const texto = `${tournament.nombre} — Grupo ${numGrupo}\n\n${bloques.join("\n\n")}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ text: texto });
+      } catch (e) {
+        return;
+      }
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank");
+    }
   }
 
   const [formResultadoId, setFormResultadoId] = useState(null);
@@ -3277,156 +3080,75 @@ function FaseDeGruposPanel({
                       </span>
                     </button>
                     {pendientesGrupo.length > 0 && (
-                      <div className="flex gap-1.5">
-                        <button
-                          onClick={() => copiarCrucesGrupo(num, partidosGrupo)}
-                          className="text-xs font-bold px-3 py-1.5 rounded-lg"
-                          style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
-                        >
-                          {copiaFeedback === `grupo-${num}` ? "¡Copiado!" : "Copiar"}
-                        </button>
-                        <button
-                          onClick={() => compartirCrucesGrupo(num, partidosGrupo)}
-                          className="text-xs font-bold px-3 py-1.5 rounded-lg"
-                          style={{ background: "#81C784", color: "#1B3A2A" }}
-                        >
-                          WhatsApp
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => compartirCrucesGrupo(num, partidosGrupo)}
+                        className="text-xs font-bold px-3 py-1.5 rounded-lg"
+                        style={{ background: "#81C784", color: "#1B3A2A" }}
+                      >
+                        Compartir
+                      </button>
                     )}
                   </div>
 
-                  {crucesAbierto(num) &&
-                    (() => {
-                      const fechasDelGrupo = agruparPorFecha(partidosGrupo);
-                      const rondaActiva = fechasDelGrupo.find(({ partidos }) => partidos.some((m) => !m.winner_id))?.ronda;
-                      return (
-                        <div className="flex flex-col gap-2">
-                          {fechasDelGrupo.map(({ ronda, partidos }) => {
-                            const esActiva = ronda === rondaActiva;
-                            const abierta = fechaEstaAbierta(num, ronda, esActiva);
-                            const completa = partidos.every((m) => m.winner_id);
-                            return (
-                              <div key={ronda}>
-                                <button
-                                  onClick={() => toggleFecha(num, ronda, abierta)}
-                                  className="w-full flex items-center justify-between mb-1.5"
+                  {crucesAbierto(num) && (
+                    <div className="flex flex-col gap-1.5">
+                      {partidosGrupo.map((m) => (
+                        <div key={m.id} className="text-xs px-2.5 py-2.5 rounded-lg" style={{ background: T.panelLight }}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1 min-w-0 flex-1">
+                              <span className="truncate" style={{ color: T.ink }}>
+                                {teamsById[m.team1_id]?.name}
+                              </span>
+                              <b className="flex-shrink-0" style={{ color: T.inkDim, fontSize: 10 }}>
+                                vs
+                              </b>
+                              <span className="truncate" style={{ color: T.ink }}>
+                                {teamsById[m.team2_id]?.name}
+                              </span>
+                            </div>
+                            {m.winner_id && (
+                              <span className="font-bold flex-shrink-0" style={{ color: T.goldBright }}>
+                                {m.score_a}-{m.score_b}
+                              </span>
+                            )}
+                          </div>
+                          {!m.winner_id &&
+                            !tournament.copas_generadas &&
+                            (formResultadoId === m.id ? (
+                              <ResultadoInlineGrupo
+                                T={T}
+                                match={m}
+                                nombreLocal={teamsById[m.team1_id]?.name}
+                                nombreVisitante={teamsById[m.team2_id]?.name}
+                                puntosMax={tournament.puntos_max || 30}
+                                onCancelar={() => setFormResultadoId(null)}
+                                onGuardado={() => {
+                                  setFormResultadoId(null);
+                                  onRecargar();
+                                }}
+                              />
+                            ) : (
+                              <div className="flex gap-1.5 mt-2">
+                                <a
+                                  href={`/partido/${m.match_token}`}
+                                  className="flex-1 text-center font-bold py-2 rounded-lg"
+                                  style={{ background: T.panel, color: T.goldBright, border: `1px solid ${T.line}` }}
                                 >
-                                  <span
-                                    className="text-[10px] font-extrabold uppercase tracking-wide"
-                                    style={{ color: esActiva ? T.goldBright : T.inkDim }}
-                                  >
-                                    {esActiva && "▶ "}
-                                    Fecha {ronda + 1}
-                                    {completa && " ✓"}
-                                  </span>
-                                  <span style={{ transform: abierta ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
-                                    <IconAbajo color={T.inkDim} size={10} />
-                                  </span>
+                                  Abrir anotador
+                                </a>
+                                <button
+                                  onClick={() => setFormResultadoId(m.id)}
+                                  className="flex-1 text-center font-bold py-2 rounded-lg"
+                                  style={{ background: "transparent", color: T.inkDim, border: `1px solid ${T.line}` }}
+                                >
+                                  Cargar a mano
                                 </button>
-                                {abierta && (
-                                  <div className="flex flex-col gap-1.5">
-                                    {partidos.map((m) => (
-                              <div key={m.id} className="text-xs px-2.5 py-2.5 rounded-lg" style={{ background: T.panelLight }}>
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-1 min-w-0 flex-1">
-                                    <span className="truncate" style={{ color: T.ink }}>
-                                      {teamsById[m.team1_id]?.name}
-                                    </span>
-                                    <b className="flex-shrink-0" style={{ color: T.inkDim, fontSize: 10 }}>
-                                      vs
-                                    </b>
-                                    <span className="truncate" style={{ color: T.ink }}>
-                                      {teamsById[m.team2_id]?.name}
-                                    </span>
-                                  </div>
-                                  {m.winner_id && (
-                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                      <span className="font-bold" style={{ color: T.goldBright }}>
-                                        {m.score_a}-{m.score_b}
-                                      </span>
-                                      {!tournament.copas_generadas && (
-                                        <button
-                                          onClick={async () => {
-                                            const prevA = m.score_a;
-                                            const prevB = m.score_b;
-                                            const ok = await onReabrirGrupo(m.id);
-                                            if (ok) {
-                                              setPrefill({ matchId: m.id, a: prevA, b: prevB });
-                                              setFormResultadoId(m.id);
-                                            }
-                                          }}
-                                          className="text-[10px] font-bold px-2 py-1 rounded-lg"
-                                          style={{ background: T.panel, color: T.inkDim, border: `1px solid ${T.line}` }}
-                                          title="Corregir este resultado"
-                                        >
-                                          ✎ Corregir
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
-                                  {!m.winner_id && (m.score_a > 0 || m.score_b > 0) && (
-                                    <span
-                                      className="flex-shrink-0 flex items-center gap-1 font-bold"
-                                      style={{ color: T.goldBright }}
-                                      title="Se está jugando ahora — el marcador se actualiza solo"
-                                    >
-                                      <span
-                                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                                        style={{ background: T.goldBright }}
-                                      />
-                                      {m.score_a}-{m.score_b}
-                                    </span>
-                                  )}
-                                </div>
-                                {!m.winner_id &&
-                                  !tournament.copas_generadas &&
-                                  (formResultadoId === m.id ? (
-                                    <ResultadoInlineGrupo
-                                      T={T}
-                                      match={m}
-                                      nombreLocal={teamsById[m.team1_id]?.name}
-                                      nombreVisitante={teamsById[m.team2_id]?.name}
-                                      puntosMax={tournament.puntos_max || 30}
-                                      valorInicial={prefill?.matchId === m.id ? prefill : null}
-                                      onCancelar={() => {
-                                        setFormResultadoId(null);
-                                        setPrefill(null);
-                                      }}
-                                      onGuardado={() => {
-                                        setFormResultadoId(null);
-                                        setPrefill(null);
-                                        onRecargar();
-                                      }}
-                                    />
-                                  ) : (
-                                    <div className="flex gap-1.5 mt-2">
-                                      <a
-                                        href={`/partido/${m.match_token}`}
-                                        className="flex-1 text-center font-bold py-2 rounded-lg"
-                                        style={{ background: T.panel, color: T.goldBright, border: `1px solid ${T.line}` }}
-                                      >
-                                        Abrir anotador
-                                      </a>
-                                      <button
-                                        onClick={() => setFormResultadoId(m.id)}
-                                        className="flex-1 text-center font-bold py-2 rounded-lg"
-                                        style={{ background: "transparent", color: T.inkDim, border: `1px solid ${T.line}` }}
-                                      >
-                                        Cargar a mano
-                                      </button>
-                                    </div>
-                                  ))}
                               </div>
                             ))}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
                         </div>
-                      );
-                    })()}
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -3687,82 +3409,9 @@ function FaseDeGruposPanel({
     );
   }
 
-  // Cruces de todas las fechas de la fase de grupos, juntando todos los
-  // grupos — para compartir/copiar "esto se juega en la Fecha N" de una,
-  // sin ir grupo por grupo. Solo aparece si hay algo pendiente en esa
-  // fecha en cualquier grupo.
-  function renderFechasCard() {
-    const fechas = [...new Set(grupoMatches.map((m) => m.round_index))].sort((a, b) => a - b);
-    if (fechas.length === 0) return null;
-    // La "fecha actual" es la primera que todavía tiene algo pendiente
-    // — para resaltarla y que se note de un vistazo en qué anda hoy el
-    // torneo, sin entrar grupo por grupo.
-    const primeraSinTerminar = fechas.find((ronda) => grupoMatches.some((m) => m.round_index === ronda && !m.winner_id));
-    return (
-      <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-        <h3 className="font-bold text-sm mb-3" style={{ color: T.gold }}>
-          Fechas
-        </h3>
-        <div className="flex flex-col gap-2">
-          {fechas.map((ronda) => {
-            const deEstaFecha = grupoMatches.filter((m) => m.round_index === ronda);
-            const jugados = deEstaFecha.filter((m) => m.winner_id).length;
-            const total = deEstaFecha.length;
-            const completa = total > 0 && jugados === total;
-            const esActual = ronda === primeraSinTerminar;
-            const key = `fecha-${ronda}`;
-            const texto = textoFechaGlobal(ronda);
-            return (
-              <div
-                key={ronda}
-                className="rounded-xl p-2.5"
-                style={{
-                  background: T.panelLight,
-                  border: esActual ? `1px solid ${T.gold}` : "1px solid transparent",
-                }}
-              >
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className="text-xs font-bold" style={{ color: completa ? T.goldBright : T.ink }}>
-                    {esActual && "▶ "}
-                    Fecha {ronda + 1}
-                    {completa && " ✓"}
-                  </span>
-                  <span className="text-[11px] font-semibold" style={{ color: T.inkDim }}>
-                    {jugados}/{total} jugados
-                  </span>
-                </div>
-                {texto && (
-                  <div className="flex gap-1.5 mt-1.5">
-                    <button
-                      onClick={() => copiarTexto(texto, key)}
-                      className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg flex-shrink-0"
-                      style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
-                    >
-                      {copiaFeedback === key ? "¡Copiado!" : "Copiar"}
-                    </button>
-                    <button
-                      onClick={() => compartirTextoWhatsapp(texto)}
-                      className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg flex-shrink-0"
-                      style={{ background: "#81C784", color: "#1B3A2A" }}
-                    >
-                      WhatsApp
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="lg:grid lg:grid-cols-[300px_1fr] lg:gap-6 lg:items-start">
-      <div className="flex flex-col gap-4">
-        {renderEquiposCard()}
-        {renderFechasCard()}
-      </div>
+      <div className="flex flex-col gap-4">{renderEquiposCard()}</div>
 
       <div className="mt-4 lg:mt-0">
         {renderTablasDeGrupos()}
@@ -3781,62 +3430,50 @@ function FaseDeGruposPanel({
 
         {grupoTodosJugados ? (
           <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-            <p className="text-sm mb-1" style={{ color: T.ink }}>
-              Todos los partidos de grupos están jugados. ¿Cómo armamos el cuadro?
+            <p className="text-sm mb-3" style={{ color: T.ink }}>
+              Todos los partidos de grupos están jugados. ¿Cuántos clasifican de cada grupo?
             </p>
+            <div className="flex items-center gap-2 mb-3">
+              <input
+                type="number"
+                min={1}
+                value={clasificanPorGrupo}
+                onChange={(e) => {
+                  const v = Math.max(1, parseInt(e.target.value, 10) || 1);
+                  setClasificanPorGrupo(v);
+                  if (oroHasta > v) setOroHasta(v);
+                }}
+                className="w-20 px-3 py-2 rounded-xl text-sm text-center"
+                style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+              />
+              <span className="text-xs" style={{ color: T.inkDim }}>
+                clasifican por grupo
+              </span>
+            </div>
 
-            <div className="mb-3 mt-3">
-              <label className="text-xs block mb-1.5" style={{ color: T.inkDim }}>
-                ¿Cuántos clasifican directo de cada grupo?
-              </label>
-              <div className="flex items-center gap-2">
+            {clasificanPorGrupo > 1 && (
+              <div className="mb-4">
+                <label className="text-xs block mb-1.5" style={{ color: T.inkDim }}>
+                  ¿Cuántos de esos van a la Copa de Oro? (el resto arma la Copa de Plata)
+                </label>
                 <input
                   type="number"
                   min={1}
-                  value={directosPorGrupo}
-                  onChange={(e) => setDirectosPorGrupo(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                  max={clasificanPorGrupo}
+                  value={oroHasta}
+                  onChange={(e) =>
+                    setOroHasta(Math.min(clasificanPorGrupo, Math.max(1, parseInt(e.target.value, 10) || 1)))
+                  }
                   className="w-20 px-3 py-2 rounded-xl text-sm text-center"
                   style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
                 />
-                <span className="text-xs" style={{ color: T.inkDim }}>
-                  directos por grupo
-                </span>
-              </div>
-              <p className="text-xs mt-1.5" style={{ color: T.inkDim }}>
-                Ej: con 2, el 1° y el 2° de cada grupo pasan siempre.
-              </p>
-            </div>
-
-            {numerosGrupos.length > 1 && (
-              <div className="mb-4">
-                <label className="text-xs block mb-1.5" style={{ color: T.inkDim }}>
-                  ¿Sumar los mejores {directosPorGrupo + 1}°s de todos los grupos, para completar el cuadro? (opcional)
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={0}
-                    value={mejoresSiguientes}
-                    onChange={(e) => setMejoresSiguientes(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                    className="w-20 px-3 py-2 rounded-xl text-sm text-center"
-                    style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-                  />
-                  <span className="text-xs" style={{ color: T.inkDim }}>
-                    mejores {directosPorGrupo + 1}°s
-                  </span>
-                </div>
                 <p className="text-xs mt-1.5" style={{ color: T.inkDim }}>
-                  Ej: con 6 grupos, 2 directos (12 equipos) y 4 acá, se suman los 4 mejores {directosPorGrupo + 1}°s
-                  de todo el torneo (por partidos ganados y diferencia de tantos) para llegar a 16.
+                  {oroHasta < clasificanPorGrupo
+                    ? `1° a ${oroHasta}° → Copa de Oro. ${oroHasta + 1}° a ${clasificanPorGrupo}° → Copa de Plata.`
+                    : "Todos los clasificados van a un solo cuadro (sin Copa de Plata)."}
                 </p>
               </div>
             )}
-
-            <p className="text-sm font-bold mb-4" style={{ color: T.goldBright }}>
-              Van a clasificar: {numerosGrupos.length * directosPorGrupo} directos
-              {mejoresSiguientes > 0 ? ` + ${mejoresSiguientes} mejores ${directosPorGrupo + 1}°s` : ""} ={" "}
-              {numerosGrupos.length * directosPorGrupo + mejoresSiguientes} equipos al cuadro.
-            </p>
 
             <button
               onClick={onCerrarFase}
