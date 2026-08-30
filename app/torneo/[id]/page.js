@@ -29,11 +29,11 @@ export default function TorneoPublico({ params, searchParams }) {
     const { data: t } = await supabase.from("tournaments").select("*").eq("id", id).single();
     const { data: ts } = await supabase
       .from("teams")
-      .select("id, tournament_id, name, players, paid, created_at, grupo")
+      .select("id, tournament_id, name, players, paid, created_at")
       .eq("tournament_id", id);
     const { data: ms } = await supabase
       .from("matches")
-      .select("id, tournament_id, bracket, grupo, round_index, match_index, team1_id, team2_id, winner_id, score_a, score_b, bye")
+      .select("id, tournament_id, bracket, round_index, match_index, team1_id, team2_id, winner_id, score_a, score_b, bye")
       .eq("tournament_id", id);
     setTournament(t);
     setTeams(ts || []);
@@ -73,10 +73,6 @@ export default function TorneoPublico({ params, searchParams }) {
   teams.forEach((t) => (teamsById[t.id] = t));
   const mainMatchesTodos = matches.filter((m) => m.bracket === "main");
   const repMatches = matches.filter((m) => m.bracket === "repechaje");
-  const grupoMatches = matches.filter((m) => m.bracket === "grupos");
-  const oroMatches = matches.filter((m) => m.bracket === "oro");
-  const plataMatches = matches.filter((m) => m.bracket === "plata");
-  const enFaseDeGrupos = tournament.formato === "grupos";
   const enClasificatoria = tournament.formato === "clasificatoria" && !tournament.clasificatoria_cerrada;
   const clasifMatches = matches.filter((m) => m.bracket === "clasificatoria");
 
@@ -171,71 +167,6 @@ export default function TorneoPublico({ params, searchParams }) {
               </p>
             ) : (
               <ClasificatoriaPublica matches={clasifMatches} teamsById={teamsById} />
-            )}
-          </>
-        ) : enFaseDeGrupos ? (
-          <>
-            {tournament.grupos_generados && (
-              <MiEquipoPanel
-                tournament={tournament}
-                teams={teams}
-                matches={tournament.copas_generadas ? [...oroMatches, ...plataMatches] : grupoMatches}
-                teamsById={teamsById}
-                puedeElegir={puedeElegirEquipo}
-              />
-            )}
-
-            {!tournament.grupos_generados ? (
-              <p className="text-center text-sm" style={{ color: T.inkDim }}>
-                El sorteo todavía no se hizo.
-              </p>
-            ) : !tournament.copas_generadas ? (
-              <FaseDeGruposPublica teams={teams} matches={grupoMatches} teamsById={teamsById} />
-            ) : (
-              <>
-                {tournament.campeon_oro_id && (
-                  <div
-                    className="rounded-3xl p-5 mb-5 text-center border-2 shadow-md"
-                    style={{ background: "#FBF3E3", borderColor: "#EAC27A" }}
-                  >
-                    <div className="text-xs font-bold uppercase tracking-widest" style={{ color: "#B85C55" }}>
-                      🏆 Campeón{plataMatches.length > 0 ? " — Copa de Oro" : ""}
-                    </div>
-                    <div className="text-2xl font-black mt-1" style={{ color: "#33453E" }}>
-                      {teamsById[tournament.campeon_oro_id]?.name}
-                    </div>
-                    <div className="text-xs mt-1 italic" style={{ color: "#B85C55" }}>
-                      {fraseCampeonAlAzar()}
-                    </div>
-                  </div>
-                )}
-                <BracketDisplay matches={oroMatches} teamsById={teamsById} />
-
-                {plataMatches.length > 0 && (
-                  <div className="mt-6">
-                    {tournament.campeon_plata_id && (
-                      <div
-                        className="rounded-3xl p-5 mb-5 text-center border-2 shadow-md"
-                        style={{ background: "#FBF3E3", borderColor: "#EAC27A" }}
-                      >
-                        <div className="text-xs font-bold uppercase tracking-widest" style={{ color: "#B85C55" }}>
-                          🏆 Campeón — Copa de Plata
-                        </div>
-                        <div className="text-2xl font-black mt-1" style={{ color: "#33453E" }}>
-                          {teamsById[tournament.campeon_plata_id]?.name}
-                        </div>
-                        <div className="text-xs mt-1 italic" style={{ color: "#B85C55" }}>
-                          {fraseCampeonAlAzar()}
-                        </div>
-                      </div>
-                    )}
-                    <h2 className="font-bold mb-3" style={{ color: T.gold }}>
-                      Copa de Plata
-                    </h2>
-                    <BracketDisplay matches={plataMatches} teamsById={teamsById} />
-                  </div>
-                )}
-              </>
             )}
           </>
         ) : (
@@ -381,124 +312,3 @@ function ClasificatoriaPublica({ matches, teamsById }) {
   );
 }
 
-// Vista pública (sin login) de la fase de grupos: tabla de posiciones y
-// cruces de cada grupo, de solo lectura — nada de códigos ni links de
-// anotador acá, esos solo se comparten en privado con cada equipo.
-function FaseDeGruposPublica({ teams, matches, teamsById }) {
-  const { T } = useTheme();
-  const numerosGrupos = [...new Set(teams.map((t) => t.grupo).filter((g) => g != null))].sort((a, b) => a - b);
-  const [abiertos, setAbiertos] = useState({});
-  const abierto = (n) => abiertos[n] !== false; // abierto por default
-
-  return (
-    <div>
-      <p className="text-center text-sm mb-4" style={{ color: T.inkDim }}>
-        Fase de grupos en curso.
-      </p>
-      {numerosGrupos.map((num) => {
-        const partidosGrupo = matches
-          .filter((m) => m.grupo === num)
-          .sort((a, b) => a.round_index - b.round_index || a.match_index - b.match_index);
-
-        const stats = {};
-        teams
-          .filter((t) => t.grupo === num)
-          .forEach((t) => {
-            stats[t.id] = { team: t, pj: 0, pg: 0, pf: 0, pc: 0 };
-          });
-        partidosGrupo
-          .filter((m) => m.winner_id)
-          .forEach((m) => {
-            if (stats[m.team1_id]) {
-              stats[m.team1_id].pj++;
-              stats[m.team1_id].pf += m.score_a;
-              stats[m.team1_id].pc += m.score_b;
-              if (m.winner_id === m.team1_id) stats[m.team1_id].pg++;
-            }
-            if (stats[m.team2_id]) {
-              stats[m.team2_id].pj++;
-              stats[m.team2_id].pf += m.score_b;
-              stats[m.team2_id].pc += m.score_a;
-              if (m.winner_id === m.team2_id) stats[m.team2_id].pg++;
-            }
-          });
-        const tabla = Object.values(stats).sort((a, b) => b.pg - a.pg || b.pf - b.pc - (a.pf - a.pc));
-
-        return (
-          <div key={num} className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-            <button
-              onClick={() => setAbiertos((prev) => ({ ...prev, [num]: !abierto(num) }))}
-              className="w-full flex items-center justify-between mb-3"
-            >
-              <h3 className="font-bold" style={{ color: T.gold }}>
-                Grupo {num}
-              </h3>
-              <span style={{ transform: abierto(num) ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
-                <IconAbajo color={T.inkDim} />
-              </span>
-            </button>
-
-            {abierto(num) && (
-              <>
-                <div className="rounded-xl border overflow-hidden mb-3" style={{ borderColor: T.line }}>
-                  <div
-                    className="grid gap-1 px-2 py-1.5 text-[10px] font-extrabold uppercase"
-                    style={{ gridTemplateColumns: "1fr 30px 30px 34px", background: T.panelLight, color: T.inkDim }}
-                  >
-                    <div>Equipo</div>
-                    <div className="text-center">PJ</div>
-                    <div className="text-center">PG</div>
-                    <div className="text-center">DIF</div>
-                  </div>
-                  {tabla.map((row) => (
-                    <div
-                      key={row.team.id}
-                      className="grid gap-1 px-2 py-1.5 text-xs items-center"
-                      style={{ gridTemplateColumns: "1fr 30px 30px 34px", borderTop: `1px solid ${T.line}`, color: T.ink }}
-                    >
-                      <div className="truncate font-semibold">{row.team.name}</div>
-                      <div className="text-center">{row.pj}</div>
-                      <div className="text-center">{row.pg}</div>
-                      <div className="text-center">{row.pf - row.pc}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  {partidosGrupo.map((m) => (
-                    <div
-                      key={m.id}
-                      className="text-xs px-2.5 py-2 rounded-lg flex items-center justify-between gap-2"
-                      style={{ background: T.panelLight }}
-                    >
-                      <div className="flex items-center gap-1 min-w-0 flex-1">
-                        <span className="truncate" style={{ color: m.winner_id === m.team1_id ? T.goldBright : T.ink }}>
-                          {teamsById[m.team1_id]?.name}
-                        </span>
-                        <b className="flex-shrink-0" style={{ color: T.inkDim, fontSize: 10 }}>
-                          vs
-                        </b>
-                        <span className="truncate" style={{ color: m.winner_id === m.team2_id ? T.goldBright : T.ink }}>
-                          {teamsById[m.team2_id]?.name}
-                        </span>
-                      </div>
-                      {m.winner_id ? (
-                        <span className="font-bold flex-shrink-0" style={{ color: T.goldBright }}>
-                          {m.score_a}-{m.score_b}
-                        </span>
-                      ) : (
-                        <span className="text-[11px] flex-shrink-0" style={{ color: T.inkDim }}>
-                          por jugar
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
