@@ -3026,18 +3026,23 @@ function FaseDeGruposPanel({
               </table>
             </div>
 
-            {fechas.map((fecha) => (
-              <div key={fecha} className="mb-3">
-                <div className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: T.inkDim }}>
-                  Fecha {fecha + 1}
-                </div>
-                <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
-                  {porFecha[fecha].map((m) => (
-                    <PartidoGrupoCard key={m.id} T={T} m={m} teamsById={teamsById} onCargarResultado={onCargarResultado} onReabrir={onReabrir} />
-                  ))}
-                </div>
-              </div>
-            ))}
+            <div className="flex items-start gap-4 overflow-x-auto pb-1">
+              {fechas.map((fecha, i) => (
+                <React.Fragment key={fecha}>
+                  {i > 0 && <div className="self-stretch w-px flex-shrink-0" style={{ background: T.line }} />}
+                  <div className="flex-shrink-0" style={{ width: 220 }}>
+                    <div className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: T.inkDim }}>
+                      Fecha {fecha + 1}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {porFecha[fecha].map((m) => (
+                        <PartidoGrupoCard key={m.id} T={T} m={m} teamsById={teamsById} onCargarResultado={onCargarResultado} onReabrir={onReabrir} />
+                      ))}
+                    </div>
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
           </div>
         );
       })}

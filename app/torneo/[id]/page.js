@@ -446,30 +446,35 @@ function GruposPublico({ teams, grupoMatches, teamsById }) {
                 </tbody>
               </table>
             </div>
-            {fechas.map((fecha) => (
-              <div key={fecha} className="mb-3">
-                <div className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: T.inkDim }}>
-                  Fecha {fecha + 1}
-                </div>
-                <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
-                  {porFecha[fecha].map((m) => {
-                    const jugado = !!m.winner_id;
-                    return (
-                      <div key={m.id} className="rounded-xl border p-2 text-xs" style={{ background: T.panelLight, borderColor: T.line }}>
-                        <div className="flex items-center justify-between gap-2 px-1 py-0.5" style={{ color: jugado && m.winner_id !== m.team1_id ? T.inkDim : T.ink }}>
-                          <span className="truncate">{teamsById[m.team1_id]?.name}</span>
-                          {jugado && <span className="font-black" style={{ color: T.goldBright }}>{m.score_a}</span>}
-                        </div>
-                        <div className="flex items-center justify-between gap-2 px-1 py-0.5" style={{ color: jugado && m.winner_id !== m.team2_id ? T.inkDim : T.ink }}>
-                          <span className="truncate">{teamsById[m.team2_id]?.name}</span>
-                          {jugado && <span className="font-black" style={{ color: T.goldBright }}>{m.score_b}</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+            <div className="flex items-start gap-4 overflow-x-auto pb-1">
+              {fechas.map((fecha, i) => (
+                <React.Fragment key={fecha}>
+                  {i > 0 && <div className="self-stretch w-px flex-shrink-0" style={{ background: T.line }} />}
+                  <div className="flex-shrink-0" style={{ width: 200 }}>
+                    <div className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: T.inkDim }}>
+                      Fecha {fecha + 1}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {porFecha[fecha].map((m) => {
+                        const jugado = !!m.winner_id;
+                        return (
+                          <div key={m.id} className="rounded-xl border p-2 text-xs" style={{ background: T.panelLight, borderColor: T.line }}>
+                            <div className="flex items-center justify-between gap-2 px-1 py-0.5" style={{ color: jugado && m.winner_id !== m.team1_id ? T.inkDim : T.ink }}>
+                              <span className="truncate">{teamsById[m.team1_id]?.name}</span>
+                              {jugado && <span className="font-black" style={{ color: T.goldBright }}>{m.score_a}</span>}
+                            </div>
+                            <div className="flex items-center justify-between gap-2 px-1 py-0.5" style={{ color: jugado && m.winner_id !== m.team2_id ? T.inkDim : T.ink }}>
+                              <span className="truncate">{teamsById[m.team2_id]?.name}</span>
+                              {jugado && <span className="font-black" style={{ color: T.goldBright }}>{m.score_b}</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
           </div>
         );
       })}
