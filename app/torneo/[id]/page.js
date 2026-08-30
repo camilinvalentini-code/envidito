@@ -9,6 +9,7 @@ import BracketDisplay from "../../../components/BracketDisplay";
 import ThemeToggleButton from "../../../components/ThemeToggleButton";
 import { IconAtras, IconAbajo } from "../../../components/LineIcons";
 import MiEquipoPanel from "../../../components/MiEquipoPanel";
+import { rankearGrupo } from "../../../lib/fasesDeGrupos.mjs";
 
 export default function TorneoPublico({ params, searchParams }) {
   const { id } = params;
@@ -29,11 +30,11 @@ export default function TorneoPublico({ params, searchParams }) {
     const { data: t } = await supabase.from("tournaments").select("*").eq("id", id).single();
     const { data: ts } = await supabase
       .from("teams")
-      .select("id, tournament_id, name, players, paid, created_at")
+      .select("id, tournament_id, name, players, paid, created_at, grupo")
       .eq("tournament_id", id);
     const { data: ms } = await supabase
       .from("matches")
-      .select("id, tournament_id, bracket, round_index, match_index, team1_id, team2_id, winner_id, score_a, score_b, bye")
+      .select("id, tournament_id, bracket, grupo, round_index, match_index, team1_id, team2_id, winner_id, score_a, score_b, bye")
       .eq("tournament_id", id);
     setTournament(t);
     setTeams(ts || []);
@@ -75,6 +76,10 @@ export default function TorneoPublico({ params, searchParams }) {
   const repMatches = matches.filter((m) => m.bracket === "repechaje");
   const enClasificatoria = tournament.formato === "clasificatoria" && !tournament.clasificatoria_cerrada;
   const clasifMatches = matches.filter((m) => m.bracket === "clasificatoria");
+  const enFaseDeGrupos = tournament.formato === "grupos";
+  const grupoMatches = matches.filter((m) => m.bracket === "grupos");
+  const oroMatches = matches.filter((m) => m.bracket === "oro");
+  const plataMatches = matches.filter((m) => m.bracket === "plata");
 
   // Los competidores no ven una fase hasta que la anterior termina del
   // todo (mismo criterio que usa el mensaje de WhatsApp del organizador:
@@ -167,6 +172,77 @@ export default function TorneoPublico({ params, searchParams }) {
               </p>
             ) : (
               <ClasificatoriaPublica matches={clasifMatches} teamsById={teamsById} />
+            )}
+          </>
+        ) : enFaseDeGrupos ? (
+          <>
+            {tournament.grupos_generados && (
+              <MiEquipoPanel
+                tournament={tournament}
+                teams={teams}
+                matches={tournament.copas_generadas ? [...oroMatches, ...plataMatches] : grupoMatches}
+                teamsById={teamsById}
+                puedeElegir={puedeElegirEquipo}
+              />
+            )}
+
+            {!tournament.grupos_generados ? (
+              <p className="text-center text-sm" style={{ color: T.inkDim }}>
+                El sorteo todavía no se hizo.
+              </p>
+            ) : !tournament.copas_generadas ? (
+              <GruposPublico teams={teams} grupoMatches={grupoMatches} teamsById={teamsById} />
+            ) : (
+              <>
+                {oroMatches.length > 0 && (
+                  <div className="mb-6">
+                    {tournament.campeon_oro_id && (
+                      <div
+                        className="rounded-3xl p-5 mb-5 text-center border-2 shadow-md"
+                        style={{ background: "#FBF3E3", borderColor: "#EAC27A" }}
+                      >
+                        <div className="text-xs font-bold uppercase tracking-widest" style={{ color: "#B85C55" }}>
+                          🏆 Campeón — Copa de Oro
+                        </div>
+                        <div className="text-2xl font-black mt-1" style={{ color: "#33453E" }}>
+                          {teamsById[tournament.campeon_oro_id]?.name}
+                        </div>
+                        <div className="text-xs mt-1 italic" style={{ color: "#B85C55" }}>
+                          {fraseCampeonAlAzar()}
+                        </div>
+                      </div>
+                    )}
+                    <h2 className="font-bold mb-3" style={{ color: T.gold }}>
+                      Copa de Oro
+                    </h2>
+                    <BracketDisplay matches={oroMatches} teamsById={teamsById} />
+                  </div>
+                )}
+                {plataMatches.length > 0 && (
+                  <div>
+                    {tournament.campeon_plata_id && (
+                      <div
+                        className="rounded-3xl p-5 mb-5 text-center border-2 shadow-md"
+                        style={{ background: "#FBF3E3", borderColor: "#EAC27A" }}
+                      >
+                        <div className="text-xs font-bold uppercase tracking-widest" style={{ color: "#B85C55" }}>
+                          🏆 Campeón — Copa de Plata
+                        </div>
+                        <div className="text-2xl font-black mt-1" style={{ color: "#33453E" }}>
+                          {teamsById[tournament.campeon_plata_id]?.name}
+                        </div>
+                        <div className="text-xs mt-1 italic" style={{ color: "#B85C55" }}>
+                          {fraseCampeonAlAzar()}
+                        </div>
+                      </div>
+                    )}
+                    <h2 className="font-bold mb-3" style={{ color: T.gold }}>
+                      Copa de Plata
+                    </h2>
+                    <BracketDisplay matches={plataMatches} teamsById={teamsById} />
+                  </div>
+                )}
+              </>
             )}
           </>
         ) : (
@@ -308,6 +384,95 @@ function ClasificatoriaPublica({ matches, teamsById }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// Vista pública (sin login) de la fase de grupos: tabla de posiciones +
+// fixture de cada grupo, solo para mirar. Misma tabla que usa el panel
+// del organizador (rankearGrupo() de lib/fasesDeGrupos.mjs).
+function GruposPublico({ teams, grupoMatches, teamsById }) {
+  const { T } = useTheme();
+  const numerosDeGrupo = [...new Set(teams.filter((t) => t.grupo != null).map((t) => t.grupo))].sort((a, b) => a - b);
+
+  return (
+    <div>
+      <p className="text-center text-sm mb-4" style={{ color: T.inkDim }}>
+        Fase de grupos en curso.
+      </p>
+      {numerosDeGrupo.map((num) => {
+        const equipoIds = teams.filter((t) => t.grupo === num).map((t) => t.id);
+        const ms = grupoMatches.filter((m) => m.grupo === num);
+        const partidos = ms.map((m) => ({
+          team1Id: m.team1_id,
+          team2Id: m.team2_id,
+          winnerId: m.winner_id,
+          scoreA: m.score_a,
+          scoreB: m.score_b,
+        }));
+        const tabla = rankearGrupo(equipoIds, partidos);
+        const porFecha = {};
+        ms.forEach((m) => {
+          porFecha[m.round_index] = porFecha[m.round_index] || [];
+          porFecha[m.round_index].push(m);
+        });
+        const fechas = Object.keys(porFecha).map(Number).sort((a, b) => a - b);
+        return (
+          <div key={num} className="rounded-2xl p-4 border shadow-sm mb-4" style={{ background: T.panel, borderColor: T.line }}>
+            <h2 className="font-bold text-sm mb-3" style={{ color: T.gold }}>
+              Grupo {num}
+            </h2>
+            <div className="overflow-x-auto mb-4">
+              <table className="w-full text-xs" style={{ color: T.ink }}>
+                <thead>
+                  <tr style={{ color: T.inkDim }}>
+                    <th className="text-left font-bold pb-1.5">Equipo</th>
+                    <th className="text-center font-bold pb-1.5">PJ</th>
+                    <th className="text-center font-bold pb-1.5">PG</th>
+                    <th className="text-center font-bold pb-1.5">Dif</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tabla.map((e) => (
+                    <tr key={e.id} style={{ borderTop: `1px solid ${T.line}` }}>
+                      <td className="py-1.5 font-semibold truncate max-w-[160px]">
+                        {e.posicion}. {teamsById[e.id]?.name}
+                      </td>
+                      <td className="text-center py-1.5">{e.pj}</td>
+                      <td className="text-center py-1.5">{e.pg}</td>
+                      <td className="text-center py-1.5">{e.dif > 0 ? `+${e.dif}` : e.dif}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {fechas.map((fecha) => (
+              <div key={fecha} className="mb-3">
+                <div className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: T.inkDim }}>
+                  Fecha {fecha + 1}
+                </div>
+                <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
+                  {porFecha[fecha].map((m) => {
+                    const jugado = !!m.winner_id;
+                    return (
+                      <div key={m.id} className="rounded-xl border p-2 text-xs" style={{ background: T.panelLight, borderColor: T.line }}>
+                        <div className="flex items-center justify-between gap-2 px-1 py-0.5" style={{ color: jugado && m.winner_id !== m.team1_id ? T.inkDim : T.ink }}>
+                          <span className="truncate">{teamsById[m.team1_id]?.name}</span>
+                          {jugado && <span className="font-black" style={{ color: T.goldBright }}>{m.score_a}</span>}
+                        </div>
+                        <div className="flex items-center justify-between gap-2 px-1 py-0.5" style={{ color: jugado && m.winner_id !== m.team2_id ? T.inkDim : T.ink }}>
+                          <span className="truncate">{teamsById[m.team2_id]?.name}</span>
+                          {jugado && <span className="font-black" style={{ color: T.goldBright }}>{m.score_b}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }

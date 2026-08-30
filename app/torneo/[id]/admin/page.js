@@ -12,6 +12,7 @@ import { IconAtras, IconAbajo, IconPuntos, IconCopiar, IconWhatsApp } from "../.
 import FechaNacimientoInput from "../../../../components/FechaNacimientoInput";
 import { fraseCampeonAlAzar } from "../../../../lib/champFrases";
 import { roundLabel } from "../../../../lib/bracket";
+import { repartirEnGrupos, armarFixtureGrupo, rankearGrupo, rankearGlobal } from "../../../../lib/fasesDeGrupos.mjs";
 
 export default function AdminPage({ params }) {
   const { id } = params;
@@ -51,10 +52,18 @@ export default function AdminPage({ params }) {
   const [formatoResorteo, setFormatoResorteo] = useState(null); // null = todavía no lo tocó, usa el formato actual del torneo
   const [modoPruebaAbierto, setModoPruebaAbierto] = useState(false);
   const [nombreNuevoEquipo, setNombreNuevoEquipo] = useState("");
-  const [formatoElegido, setFormatoElegido] = useState("directa"); // "directa" | "clasificatoria"
+  const [formatoElegido, setFormatoElegido] = useState("directa"); // "directa" | "clasificatoria" | "grupos"
   const [perdedoresElegidos, setPerdedoresElegidos] = useState(new Set());
   const [cerrandoClasificatoria, setCerrandoClasificatoria] = useState(false);
   const clasificatoriaRef = useRef(null);
+  // Fase de grupos — por ahora solo para Admin (ver profile.role más abajo),
+  // igual que "Ligas". cantidadGruposInput arranca en 4 pero se pisa con lo
+  // que ya tenga guardado el torneo apenas carga (mismo criterio que
+  // infoPuntosMax).
+  const [cantidadGruposInput, setCantidadGruposInput] = useState(4);
+  const [cerrandoGrupos, setCerrandoGrupos] = useState(false);
+  const [nombreTardioGrupos, setNombreTardioGrupos] = useState("");
+  const gruposRef = useRef(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") setOrigin(window.location.origin);
@@ -104,6 +113,7 @@ export default function AdminPage({ params }) {
     setInfoFecha((prev) => prev || t.fecha || "");
     setInfoEncargado((prev) => prev || t.encargado || "");
     setInfoPuntosMax((prev) => prev || t.puntos_max || 30);
+    setCantidadGruposInput((prev) => t.grupos_config?.cantidad_grupos || prev || 4);
   }, [id]);
 
   useEffect(() => {
@@ -467,8 +477,149 @@ export default function AdminPage({ params }) {
     }
   }
 
+  // ── Fase de grupos ────────────────────────────────────────────────
+  // El sorteo (quién juega contra quién, en qué fecha) se calcula acá,
+  // en JS puro (mismo motor ya probado con el test de estrés) — la base
+  // solo recibe el resultado ya armado e inserta filas, sin ningún
+  // random() de su lado. Ver sql/fase-de-grupos/ para el porqué.
+  async function generarFaseDeGrupos() {
+    if (teamsAprobados.length < cantidadGruposInput * 2) {
+      setError(`Hacen falta al menos ${cantidadGruposInput * 2} equipos aprobados para ${cantidadGruposInput} grupos.`);
+      return;
+    }
+    setError("");
+    const grupos = repartirEnGrupos(teamsAprobados.map((t) => t.id), cantidadGruposInput);
+    const asignacion = [];
+    const fixture = [];
+    grupos.forEach((idsDelGrupo, i) => {
+      const numeroGrupo = i + 1;
+      idsDelGrupo.forEach((teamId) => asignacion.push({ team_id: teamId, grupo: numeroGrupo }));
+      armarFixtureGrupo(idsDelGrupo).forEach((p) =>
+        fixture.push({ grupo: numeroGrupo, fecha: p.fecha, team1_id: p.team1Id, team2_id: p.team2Id })
+      );
+    });
+    const { error: err } = await supabase.rpc("generar_fase_grupos_desde_fixture", {
+      p_tournament_id: id,
+      p_cantidad_grupos: cantidadGruposInput,
+      p_asignacion: asignacion,
+      p_fixture: fixture,
+    });
+    if (err) {
+      setError(err.message || "No se pudo armar la fase de grupos. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
+    await load();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        gruposRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  }
+
+  async function resortearFaseDeGrupos() {
+    if (!window.confirm("¿Resortear la fase de grupos? Se arman grupos y cruces nuevos al azar. Nadie jugó nada todavía, es seguro."))
+      return;
+    await generarFaseDeGrupos();
+  }
+
+  async function volverDeFaseDeGrupos() {
+    if (!window.confirm('¿Volver a "Sorteo normal"? Se borra la fase de grupos armada (nadie jugó nada todavía ahí, es seguro) y podés elegir el formato de nuevo.'))
+      return;
+    setError("");
+    const { error: err } = await supabase.rpc("deshacer_fase_grupos", { p_tournament_id: id });
+    if (err) {
+      setError(err.message || "No se pudo volver a sorteo normal. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
+    setFormatoElegido("directa");
+    load();
+  }
+
+  async function cargarResultadoGrupo(matchId, scoreA, scoreB) {
+    setError("");
+    const { error: err } = await supabase.rpc("cargar_resultado_grupo", {
+      p_match_id: matchId,
+      p_score_a: scoreA,
+      p_score_b: scoreB,
+    });
+    if (err) {
+      setError(err.message || "No se pudo cargar el resultado. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
+    load();
+  }
+
+  async function reabrirPartidoGrupo(match) {
+    if (!window.confirm("¿Reabrir este partido de grupos? El resultado actual se borra y vuelve a estar \"por jugar\"."))
+      return;
+    const { error: err } = await supabase.rpc("reabrir_partido_grupo", { p_match_id: match.id });
+    if (err) {
+      setError(err.message || "No se pudo reabrir el partido. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
+    load();
+  }
+
+  async function agregarEquipoTardioGrupos(nombre) {
+    const limpio = nombre.trim();
+    if (!limpio) return;
+    setError("");
+    const { data: nuevo, error: errInsert } = await supabase
+      .from("teams")
+      .insert({ tournament_id: id, name: limpio, players: "", paid: false })
+      .select()
+      .single();
+    if (errInsert) {
+      setError("No se pudo agregar el equipo. Probá de nuevo.");
+      console.error(errInsert);
+      return;
+    }
+    const { error: errTardio } = await supabase.rpc("agregar_tardio_grupo", {
+      p_tournament_id: id,
+      p_team_id: nuevo.id,
+    });
+    if (errTardio) {
+      setError(
+        `El equipo se anotó, pero no se pudo meter en ningún grupo (${errTardio.message || "error desconocido"}). Probá de nuevo.`
+      );
+      console.error(errTardio);
+      return;
+    }
+    setNombreTardioGrupos("");
+    load();
+  }
+
+  async function cerrarFaseDeGrupos(equiposOro, equiposPlata) {
+    setCerrandoGrupos(true);
+    const { error: err } = await supabase.rpc("cerrar_fase_grupos", {
+      p_tournament_id: id,
+      p_equipos_oro: equiposOro,
+      p_equipos_plata: equiposPlata && equiposPlata.length > 0 ? equiposPlata : null,
+    });
+    setCerrandoGrupos(false);
+    if (err) {
+      setError(err.message || "No se pudo cerrar la fase de grupos. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
+    // Recién acá el torneo pasa a "started" — la vista de cuadro (más
+    // abajo) es la misma que ya existe para el cuadro principal, solo
+    // que ahora muestra Copa de Oro / Copa de Plata en vez de "main".
+    await supabase.from("tournaments").update({ started: true }).eq("id", id);
+    load();
+  }
+
   function sorteoSinJugar() {
     if (!tournament?.started) return false;
+    // Un torneo que llegó al cuadro por fase de grupos nunca tiene
+    // bracket 'main' — sin este chequeo, el array vacío hacía que
+    // every() diera true igual, y aparecía "Sorteo y ajustes" (resortear,
+    // agregar/sacar equipos del cuadro principal) sin sentido ahí.
+    if (tournament.formato === "grupos") return false;
     const ronda0 = matches.filter((m) => m.bracket === "main" && m.round_index === 0);
     return ronda0.every((m) => m.bye || (!m.winner_id && m.score_a === 0 && m.score_b === 0));
   }
@@ -975,6 +1126,8 @@ export default function AdminPage({ params }) {
   teams.forEach((t) => (teamsById[t.id] = t));
   const mainMatches = matches.filter((m) => m.bracket === "main");
   const repMatches = matches.filter((m) => m.bracket === "repechaje");
+  const oroMatches = matches.filter((m) => m.bracket === "oro");
+  const plataMatches = matches.filter((m) => m.bracket === "plata");
   // ?jugar=1 habilita elegir equipo en la página pública — así el link
   // que comparte el organizador funciona distinto de entrar navegando
   // desde /en-vivo (ahí solo se puede mirar, no elegir equipo).
@@ -1011,6 +1164,13 @@ export default function AdminPage({ params }) {
   const enClasificatoria =
     tournament.formato === "clasificatoria" && tournament.clasificatoria_generada && !tournament.clasificatoria_cerrada;
   const clasifMatches = matches.filter((m) => m.bracket === "clasificatoria");
+  // "Fase de grupos" por ahora es solo para Admin (igual que "Ligas") — se
+  // oculta la pestaña entera para cualquier organizador común mientras se
+  // termina de probar.
+  const esAdmin = profile?.role === "admin";
+  const enFaseDeGrupos =
+    tournament.formato === "grupos" && tournament.grupos_generados && !tournament.copas_generadas;
+  const grupoMatches = matches.filter((m) => m.bracket === "grupos");
 
   function rondaActualIndex() {
     const porRonda = {};
@@ -1758,6 +1918,25 @@ export default function AdminPage({ params }) {
                 error={error}
               />
               </div>
+            ) : enFaseDeGrupos ? (
+              <div ref={gruposRef}>
+              <FaseDeGruposPanel
+                T={T}
+                grupoMatches={grupoMatches}
+                teams={teams}
+                teamsById={teamsById}
+                onCargarResultado={cargarResultadoGrupo}
+                onReabrir={reabrirPartidoGrupo}
+                onResortear={resortearFaseDeGrupos}
+                onVolver={volverDeFaseDeGrupos}
+                onCerrar={cerrarFaseDeGrupos}
+                cerrando={cerrandoGrupos}
+                nombreTardio={nombreTardioGrupos}
+                onNombreTardioChange={setNombreTardioGrupos}
+                onAgregarTardio={() => agregarEquipoTardioGrupos(nombreTardioGrupos)}
+                error={error}
+              />
+              </div>
             ) : (
               <div className="lg:max-w-md lg:mx-auto">
                 {error && (
@@ -1789,6 +1968,18 @@ export default function AdminPage({ params }) {
                       Clasificatoria
                     </button>
                   )}
+                  {esAdmin && (
+                    <button
+                      onClick={() => setFormatoElegido("grupos")}
+                      className="flex-1 py-2 text-xs font-bold rounded-lg"
+                      style={{
+                        background: formatoElegido === "grupos" ? T.gold : "transparent",
+                        color: formatoElegido === "grupos" ? T.ink : T.inkDim,
+                      }}
+                    >
+                      Fase de grupos
+                    </button>
+                  )}
                 </div>
 
                 {formatoElegido === "directa" ? (
@@ -1804,7 +1995,7 @@ export default function AdminPage({ params }) {
                   >
                     ⚔️ Hacer los cruces
                   </button>
-                ) : (
+                ) : formatoElegido === "clasificatoria" ? (
                   <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
                     <p className="text-xs mb-1.5" style={{ color: T.inkDim }}>
                       {teamsAprobados.length} equipos no da un cuadro redondo. Se arma una ronda donde juegan todos, y
@@ -1820,6 +2011,40 @@ export default function AdminPage({ params }) {
                       style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
                     >
                       Generar clasificatoria →
+                    </button>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+                    <p className="text-xs mb-2" style={{ color: T.inkDim }}>
+                      Se reparten los equipos en grupos que juegan todos contra todos. Al terminar, elegís cuántos
+                      pasan a la Copa de Oro (y, si querés, a una Copa de Plata).
+                    </p>
+                    <label className="text-xs font-bold block mb-1.5" style={{ color: T.inkDim }}>
+                      ¿Cuántos grupos?
+                    </label>
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {[2, 3, 4, 6, 8].map((n) => (
+                        <button
+                          key={n}
+                          onClick={() => setCantidadGruposInput(n)}
+                          disabled={teamsAprobados.length < n * 2}
+                          className="px-3.5 py-1.5 rounded-full text-xs font-bold disabled:opacity-30"
+                          style={{
+                            background: cantidadGruposInput === n ? T.gold : T.panelLight,
+                            color: cantidadGruposInput === n ? T.ink : T.inkDim,
+                          }}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={generarFaseDeGrupos}
+                      disabled={teamsAprobados.length < cantidadGruposInput * 2}
+                      className="w-full py-3 rounded-2xl font-black text-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                      style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
+                    >
+                      Armar fase de grupos →
                     </button>
                   </div>
                 )}
@@ -2076,7 +2301,7 @@ export default function AdminPage({ params }) {
 
             {vista === "mesas" ? (
               <MesasPendientes
-                matches={[...mainMatches, ...repMatches]}
+                matches={[...mainMatches, ...repMatches, ...oroMatches, ...plataMatches]}
                 teamsById={teamsById}
                 origin={origin}
                 onDeclareWinner={forzarGanador}
@@ -2160,6 +2385,46 @@ export default function AdminPage({ params }) {
 
                     <BracketDisplayAdmin
                       matches={repMatches}
+                      teamsById={teamsById}
+                      origin={origin}
+                      onDeclareWinner={forzarGanador}
+                      onReabrir={reabrirPartido}
+                    />
+                  </div>
+                )}
+
+                {oroMatches.length > 0 && (
+                  <div className="mt-6">
+                    <h2 className="font-bold mb-3" style={{ color: T.gold }}>
+                      Copa de Oro
+                    </h2>
+                    {tournament.campeon_oro_id && (
+                      <p className="text-sm font-bold mb-3" style={{ color: T.goldBright }}>
+                        🏆 Campeón: {teamsById[tournament.campeon_oro_id]?.name}
+                      </p>
+                    )}
+                    <BracketDisplayAdmin
+                      matches={oroMatches}
+                      teamsById={teamsById}
+                      origin={origin}
+                      onDeclareWinner={forzarGanador}
+                      onReabrir={reabrirPartido}
+                    />
+                  </div>
+                )}
+
+                {plataMatches.length > 0 && (
+                  <div className="mt-6">
+                    <h2 className="font-bold mb-3" style={{ color: T.gold }}>
+                      Copa de Plata
+                    </h2>
+                    {tournament.campeon_plata_id && (
+                      <p className="text-sm font-bold mb-3" style={{ color: T.goldBright }}>
+                        🏆 Campeón: {teamsById[tournament.campeon_plata_id]?.name}
+                      </p>
+                    )}
+                    <BracketDisplayAdmin
+                      matches={plataMatches}
                       teamsById={teamsById}
                       origin={origin}
                       onDeclareWinner={forzarGanador}
@@ -2606,6 +2871,332 @@ function ClasificatoriaHistorial({
   );
 }
 
+
+// Fase de grupos — por ahora solo para Admin. La tabla de posiciones y el
+// ranking general para elegir Oro/Plata usan rankearGrupo()/rankearGlobal()
+// de lib/fasesDeGrupos.mjs (el mismo motor ya probado con el test de
+// estrés), no se recalcula nada de eso acá.
+function FaseDeGruposPanel({
+  T,
+  grupoMatches,
+  teams,
+  teamsById,
+  onCargarResultado,
+  onReabrir,
+  onResortear,
+  onVolver,
+  onCerrar,
+  cerrando,
+  nombreTardio,
+  onNombreTardioChange,
+  onAgregarTardio,
+  error,
+}) {
+  const [oroCantidad, setOroCantidad] = useState(null);
+  const [agregarPlata, setAgregarPlata] = useState(false);
+  const [plataCantidad, setPlataCantidad] = useState(null);
+
+  const nadieJugoNada = grupoMatches.every((m) => !m.winner_id);
+  const todosJugados = grupoMatches.length > 0 && grupoMatches.every((m) => !!m.winner_id);
+
+  const numerosDeGrupo = [...new Set(teams.filter((t) => t.grupo != null).map((t) => t.grupo))].sort((a, b) => a - b);
+
+  const tablasPorGrupo = numerosDeGrupo.map((num) => {
+    const equipoIds = teams.filter((t) => t.grupo === num).map((t) => t.id);
+    const ms = grupoMatches.filter((m) => m.grupo === num);
+    const partidos = ms.map((m) => ({
+      team1Id: m.team1_id,
+      team2Id: m.team2_id,
+      winnerId: m.winner_id,
+      scoreA: m.score_a,
+      scoreB: m.score_b,
+    }));
+    return { num, ms, tabla: rankearGrupo(equipoIds, partidos) };
+  });
+
+  const rankingGlobal = todosJugados ? rankearGlobal(tablasPorGrupo.map((g) => g.tabla)) : [];
+  const idsRankeados = rankingGlobal.map((e) => e.id);
+  const opcionesOro = [2, 4, 8, 16, 32].filter((n) => n <= idsRankeados.length);
+  const cantidadOro = oroCantidad && opcionesOro.includes(oroCantidad) ? oroCantidad : opcionesOro[opcionesOro.length - 1];
+  const restantesParaPlata = idsRankeados.length - cantidadOro;
+  const opcionesPlata = [2, 4, 8, 16, 32].filter((n) => n <= restantesParaPlata);
+  const cantidadPlata =
+    plataCantidad && opcionesPlata.includes(plataCantidad) ? plataCantidad : opcionesPlata[opcionesPlata.length - 1];
+
+  function confirmarCierre() {
+    const equiposOro = idsRankeados.slice(0, cantidadOro);
+    const equiposPlata = agregarPlata && cantidadPlata ? idsRankeados.slice(cantidadOro, cantidadOro + cantidadPlata) : null;
+    onCerrar(equiposOro, equiposPlata);
+  }
+
+  return (
+    <div>
+      {error && (
+        <p className="text-sm text-center mb-3" style={{ color: T.goldBright }}>
+          {error}
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        {nadieJugoNada ? (
+          <button onClick={onVolver} className="text-xs font-bold flex items-center gap-1" style={{ color: T.inkDim }}>
+            ← Volver a sorteo normal
+          </button>
+        ) : (
+          <span />
+        )}
+        {nadieJugoNada && (
+          <button
+            onClick={onResortear}
+            className="h-9 px-3 rounded-xl font-bold text-xs"
+            style={{ background: T.panel, color: T.inkDim, border: `1px solid ${T.line}` }}
+          >
+            ↻ Resortear grupos
+          </button>
+        )}
+      </div>
+
+      {!todosJugados && (
+        <div className="rounded-2xl p-3 border mb-4" style={{ background: T.panel, borderColor: T.line }}>
+          <p className="text-xs mb-2" style={{ color: T.inkDim }}>
+            ¿Se anotó un equipo tarde? Se suma al grupo con menos equipos, sin tocar los cruces ya armados.
+          </p>
+          <div className="flex gap-2">
+            <input
+              value={nombreTardio}
+              onChange={(e) => onNombreTardioChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onAgregarTardio();
+                }
+              }}
+              placeholder="Nombre del equipo nuevo"
+              className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm"
+              style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+            />
+            <button
+              onClick={onAgregarTardio}
+              className="flex-shrink-0 px-4 py-2 rounded-xl font-bold text-sm"
+              style={{ background: T.gold, color: T.ink }}
+            >
+              + Agregar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tablasPorGrupo.map(({ num, ms, tabla }) => {
+        const porFecha = {};
+        ms.forEach((m) => {
+          porFecha[m.round_index] = porFecha[m.round_index] || [];
+          porFecha[m.round_index].push(m);
+        });
+        const fechas = Object.keys(porFecha).map(Number).sort((a, b) => a - b);
+        return (
+          <div key={num} className="rounded-2xl p-4 border shadow-sm mb-4" style={{ background: T.panel, borderColor: T.line }}>
+            <h2 className="font-bold text-sm mb-3" style={{ color: T.gold }}>
+              Grupo {num}
+            </h2>
+
+            <div className="overflow-x-auto mb-4">
+              <table className="w-full text-xs" style={{ color: T.ink }}>
+                <thead>
+                  <tr style={{ color: T.inkDim }}>
+                    <th className="text-left font-bold pb-1.5">Equipo</th>
+                    <th className="text-center font-bold pb-1.5">PJ</th>
+                    <th className="text-center font-bold pb-1.5">PG</th>
+                    <th className="text-center font-bold pb-1.5">Dif</th>
+                    <th className="text-center font-bold pb-1.5">Pts.Favor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tabla.map((e) => (
+                    <tr key={e.id} style={{ borderTop: `1px solid ${T.line}` }}>
+                      <td className="py-1.5 font-semibold truncate max-w-[160px]">
+                        {e.posicion}. {teamsById[e.id]?.name}
+                      </td>
+                      <td className="text-center py-1.5">{e.pj}</td>
+                      <td className="text-center py-1.5">{e.pg}</td>
+                      <td className="text-center py-1.5">{e.dif > 0 ? `+${e.dif}` : e.dif}</td>
+                      <td className="text-center py-1.5">{e.pf}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {fechas.map((fecha) => (
+              <div key={fecha} className="mb-3">
+                <div className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: T.inkDim }}>
+                  Fecha {fecha + 1}
+                </div>
+                <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
+                  {porFecha[fecha].map((m) => (
+                    <PartidoGrupoCard key={m.id} T={T} m={m} teamsById={teamsById} onCargarResultado={onCargarResultado} onReabrir={onReabrir} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+
+      {todosJugados && (
+        <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+          <h2 className="font-bold text-sm mb-3" style={{ color: T.gold }}>
+            Cerrar fase de grupos
+          </h2>
+
+          <label className="text-xs font-bold block mb-1.5" style={{ color: T.inkDim }}>
+            Copa de Oro — ¿cuántos equipos?
+          </label>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {opcionesOro.map((n) => (
+              <button
+                key={n}
+                onClick={() => setOroCantidad(n)}
+                className="px-3.5 py-1.5 rounded-full text-xs font-bold"
+                style={{ background: n === cantidadOro ? T.gold : T.panelLight, color: n === cantidadOro ? T.ink : T.inkDim }}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setAgregarPlata((v) => !v)}
+            className="flex items-center gap-2 mb-3"
+            style={{ color: T.ink }}
+          >
+            <span
+              className="w-3.5 h-3.5 rounded flex-shrink-0"
+              style={{ background: agregarPlata ? T.gold : "transparent", border: `1.5px solid ${agregarPlata ? T.gold : T.line}` }}
+            />
+            <span className="text-xs font-bold">Agregar Copa de Plata</span>
+          </button>
+
+          {agregarPlata && (
+            <>
+              <label className="text-xs font-bold block mb-1.5" style={{ color: T.inkDim }}>
+                Copa de Plata — ¿cuántos equipos?
+              </label>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {opcionesPlata.length === 0 ? (
+                  <p className="text-xs" style={{ color: T.inkDim }}>
+                    No sobran equipos suficientes para una Copa de Plata con esta Copa de Oro.
+                  </p>
+                ) : (
+                  opcionesPlata.map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setPlataCantidad(n)}
+                      className="px-3.5 py-1.5 rounded-full text-xs font-bold"
+                      style={{ background: n === cantidadPlata ? T.gold : T.panelLight, color: n === cantidadPlata ? T.ink : T.inkDim }}
+                    >
+                      {n}
+                    </button>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+
+          <button
+            onClick={confirmarCierre}
+            disabled={cerrando || (agregarPlata && !cantidadPlata)}
+            className="w-full py-3 rounded-2xl font-black text-sm disabled:opacity-50"
+            style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
+          >
+            {cerrando ? "Armando…" : "Armar copa(s) →"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Una mesa de la fase de grupos: si todavía no tiene resultado, deja
+// cargar el puntaje real a mano (hace falta para la diferencia de
+// tantos) además del link al anotador en vivo de siempre.
+function PartidoGrupoCard({ T, m, teamsById, onCargarResultado, onReabrir }) {
+  const [scoreA, setScoreA] = useState("");
+  const [scoreB, setScoreB] = useState("");
+  const jugado = !!m.winner_id;
+  const nombre1 = teamsById[m.team1_id]?.name || "?";
+  const nombre2 = teamsById[m.team2_id]?.name || "?";
+
+  return (
+    <div className="rounded-2xl border p-2" style={{ background: T.panelLight, borderColor: T.line }}>
+      <div
+        className="px-3 py-1.5 rounded-xl text-sm font-semibold flex items-center justify-between gap-2"
+        style={{ color: jugado && m.winner_id !== m.team1_id ? T.inkDim : T.ink }}
+      >
+        <span className="truncate">{nombre1}</span>
+        {jugado && <span className="font-black flex-shrink-0" style={{ color: T.goldBright }}>{m.score_a}</span>}
+      </div>
+      <div className="h-px my-1" style={{ background: T.line }} />
+      <div
+        className="px-3 py-1.5 rounded-xl text-sm font-semibold flex items-center justify-between gap-2"
+        style={{ color: jugado && m.winner_id !== m.team2_id ? T.inkDim : T.ink }}
+      >
+        <span className="truncate">{nombre2}</span>
+        {jugado && <span className="font-black flex-shrink-0" style={{ color: T.goldBright }}>{m.score_b}</span>}
+      </div>
+
+      {jugado ? (
+        <button
+          onClick={() => onReabrir(m)}
+          className="block w-full text-center text-xs mt-2 py-1.5 rounded-lg font-semibold"
+          style={{ color: T.inkDim, background: T.panel }}
+        >
+          Reabrir
+        </button>
+      ) : (
+        <>
+          <a
+            href={`/partido/${m.match_token}`}
+            target="_blank"
+            rel="noreferrer"
+            className="block text-center text-xs mt-2 py-1.5 rounded-lg font-semibold"
+            style={{ color: T.goldBright, background: T.panel }}
+          >
+            Abrir anotador de esta mesa →
+          </a>
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <input
+              value={scoreA}
+              onChange={(e) => setScoreA(e.target.value.replace(/\D/g, ""))}
+              placeholder="0"
+              inputMode="numeric"
+              className="w-full px-2 py-1.5 rounded-lg text-xs text-center"
+              style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
+            />
+            <span className="text-xs" style={{ color: T.inkDim }}>
+              —
+            </span>
+            <input
+              value={scoreB}
+              onChange={(e) => setScoreB(e.target.value.replace(/\D/g, ""))}
+              placeholder="0"
+              inputMode="numeric"
+              className="w-full px-2 py-1.5 rounded-lg text-xs text-center"
+              style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
+            />
+            <button
+              onClick={() => onCargarResultado(m.id, parseInt(scoreA, 10) || 0, parseInt(scoreB, 10) || 0)}
+              disabled={scoreA === "" || scoreB === ""}
+              className="flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40"
+              style={{ background: T.gold, color: T.ink }}
+            >
+              Cargar
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 // Vista rápida: una tarjeta por mesa pendiente, con acceso directo al
 // anotador, sin tener que scrollear todo el cuadro para llegar hasta ahí.
