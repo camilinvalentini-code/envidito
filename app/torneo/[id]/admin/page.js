@@ -587,7 +587,7 @@ export default function AdminPage({ params }) {
     });
     if (errTardio) {
       setError(
-        `El equipo se anotó, pero no se pudo meter en ningún grupo (${errTardio.message || "error desconocido"}). Probá de nuevo.`
+        `El equipo se anotó, pero no se pudo meter en ningún grupo (${errTardio.message || "Error desconocido"}). Probá de nuevo.`
       );
       console.error(errTardio);
       return;

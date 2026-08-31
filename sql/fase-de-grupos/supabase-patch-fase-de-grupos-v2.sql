@@ -51,7 +51,7 @@ begin
   select * into m from matches where id = p_match_id;
   if not found or m.winner_id is not null then return; end if;
   if p_winner_id is distinct from m.team1_id and p_winner_id is distinct from m.team2_id then
-    raise exception 'ese equipo no juega este partido';
+    raise exception 'Ese equipo no juega este partido';
   end if;
 
   if auth.uid() is not null and not (
@@ -59,7 +59,7 @@ begin
       select 1 from tournaments t where t.id = m.tournament_id and t.organizador_id = auth.uid()
     )
   ) then
-    raise exception 'no autorizado';
+    raise exception 'No autorizado';
   end if;
 
   -- Partido de fase de grupos: no es un árbol de eliminación, cada
@@ -159,7 +159,7 @@ declare
   item jsonb;
 begin
   if not public.is_admin() then
-    raise exception 'no autorizado';
+    raise exception 'No autorizado';
   end if;
 
   -- Bloquea la fila del torneo hasta que termine esta función — un
@@ -168,20 +168,20 @@ begin
   perform 1 from tournaments where id = p_tournament_id for update;
 
   if p_cantidad_grupos < 1 then
-    raise exception 'la cantidad de grupos tiene que ser al menos 1';
+    raise exception 'La cantidad de grupos tiene que ser al menos 1';
   end if;
 
   if exists (
     select 1 from jsonb_array_elements(p_asignacion) x
     where not exists (select 1 from teams tm where tm.id = (x->>'team_id')::uuid and tm.tournament_id = p_tournament_id)
   ) then
-    raise exception 'algún equipo no pertenece a este torneo';
+    raise exception 'Algún equipo no pertenece a este torneo';
   end if;
 
   select count(*) into jugados from matches
     where tournament_id = p_tournament_id and bracket = 'grupos' and winner_id is not null;
   if jugados > 0 then
-    raise exception 'ya hay partidos de grupos jugados — no se puede volver a sortear';
+    raise exception 'Ya hay partidos de grupos jugados — no se puede volver a sortear';
   end if;
 
   delete from matches where tournament_id = p_tournament_id and bracket = 'grupos';
@@ -234,18 +234,18 @@ declare
   idx int := 0;
 begin
   if not public.is_admin() then
-    raise exception 'no autorizado';
+    raise exception 'No autorizado';
   end if;
 
   select * into t from tournaments where id = p_tournament_id for update;
-  if not found then raise exception 'torneo no encontrado'; end if;
+  if not found then raise exception 'Torneo no encontrado'; end if;
   if t.formato is distinct from 'grupos' or not t.grupos_generados then
-    raise exception 'este torneo no tiene una fase de grupos armada';
+    raise exception 'Este torneo no tiene una fase de grupos armada';
   end if;
-  if t.copas_generadas then raise exception 'la fase de grupos ya se cerró'; end if;
+  if t.copas_generadas then raise exception 'La fase de grupos ya se cerró'; end if;
 
   if not exists (select 1 from teams where id = p_team_id and tournament_id = p_tournament_id) then
-    raise exception 'ese equipo no pertenece a este torneo';
+    raise exception 'Ese equipo no pertenece a este torneo';
   end if;
 
   if exists (select 1 from teams where id = p_team_id and grupo is not null) then
@@ -259,7 +259,7 @@ begin
     limit 1;
 
   if grupo_destino is null then
-    raise exception 'no se encontró a qué grupo sumarlo';
+    raise exception 'No se encontró a qué grupo sumarlo';
   end if;
 
   update teams set grupo = grupo_destino where id = p_team_id;
@@ -295,20 +295,20 @@ declare
 begin
   select * into m from matches where id = p_match_id;
   if not found or m.bracket != 'grupos' then
-    raise exception 'ese partido no es de la fase de grupos';
+    raise exception 'Ese partido no es de la fase de grupos';
   end if;
 
   if not public.is_admin() then
-    raise exception 'no autorizado';
+    raise exception 'No autorizado';
   end if;
 
   if m.winner_id is not null then
-    raise exception 'ese partido ya está cerrado';
+    raise exception 'Ese partido ya está cerrado';
   end if;
 
   tope := public.tope_de_partido(p_match_id);
   if p_score_a < 0 or p_score_a > tope or p_score_b < 0 or p_score_b > tope then
-    raise exception 'los puntos van de 0 a %', tope;
+    raise exception 'Los puntos van de 0 a %', tope;
   end if;
   if p_score_a = p_score_b then
     raise exception 'En el truco no hay empates';
@@ -339,16 +339,16 @@ declare
   t tournaments%rowtype;
 begin
   select * into m from matches where id = p_match_id;
-  if not found or m.bracket != 'grupos' then raise exception 'ese partido no es de la fase de grupos'; end if;
+  if not found or m.bracket != 'grupos' then raise exception 'Ese partido no es de la fase de grupos'; end if;
 
   if not public.is_admin() then
-    raise exception 'no autorizado';
+    raise exception 'No autorizado';
   end if;
 
   select * into t from tournaments where id = m.tournament_id;
 
   if t.copas_generadas then
-    raise exception 'ya se armaron las copas con esta fase de grupos — no se puede reabrir sin desarmarlas antes';
+    raise exception 'Ya se armaron las copas con esta fase de grupos — no se puede reabrir sin desarmarlas antes';
   end if;
 
   update matches set winner_id = null, score_a = 0, score_b = 0 where id = m.id;
@@ -373,7 +373,7 @@ declare
   pendientes int;
 begin
   if not public.is_admin() then
-    raise exception 'no autorizado';
+    raise exception 'No autorizado';
   end if;
 
   perform 1 from tournaments where id = p_tournament_id for update;
@@ -381,34 +381,34 @@ begin
   select count(*) into pendientes from matches
     where tournament_id = p_tournament_id and bracket = 'grupos' and winner_id is null;
   if pendientes > 0 then
-    raise exception 'todavía faltan % partido(s) de la fase de grupos', pendientes;
+    raise exception 'Todavía faltan % partido(s) de la fase de grupos', pendientes;
   end if;
 
   if exists (
     select 1 from matches where tournament_id = p_tournament_id and bracket in ('oro', 'plata') and winner_id is not null
   ) then
-    raise exception 'ya hay partidos jugados en las copas — no se pueden volver a generar';
+    raise exception 'Ya hay partidos jugados en las copas — no se pueden volver a generar';
   end if;
 
   if coalesce(array_length(p_equipos_oro, 1), 0) < 2 then
-    raise exception 'la Copa de Oro necesita al menos 2 equipos';
+    raise exception 'La Copa de Oro necesita al menos 2 equipos';
   end if;
   if p_equipos_plata is not null and coalesce(array_length(p_equipos_plata, 1), 0) < 2 then
-    raise exception 'la Copa de Plata necesita al menos 2 equipos';
+    raise exception 'La Copa de Plata necesita al menos 2 equipos';
   end if;
 
   if exists (
     select 1 from unnest(p_equipos_oro) a(id)
     join unnest(coalesce(p_equipos_plata, array[]::uuid[])) b(id) using (id)
   ) then
-    raise exception 'un mismo equipo no puede estar en las dos copas a la vez';
+    raise exception 'Un mismo equipo no puede estar en las dos copas a la vez';
   end if;
 
   if exists (
     select 1 from unnest(p_equipos_oro || coalesce(p_equipos_plata, array[]::uuid[])) tid
     where not exists (select 1 from teams tm where tm.id = tid and tm.tournament_id = p_tournament_id)
   ) then
-    raise exception 'algún equipo no pertenece a este torneo';
+    raise exception 'Algún equipo no pertenece a este torneo';
   end if;
 
   delete from matches where tournament_id = p_tournament_id and bracket in ('oro', 'plata');
@@ -437,7 +437,7 @@ declare
   jugados int;
 begin
   if not public.is_admin() then
-    raise exception 'no autorizado';
+    raise exception 'No autorizado';
   end if;
 
   perform 1 from tournaments where id = p_tournament_id for update;
@@ -445,7 +445,7 @@ begin
   select count(*) into jugados from matches
     where tournament_id = p_tournament_id and bracket = 'grupos' and winner_id is not null;
   if jugados > 0 then
-    raise exception 'ya se jugó algo de la fase de grupos — no se puede deshacer';
+    raise exception 'Ya se jugó algo de la fase de grupos — no se puede deshacer';
   end if;
 
   delete from matches where tournament_id = p_tournament_id and bracket in ('grupos', 'oro', 'plata');
