@@ -1925,6 +1925,7 @@ export default function AdminPage({ params }) {
                 grupoMatches={grupoMatches}
                 teams={teams}
                 teamsById={teamsById}
+                tope={tournament.puntos_max || 30}
                 onCargarResultado={cargarResultadoGrupo}
                 onReabrir={reabrirPartidoGrupo}
                 onResortear={resortearFaseDeGrupos}
@@ -2881,6 +2882,7 @@ function FaseDeGruposPanel({
   grupoMatches,
   teams,
   teamsById,
+  tope,
   onCargarResultado,
   onReabrir,
   onResortear,
@@ -3036,7 +3038,7 @@ function FaseDeGruposPanel({
                     </div>
                     <div className="flex flex-col gap-2">
                       {porFecha[fecha].map((m) => (
-                        <PartidoGrupoCard key={m.id} T={T} m={m} teamsById={teamsById} onCargarResultado={onCargarResultado} onReabrir={onReabrir} />
+                        <PartidoGrupoCard key={m.id} T={T} m={m} teamsById={teamsById} tope={tope} onCargarResultado={onCargarResultado} onReabrir={onReabrir} />
                       ))}
                     </div>
                   </div>
@@ -3124,12 +3126,21 @@ function FaseDeGruposPanel({
 // Una mesa de la fase de grupos: si todavía no tiene resultado, deja
 // cargar el puntaje real a mano (hace falta para la diferencia de
 // tantos) además del link al anotador en vivo de siempre.
-function PartidoGrupoCard({ T, m, teamsById, onCargarResultado, onReabrir }) {
+function PartidoGrupoCard({ T, m, teamsById, tope, onCargarResultado, onReabrir }) {
   const [scoreA, setScoreA] = useState("");
   const [scoreB, setScoreB] = useState("");
   const jugado = !!m.winner_id;
   const nombre1 = teamsById[m.team1_id]?.name || "?";
   const nombre2 = teamsById[m.team2_id]?.name || "?";
+
+  // Solo dígitos, máximo 2 (alcanza y sobra para el tope del torneo) y
+  // recortado al tope real — así no se puede ni escribir un puntaje
+  // negativo ni uno por encima de lo que el torneo permite.
+  function limpiarScore(raw) {
+    const soloDigitos = raw.replace(/\D/g, "").slice(0, 2);
+    if (soloDigitos === "") return "";
+    return String(Math.min(parseInt(soloDigitos, 10), tope));
+  }
 
   return (
     <div className="rounded-2xl border p-2" style={{ background: T.panelLight, borderColor: T.line }}>
@@ -3171,9 +3182,10 @@ function PartidoGrupoCard({ T, m, teamsById, onCargarResultado, onReabrir }) {
           <div className="flex items-center gap-1.5 mt-1.5">
             <input
               value={scoreA}
-              onChange={(e) => setScoreA(e.target.value.replace(/\D/g, ""))}
+              onChange={(e) => setScoreA(limpiarScore(e.target.value))}
               placeholder="0"
               inputMode="numeric"
+              maxLength={2}
               className="w-full px-2 py-1.5 rounded-lg text-xs text-center"
               style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
             />
@@ -3182,9 +3194,10 @@ function PartidoGrupoCard({ T, m, teamsById, onCargarResultado, onReabrir }) {
             </span>
             <input
               value={scoreB}
-              onChange={(e) => setScoreB(e.target.value.replace(/\D/g, ""))}
+              onChange={(e) => setScoreB(limpiarScore(e.target.value))}
               placeholder="0"
               inputMode="numeric"
+              maxLength={2}
               className="w-full px-2 py-1.5 rounded-lg text-xs text-center"
               style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
             />
