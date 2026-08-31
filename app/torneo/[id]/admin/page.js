@@ -43,6 +43,7 @@ export default function AdminPage({ params }) {
   const [busquedaEquipos, setBusquedaEquipos] = useState("");
   const [busquedaAjustarEquipos, setBusquedaAjustarEquipos] = useState("");
   const [mostrarQuitarEquipo, setMostrarQuitarEquipo] = useState(false);
+  const [corregirJugadoresAbierto, setCorregirJugadoresAbierto] = useState(false);
   const [linkInscripcionCopiado, setLinkInscripcionCopiado] = useState(false);
   const [editandoJugadoresDe, setEditandoJugadoresDe] = useState(null); // team id, o null
   const [jugadoresEditando, setJugadoresEditando] = useState([]); // [{id, name, dni, telefono, fecha_nacimiento, email}]
@@ -1806,21 +1807,30 @@ export default function AdminPage({ params }) {
 
             {teamsAprobados.length > 0 && (
               <div className="rounded-2xl p-4 mb-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
-                <h3 className="font-bold text-sm mb-3" style={{ color: T.ink }}>
-                  Corregir datos de jugadores
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {teamsAprobados.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => abrirEditorJugadores(t.id)}
-                      className="text-xs px-3 py-1.5 rounded-full font-semibold"
-                      style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
-                    >
-                      ✎ {t.name}
-                    </button>
-                  ))}
-                </div>
+                <button
+                  onClick={() => setCorregirJugadoresAbierto((v) => !v)}
+                  className="w-full flex items-center justify-between font-bold text-sm"
+                  style={{ color: T.ink }}
+                >
+                  <span>Corregir datos de jugadores</span>
+                  <span style={{ transform: corregirJugadoresAbierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+                    <IconAbajo color={T.inkDim} />
+                  </span>
+                </button>
+                {corregirJugadoresAbierto && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {teamsAprobados.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => abrirEditorJugadores(t.id)}
+                        className="text-xs px-3 py-1.5 rounded-full font-semibold"
+                        style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
+                      >
+                        ✎ {t.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1840,7 +1850,8 @@ export default function AdminPage({ params }) {
                   </h3>
                   {jugadoresEditando.length === 0 ? (
                     <p className="text-sm" style={{ color: T.inkDim }}>
-                      Este equipo no tiene jugadores con datos cargados para editar.
+                      Este equipo se anotó a mano (sin formulario de inscripción), así que no tiene DNI, teléfono
+                      ni fecha de nacimiento cargados — no hay nada que corregir acá.
                     </p>
                   ) : (
                     <div className="flex flex-col gap-3">
@@ -1899,7 +1910,7 @@ export default function AdminPage({ params }) {
                       className="flex-1 py-2 rounded-xl font-bold text-sm"
                       style={{ background: T.panelLight, color: T.ink, border: `1px solid ${T.line}` }}
                     >
-                      Cancelar
+                      {jugadoresEditando.length === 0 ? "Entendido" : "Cancelar"}
                     </button>
                     {jugadoresEditando.length > 0 && (
                       <button
