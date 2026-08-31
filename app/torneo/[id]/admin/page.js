@@ -2934,6 +2934,31 @@ function FaseDeGruposPanel({
     onCerrar(equiposOro, equiposPlata);
   }
 
+  // Todos los grupos juegan su "fecha 1" en simultáneo antes de pasar a
+  // la fecha 2 — así que lo que un organizador realmente anuncia por
+  // WhatsApp es "fecha 1 de todos los grupos", no fecha por fecha de un
+  // solo grupo. Por eso este texto junta los cruces de esa fecha en
+  // TODOS los grupos, no solo uno.
+  const todasLasFechas = [...new Set(grupoMatches.map((m) => m.round_index))].sort((a, b) => a - b);
+  function textoFechaTodosLosGrupos(fecha) {
+    const porGrupo = {};
+    grupoMatches
+      .filter((m) => m.round_index === fecha)
+      .forEach((m) => {
+        porGrupo[m.grupo] = porGrupo[m.grupo] || [];
+        porGrupo[m.grupo].push(m);
+      });
+    const numeros = Object.keys(porGrupo).map(Number).sort((a, b) => a - b);
+    return `Fecha ${fecha + 1}\n\n${numeros
+      .map(
+        (num) =>
+          `Grupo ${num}\n${porGrupo[num]
+            .map((m) => `${teamsById[m.team1_id]?.name || "?"} vs ${teamsById[m.team2_id]?.name || "?"}`)
+            .join("\n")}`
+      )
+      .join("\n\n")}`;
+  }
+
   return (
     <div>
       {error && (
@@ -2960,6 +2985,17 @@ function FaseDeGruposPanel({
           </button>
         )}
       </div>
+
+      {todasLasFechas.length > 0 && (
+        <div className="rounded-xl px-3 py-2 border mb-3 flex flex-wrap items-center gap-2" style={{ background: T.panel, borderColor: T.line }}>
+          <p className="text-[11px] flex-shrink-0" style={{ color: T.inkDim }}>
+            Copiar fecha (todos los grupos):
+          </p>
+          {todasLasFechas.map((fecha) => (
+            <BotonCopiarFecha key={fecha} T={T} texto={textoFechaTodosLosGrupos(fecha)} etiqueta={`Fecha ${fecha + 1}`} />
+          ))}
+        </div>
+      )}
 
       {!todosJugados && (
         <div className="rounded-xl px-3 py-2 border mb-3 flex flex-wrap items-center gap-2" style={{ background: T.panel, borderColor: T.line }}>
