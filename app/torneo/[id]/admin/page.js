@@ -2243,7 +2243,25 @@ export default function AdminPage({ params }) {
                   );
                 })()}
 
-                {(fasesListasParaResortear().length > 0 || sorteoSinJugar()) && (
+                {bracketsDelCuadro().map(({ bracket, etiqueta }) => {
+                  const pendientesDeEsteBracket = fasesListasParaResortear().filter((f) => f.bracket === bracket);
+                  const siguiente = pendientesDeEsteBracket[0] || null;
+                  const clave = siguiente ? `${bracket}:${siguiente.idx}` : null;
+                  const usados = clave ? tournament.resorteos?.[clave] || 0 : 0;
+                  return (
+                    <BotonResortearFase
+                      key={bracket}
+                      T={T}
+                      bracket={bracket}
+                      etiqueta={etiqueta}
+                      siguiente={siguiente}
+                      usados={usados}
+                      onResortear={resortearFase}
+                    />
+                  );
+                })}
+
+                {sorteoSinJugar() && (
                   <div className="relative">
                     <button
                       onClick={() => {
@@ -2260,18 +2278,6 @@ export default function AdminPage({ params }) {
                         className="absolute top-12 left-0 w-[min(90vw,320px)] max-h-[70vh] overflow-y-auto rounded-2xl border shadow-lg p-3.5 z-30"
                         style={{ background: T.panel, borderColor: T.line }}
                       >
-                        {fasesListasParaResortear().map(({ bracket, etiqueta, idx, cantidad }) => (
-                          <button
-                            key={`${bracket}-${idx}`}
-                            onClick={() => resortearFase(bracket, idx)}
-                            className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
-                            style={{ background: "transparent", color: T.goldBright, border: `1px solid ${T.gold}` }}
-                          >
-                            Resortear {etiqueta ? `${etiqueta} — ` : ""}
-                            {roundLabel(cantidad)} (todavía no se jugó nada ahí)
-                          </button>
-                        ))}
-
                         {sorteoSinJugar() && (
                           <div className="rounded-xl p-3 border mb-3" style={{ background: T.bg, borderColor: T.line }}>
                             <span className="text-xs font-bold" style={{ color: T.inkDim }}>
@@ -3360,6 +3366,34 @@ function FaseDeGruposPanel({
 // Copia el texto de una fecha (sin pasar por WhatsApp, a diferencia de
 // compartirCruces de más arriba) — para pegarlo donde el organizador
 // quiera.
+// Botón suelto en el header (no escondido en "Sorteo y ajustes") para
+// resortear Octavos/Cuartos/Semis de un cuadro puntual. Igual que
+// "Cargar" en la fase de grupos: siempre visible, pero deshabilitado
+// (sin ocultarse) cuando no hay nada para resortear ahora o ya se llegó
+// al máximo de veces — el máximo real lo impone la base (resortear_fase),
+// esto solo evita el click inútil.
+const LIMITE_RESORTEOS = 3;
+function BotonResortearFase({ T, bracket, etiqueta, siguiente, usados, onResortear }) {
+  const disabled = !siguiente || usados >= LIMITE_RESORTEOS;
+  const label = etiqueta ? `↻ Resortear ${etiqueta}` : "↻ Resortear";
+  const title = !siguiente
+    ? "No hay ninguna fase lista para resortear ahora (falta que estén todos los cruces armados, o ya se jugó algo ahí)"
+    : usados >= LIMITE_RESORTEOS
+    ? `Ya se resorteó esta fase ${LIMITE_RESORTEOS} veces — es el máximo`
+    : `${roundLabel(siguiente.cantidad)} — usado ${usados}/${LIMITE_RESORTEOS}`;
+  return (
+    <button
+      onClick={() => siguiente && onResortear(bracket, siguiente.idx)}
+      disabled={disabled}
+      title={title}
+      className="h-11 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
+      style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
+    >
+      {label}
+    </button>
+  );
+}
+
 function BotonCopiarFecha({ T, texto, etiqueta = "Copiar" }) {
   const [copiado, setCopiado] = useState(false);
 
