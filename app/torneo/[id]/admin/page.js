@@ -1107,10 +1107,32 @@ export default function AdminPage({ params }) {
           const ladoA = Math.random() < 0.5;
           const scoreA = ladoA ? tope : perdedor;
           const scoreB = ladoA ? perdedor : tope;
-          await supabase.rpc("cargar_resultado_grupo", { p_match_id: m.id, p_score_a: scoreA, p_score_b: scoreB });
+          const { error: errSim } = await supabase.rpc("cargar_resultado_grupo", {
+            p_match_id: m.id,
+            p_score_a: scoreA,
+            p_score_b: scoreB,
+          });
+          // Sin este chequeo, un solo partido que fallara (por lo que
+          // sea) quedaba pendiente para siempre y la simulación se
+          // quedaba reintentando ESE MISMO partido las 300 vueltas del
+          // loop, sin tocar ningún otro — de ahí el "quedó todo en 0".
+          if (errSim) {
+            console.error(errSim);
+            setError(`La simulación se frenó en un partido de grupos: ${errSim.message || "error desconocido"}`);
+            setSimulando(false);
+            load();
+            return;
+          }
         } else {
           const winnerId = Math.random() < 0.5 ? m.team1_id : m.team2_id;
-          await supabase.rpc("declarar_ganador", { p_match_id: m.id, p_winner_id: winnerId });
+          const { error: errSim } = await supabase.rpc("declarar_ganador", { p_match_id: m.id, p_winner_id: winnerId });
+          if (errSim) {
+            console.error(errSim);
+            setError(`La simulación se frenó en un partido: ${errSim.message || "error desconocido"}`);
+            setSimulando(false);
+            load();
+            return;
+          }
         }
         continue;
       }
