@@ -603,6 +603,26 @@ export default function AdminPage({ params }) {
     load();
   }
 
+  // Borra SOLO una fecha puntual de UN grupo — no todo el torneo como
+  // "Resortear grupos". Hace falta para corregir una fecha mal armada
+  // (ej. un equipo tardío que hubo que sacar de nuevo) sin tocar el
+  // resto de los grupos que ya están jugando otras fechas en vivo.
+  async function borrarFechaGrupo(grupo, fecha) {
+    if (!window.confirm(`¿Borrar la Fecha ${fecha + 1} del Grupo ${grupo}? Solo se puede si nadie jugó nada ahí todavía. El resto del torneo no se toca.`))
+      return;
+    const { error: err } = await supabase.rpc("borrar_fecha_grupo", {
+      p_tournament_id: id,
+      p_grupo: grupo,
+      p_fecha: fecha,
+    });
+    if (err) {
+      setError(err.message || "No se pudo borrar esa fecha. Probá de nuevo.");
+      console.error(err);
+      return;
+    }
+    load();
+  }
+
   async function agregarEquipoTardioGrupos(nombre) {
     const limpio = nombre.trim();
     if (!limpio) return;
@@ -1967,6 +1987,7 @@ export default function AdminPage({ params }) {
                 tope={tournament.puntos_max || 30}
                 onCargarResultado={cargarResultadoGrupo}
                 onReabrir={reabrirPartidoGrupo}
+                onBorrarFecha={borrarFechaGrupo}
                 onResortear={resortearFaseDeGrupos}
                 onVolver={volverDeFaseDeGrupos}
                 onCerrar={cerrarFaseDeGrupos}
@@ -2924,6 +2945,7 @@ function FaseDeGruposPanel({
   tope,
   onCargarResultado,
   onReabrir,
+  onBorrarFecha,
   onResortear,
   onVolver,
   onCerrar,
@@ -3122,12 +3144,24 @@ function FaseDeGruposPanel({
                       <div className="text-[11px] font-bold uppercase tracking-wide" style={{ color: T.inkDim }}>
                         Fecha {fecha + 1}
                       </div>
-                      <BotonCopiarFecha
-                        T={T}
-                        texto={`Grupo ${num} — Fecha ${fecha + 1}\n${porFecha[fecha]
-                          .map((m) => `${teamsById[m.team1_id]?.name || "?"} vs ${teamsById[m.team2_id]?.name || "?"}`)
-                          .join("\n")}`}
-                      />
+                      <div className="flex items-center gap-1">
+                        <BotonCopiarFecha
+                          T={T}
+                          texto={`Grupo ${num} — Fecha ${fecha + 1}\n${porFecha[fecha]
+                            .map((m) => `${teamsById[m.team1_id]?.name || "?"} vs ${teamsById[m.team2_id]?.name || "?"}`)
+                            .join("\n")}`}
+                        />
+                        {porFecha[fecha].every((m) => !m.winner_id) && (
+                          <button
+                            onClick={() => onBorrarFecha(num, fecha)}
+                            title="Borrar esta fecha — solo si nadie jugó nada ahí"
+                            className="flex-shrink-0 text-[10px] font-bold px-2 py-1 rounded-full border"
+                            style={{ color: T.redDim, background: T.panelLight, borderColor: T.line }}
+                          >
+                            Borrar
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="flex flex-col gap-1.5">
                       {porFecha[fecha].map((m) => (

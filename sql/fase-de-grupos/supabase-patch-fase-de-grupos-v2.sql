@@ -358,6 +358,38 @@ grant execute on function public.reabrir_partido_grupo(uuid) to authenticated;
 revoke execute on function public.reabrir_partido_grupo(uuid) from anon;
 revoke execute on function public.reabrir_partido_grupo(uuid) from public;
 
+-- ── Borrar una fecha puntual de UN grupo (no todo el bracket 'grupos'
+-- entero como hace resortear). Hace falta para el caso real: si una
+-- fecha se armó mal (por ejemplo un equipo tardío que había que sacar
+-- de nuevo, ver el bug de removeTeam), no se puede resortear todo el
+-- torneo con 48 personas ya jugando otras fechas — solo se necesita
+-- deshacer ESA fecha puntual. Exige que nadie haya jugado nada ahí
+-- todavía (si alguien ya jugó, hay que reabrir ese partido primero). ──
+create or replace function public.borrar_fecha_grupo(p_tournament_id uuid, p_grupo int, p_fecha int)
+returns void language plpgsql security definer
+set search_path = public, pg_temp as $$
+declare
+  jugados int;
+begin
+  if not public.is_admin() then
+    raise exception 'No autorizado';
+  end if;
+
+  perform 1 from tournaments where id = p_tournament_id for update;
+
+  select count(*) into jugados from matches
+    where tournament_id = p_tournament_id and bracket = 'grupos' and grupo = p_grupo and round_index = p_fecha and winner_id is not null;
+  if jugados > 0 then
+    raise exception 'Ya se jugó algo en esa fecha — reabrí ese partido primero si hace falta';
+  end if;
+
+  delete from matches where tournament_id = p_tournament_id and bracket = 'grupos' and grupo = p_grupo and round_index = p_fecha;
+end;
+$$;
+grant execute on function public.borrar_fecha_grupo(uuid, int, int) to authenticated;
+revoke execute on function public.borrar_fecha_grupo(uuid, int, int) from anon;
+revoke execute on function public.borrar_fecha_grupo(uuid, int, int) from public;
+
 -- ── Cerrar la fase de grupos: arma Copa de Oro (obligatoria) y, si se
 -- pasa, Copa de Plata — con los equipos YA rankeados y YA elegidos
 -- desde la pantalla (rankearGrupo()/rankearGlobal() de
