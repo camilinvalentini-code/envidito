@@ -14,6 +14,12 @@ import { fraseCampeonAlAzar } from "../../../../lib/champFrases";
 import { roundLabel } from "../../../../lib/bracket";
 import { repartirEnGrupos, armarFixtureGrupo, rankearGrupo, rankearGlobal } from "../../../../lib/fasesDeGrupos.mjs";
 
+// Firma al pie de todo texto que se comparte/copia para WhatsApp — ahí
+// donde el organizador ya está por pegarlo, es el mejor lugar para que
+// quede la marca. WhatsApp no tiene subrayado; sí negrita (*texto*) e
+// itálica (_texto_), que es lo que se usa en los títulos de estos textos.
+const FIRMA_ENVIDITO = "_Sorteo hecho con Envidito.com_";
+
 export default function AdminPage({ params }) {
   const { id } = params;
   const { T } = useTheme();
@@ -507,7 +513,7 @@ export default function AdminPage({ params }) {
       return `${n1} vs ${n2}`;
     });
     const fecha = tournament.fecha ? ` — ${tournament.fecha}` : "";
-    return `⚔️ ${tournament.nombre}${fecha}\n\n📋 Clasificatoria\n${lineas.join("\n")}\n\n${publicUrl}`;
+    return `⚔️ *${tournament.nombre}*${fecha}\n\n📋 *Clasificatoria*\n${lineas.join("\n")}\n\n${publicUrl}\n\n${FIRMA_ENVIDITO}`;
   }
 
   async function compartirCrucesClasificatoria(clasifMatches) {
@@ -1386,10 +1392,10 @@ export default function AdminPage({ params }) {
         const n2 = conNumero(m.team2_id);
         return `${n1} vs ${n2}`;
       });
-      bloques.push(`📋 ${titulo}\n${lineas.join("\n")}`);
+      bloques.push(`📋 *${titulo}*\n${lineas.join("\n")}`);
     });
     const fecha = tournament.fecha ? ` — ${tournament.fecha}` : "";
-    const texto = `⚔️ ${tournament.nombre}${fecha}\n\n${bloques.join("\n\n")}\n\n${publicUrl}`;
+    const texto = `⚔️ *${tournament.nombre}*${fecha}\n\n${bloques.join("\n\n")}\n\n${publicUrl}\n\n${FIRMA_ENVIDITO}`;
     return { texto, matches: todosPendientes };
   }
 
@@ -1445,10 +1451,10 @@ export default function AdminPage({ params }) {
           }
           return `${n1} vs ${n2}`;
         });
-      return `📋 ${titulo}\n\n${lineas.join("\n")}`;
+      return `📋 *${titulo}*\n\n${lineas.join("\n")}`;
     });
     const fecha = tournament.fecha ? ` — ${tournament.fecha}` : "";
-    return `⚔️ ${tournament.nombre}${fecha}\n${bloques.join("\n\n")}\n\n${publicUrl}`;
+    return `⚔️ *${tournament.nombre}*${fecha}\n${bloques.join("\n\n")}\n\n${publicUrl}\n\n${FIRMA_ENVIDITO}`;
   }
 
   async function copiarCruces() {
@@ -3189,14 +3195,14 @@ function FaseDeGruposPanel({
         porGrupo[m.grupo].push(m);
       });
     const numeros = Object.keys(porGrupo).map(Number).sort((a, b) => a - b);
-    return `Fecha ${fecha + 1}\n\n${numeros
+    return `*Fecha ${fecha + 1}*\n\n${numeros
       .map(
         (num) =>
-          `Grupo ${num}\n${porGrupo[num]
+          `*Grupo ${num}*\n${porGrupo[num]
             .map((m) => `${teamsById[m.team1_id]?.name || "?"} vs ${teamsById[m.team2_id]?.name || "?"}`)
             .join("\n")}`
       )
-      .join("\n\n")}`;
+      .join("\n\n")}\n\n${FIRMA_ENVIDITO}`;
   }
 
   return (
@@ -3273,14 +3279,14 @@ function FaseDeGruposPanel({
           porFecha[m.round_index].push(m);
         });
         const fechas = Object.keys(porFecha).map(Number).sort((a, b) => a - b);
-        const textoGrupoCompleto = `Grupo ${num}\n\n${fechas
+        const textoGrupoCompleto = `*Grupo ${num}*\n\n${fechas
           .map(
             (fecha) =>
-              `Fecha ${fecha + 1}\n${porFecha[fecha]
+              `*Fecha ${fecha + 1}*\n${porFecha[fecha]
                 .map((m) => `${teamsById[m.team1_id]?.name || "?"} vs ${teamsById[m.team2_id]?.name || "?"}`)
                 .join("\n")}`
           )
-          .join("\n\n")}`;
+          .join("\n\n")}\n\n${FIRMA_ENVIDITO}`;
         return (
           <div key={num} className="rounded-2xl p-3 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
             <div className="flex items-center justify-between gap-2 mb-2">
@@ -3329,9 +3335,9 @@ function FaseDeGruposPanel({
                       <div className="flex items-center gap-1">
                         <BotonCopiarFecha
                           T={T}
-                          texto={`Grupo ${num} — Fecha ${fecha + 1}\n${porFecha[fecha]
+                          texto={`*Grupo ${num} — Fecha ${fecha + 1}*\n${porFecha[fecha]
                             .map((m) => `${teamsById[m.team1_id]?.name || "?"} vs ${teamsById[m.team2_id]?.name || "?"}`)
-                            .join("\n")}`}
+                            .join("\n")}\n\n${FIRMA_ENVIDITO}`}
                         />
                         {porFecha[fecha].every((m) => !m.winner_id) && (
                           <button
