@@ -1231,9 +1231,9 @@ export default function AdminPage({ params }) {
     tournament.formato === "grupos" && tournament.grupos_generados && !tournament.copas_generadas;
   const grupoMatches = matches.filter((m) => m.bracket === "grupos");
 
-  function rondaActualIndex() {
+  function rondaActualIndexDe(ms) {
     const porRonda = {};
-    mainMatches.forEach((m) => {
+    ms.forEach((m) => {
       porRonda[m.round_index] = porRonda[m.round_index] || [];
       porRonda[m.round_index].push(m);
     });
@@ -1244,8 +1244,22 @@ export default function AdminPage({ params }) {
     }
     return indices[indices.length - 1] ?? 0; // torneo ya terminado: la última
   }
+  // Un torneo de fase de grupos no tiene bracket 'main' — el "cuadro" que
+  // hay que avisar/copiar son Copa de Oro y Copa de Plata, cada una con
+  // su propia ronda actual (no van necesariamente al mismo ritmo: una
+  // puede terminar antes que la otra). Para un torneo normal, es lo de
+  // siempre: un solo bloque sin etiqueta.
+  function bracketsDelCuadro() {
+    if (tournament.formato === "grupos") {
+      return [
+        { etiqueta: "Copa de Oro", ms: oroMatches },
+        { etiqueta: "Copa de Plata", ms: plataMatches },
+      ].filter((b) => b.ms.length > 0);
+    }
+    return [{ etiqueta: null, ms: mainMatches }];
+  }
 
-  function crucesPendientes() {
+  function crucesPendientesDe(ms) {
     // Un cruce está pendiente de avisar si: es un partido nuevo recién
     // definido (avisado=false), o si es un "espera rival" recién armado
     // (avisado_espera=false). Cuando a un "espera rival" ya avisado le
@@ -1253,14 +1267,18 @@ export default function AdminPage({ params }) {
     // en false hasta que se avise ESE cruce ya completo).
     // Importante: solo mira la fase ACTUAL — la que sigue no se avisa
     // hasta que la actual termine del todo.
-    const idx = rondaActualIndex();
-    const pendientes = mainMatches.filter((m) => {
+    if (ms.length === 0) return [];
+    const idx = rondaActualIndexDe(ms);
+    const pendientes = ms.filter((m) => {
       if (m.round_index !== idx) return false;
       if (!m.team1_id) return false; // nada para avisar todavía
       if (m.bye || m.team2_id) return !m.avisado; // cruce definido (o libre)
       return !m.avisado_espera; // solo espera rival
     });
     return pendientes.sort((a, b) => a.match_index - b.match_index);
+  }
+  function crucesPendientes() {
+    return bracketsDelCuadro().flatMap((b) => crucesPendientesDe(b.ms));
   }
 
   function textoCrucesPendientes() {
@@ -1271,30 +1289,28 @@ export default function AdminPage({ params }) {
       const num = numeroPorEquipo[teamId];
       return num ? `${num} (${nombre})` : nombre;
     };
-    const pendientes = crucesPendientes();
-    const porRonda = {};
-    pendientes.forEach((m) => {
-      porRonda[m.round_index] = porRonda[m.round_index] || [];
-      porRonda[m.round_index].push(m);
-    });
-    const bloques = Object.keys(porRonda)
-      .map(Number)
-      .sort((a, b) => a - b)
-      .map((idx) => {
-        const totalRonda = mainMatches.filter((m) => m.round_index === idx).length;
-        const nombreRonda = roundLabel(totalRonda);
-        const lineas = porRonda[idx].map((m) => {
-          const n1 = conNumero(m.team1_id);
-          if (m.bye) return `${n1} → LIBRE`;
-          if (!m.team2_id) return `${n1} → espera rival`;
-          const n2 = conNumero(m.team2_id);
-          return `${n1} vs ${n2}`;
-        });
-        return `📋 ${nombreRonda}\n${lineas.join("\n")}`;
+    const todosPendientes = [];
+    const bloques = [];
+    bracketsDelCuadro().forEach(({ etiqueta, ms }) => {
+      const pendientes = crucesPendientesDe(ms);
+      if (pendientes.length === 0) return;
+      todosPendientes.push(...pendientes);
+      const idx = rondaActualIndexDe(ms);
+      const totalRonda = ms.filter((m) => m.round_index === idx).length;
+      const nombreRonda = roundLabel(totalRonda);
+      const titulo = etiqueta ? `${etiqueta} — ${nombreRonda}` : nombreRonda;
+      const lineas = pendientes.map((m) => {
+        const n1 = conNumero(m.team1_id);
+        if (m.bye) return `${n1} → LIBRE`;
+        if (!m.team2_id) return `${n1} → espera rival`;
+        const n2 = conNumero(m.team2_id);
+        return `${n1} vs ${n2}`;
       });
+      bloques.push(`📋 ${titulo}\n${lineas.join("\n")}`);
+    });
     const fecha = tournament.fecha ? ` — ${tournament.fecha}` : "";
     const texto = `⚔️ ${tournament.nombre}${fecha}\n\n${bloques.join("\n\n")}\n\n${publicUrl}`;
-    return { texto, matches: pendientes };
+    return { texto, matches: todosPendientes };
   }
 
   async function marcarAvisados(matches) {
@@ -1331,24 +1347,28 @@ export default function AdminPage({ params }) {
       const num = numeroPorEquipo[teamId];
       return num ? `${num} (${nombre})` : nombre;
     };
-    const idx = rondaActualIndex();
-    const rondaMatches = mainMatches.filter((m) => m.round_index === idx).sort((a, b) => a.match_index - b.match_index);
-    const nombreRonda = roundLabel(rondaMatches.length);
-    const lineas = rondaMatches
-      .filter((m) => m.team1_id)
-      .map((m) => {
-        const n1 = conNumero(m.team1_id);
-        if (m.bye) return `${n1} → LIBRE`;
-        if (!m.team2_id) return `${n1} → espera rival`;
-        const n2 = conNumero(m.team2_id);
-        if (m.winner_id) {
-          const marcador = ` (${m.score_a}-${m.score_b})`;
-          return `${n1} vs ${n2}${marcador} — ganó ${conNumero(m.winner_id)}`;
-        }
-        return `${n1} vs ${n2}`;
-      });
+    const bloques = bracketsDelCuadro().map(({ etiqueta, ms }) => {
+      const idx = rondaActualIndexDe(ms);
+      const rondaMatches = ms.filter((m) => m.round_index === idx).sort((a, b) => a.match_index - b.match_index);
+      const nombreRonda = roundLabel(rondaMatches.length);
+      const titulo = etiqueta ? `${etiqueta} — ${nombreRonda} (resumen)` : `${nombreRonda} (resumen)`;
+      const lineas = rondaMatches
+        .filter((m) => m.team1_id)
+        .map((m) => {
+          const n1 = conNumero(m.team1_id);
+          if (m.bye) return `${n1} → LIBRE`;
+          if (!m.team2_id) return `${n1} → espera rival`;
+          const n2 = conNumero(m.team2_id);
+          if (m.winner_id) {
+            const marcador = ` (${m.score_a}-${m.score_b})`;
+            return `${n1} vs ${n2}${marcador} — ganó ${conNumero(m.winner_id)}`;
+          }
+          return `${n1} vs ${n2}`;
+        });
+      return `📋 ${titulo}\n\n${lineas.join("\n")}`;
+    });
     const fecha = tournament.fecha ? ` — ${tournament.fecha}` : "";
-    return `⚔️ ${tournament.nombre}${fecha}\n📋 ${nombreRonda} (resumen)\n\n${lineas.join("\n")}\n\n${publicUrl}`;
+    return `⚔️ ${tournament.nombre}${fecha}\n${bloques.join("\n\n")}\n\n${publicUrl}`;
   }
 
   async function copiarCruces() {
@@ -1985,6 +2005,7 @@ export default function AdminPage({ params }) {
                 teams={teams}
                 teamsById={teamsById}
                 tope={tournament.puntos_max || 30}
+                copasGeneradas={tournament.copas_generadas}
                 onCargarResultado={cargarResultadoGrupo}
                 onReabrir={reabrirPartidoGrupo}
                 onBorrarFecha={borrarFechaGrupo}
@@ -2347,6 +2368,15 @@ export default function AdminPage({ params }) {
                 >
                   Cuadro completo
                 </button>
+                {tournament.formato === "grupos" && (
+                  <button
+                    onClick={() => setVista("grupos")}
+                    className="flex-1 py-2.5 px-5 rounded-lg text-sm font-bold transition-colors duration-200"
+                    style={{ background: vista === "grupos" ? T.gold : "transparent", color: vista === "grupos" ? T.ink : T.inkDim }}
+                  >
+                    Grupos
+                  </button>
+                )}
               </div>
             </div>
 
@@ -2366,6 +2396,26 @@ export default function AdminPage({ params }) {
                 teamsById={teamsById}
                 origin={origin}
                 onDeclareWinner={forzarGanador}
+              />
+            ) : vista === "grupos" ? (
+              <FaseDeGruposPanel
+                T={T}
+                grupoMatches={grupoMatches}
+                teams={teams}
+                teamsById={teamsById}
+                tope={tournament.puntos_max || 30}
+                copasGeneradas={tournament.copas_generadas}
+                onCargarResultado={cargarResultadoGrupo}
+                onReabrir={reabrirPartidoGrupo}
+                onBorrarFecha={borrarFechaGrupo}
+                onResortear={resortearFaseDeGrupos}
+                onVolver={volverDeFaseDeGrupos}
+                onCerrar={cerrarFaseDeGrupos}
+                cerrando={cerrandoGrupos}
+                nombreTardio={nombreTardioGrupos}
+                onNombreTardioChange={setNombreTardioGrupos}
+                onAgregarTardio={() => agregarEquipoTardioGrupos(nombreTardioGrupos)}
+                error={error}
               />
             ) : (
               <>
@@ -2943,6 +2993,7 @@ function FaseDeGruposPanel({
   teams,
   teamsById,
   tope,
+  copasGeneradas,
   onCargarResultado,
   onReabrir,
   onBorrarFecha,
@@ -3177,7 +3228,12 @@ function FaseDeGruposPanel({
       })}
       </div>
 
-      {todosJugados && (
+      {copasGeneradas ? (
+        <p className="text-xs text-center" style={{ color: T.inkDim }}>
+          Esta fase ya se cerró — mirá los cuadros de Oro/Plata en la pestaña "Cuadro completo".
+        </p>
+      ) : (
+      todosJugados && (
         <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
           <h2 className="font-bold text-sm mb-3" style={{ color: T.gold }}>
             Cerrar fase de grupos
@@ -3246,6 +3302,7 @@ function FaseDeGruposPanel({
             {cerrando ? "Armando…" : "Armar copa(s) →"}
           </button>
         </div>
+      )
       )}
     </div>
   );
