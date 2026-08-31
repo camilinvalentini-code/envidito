@@ -1098,8 +1098,20 @@ export default function AdminPage({ params }) {
 
       if (pend && pend.length > 0) {
         const m = pend[0];
-        const winnerId = Math.random() < 0.5 ? m.team1_id : m.team2_id;
-        await supabase.rpc("declarar_ganador", { p_match_id: m.id, p_winner_id: winnerId });
+        if (m.bracket === "grupos") {
+          // Con puntaje real (no solo "quién ganó") para que la tabla de
+          // posiciones tenga diferencia de tantos de verdad al simular —
+          // si no, todo quedaba 0 a 0 y nunca se ejercitaba el desempate.
+          const tope = tournament.puntos_max || 30;
+          const perdedor = Math.floor(Math.random() * tope); // 0..tope-1
+          const ladoA = Math.random() < 0.5;
+          const scoreA = ladoA ? tope : perdedor;
+          const scoreB = ladoA ? perdedor : tope;
+          await supabase.rpc("cargar_resultado_grupo", { p_match_id: m.id, p_score_a: scoreA, p_score_b: scoreB });
+        } else {
+          const winnerId = Math.random() < 0.5 ? m.team1_id : m.team2_id;
+          await supabase.rpc("declarar_ganador", { p_match_id: m.id, p_winner_id: winnerId });
+        }
         continue;
       }
 
