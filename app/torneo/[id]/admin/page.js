@@ -694,31 +694,42 @@ export default function AdminPage({ params }) {
     load();
   }
 
+  // Junta las fases resorteables de TODOS los cuadros en juego — para un
+  // torneo normal es solo 'main' (ronda 0 aparte, tiene su propio botón
+  // de "Resortear"), pero para uno de fase de grupos son Copa de Oro y
+  // Copa de Plata, cada una con sus propias rondas — y ninguna de las
+  // dos tiene un botón de "ronda 0" aparte (esa ronda la arma
+  // cerrar_fase_grupos, de una sola vez), así que ahí SÍ se puede
+  // resortear desde octavos.
   function fasesListasParaResortear() {
-    const porRonda = {};
-    mainMatches.forEach((m) => {
-      porRonda[m.round_index] = porRonda[m.round_index] || [];
-      porRonda[m.round_index].push(m);
+    const resultado = [];
+    bracketsDelCuadro().forEach(({ bracket, etiqueta, ms }) => {
+      const porRonda = {};
+      ms.forEach((m) => {
+        porRonda[m.round_index] = porRonda[m.round_index] || [];
+        porRonda[m.round_index].push(m);
+      });
+      Object.keys(porRonda)
+        .map(Number)
+        .filter((idx) => {
+          if (idx === 0 && bracket === "main") return false; // la ronda 0 de 'main' ya tiene su propio botón
+          const rms = porRonda[idx];
+          const completa = rms.every((m) => m.team1_id && m.team2_id);
+          const sinJugar = rms.every((m) => !m.winner_id && m.score_a === 0 && m.score_b === 0);
+          return completa && sinJugar;
+        })
+        .sort((a, b) => a - b)
+        .forEach((idx) => resultado.push({ bracket, etiqueta, idx, cantidad: porRonda[idx].length }));
     });
-    return Object.keys(porRonda)
-      .map(Number)
-      .filter((idx) => {
-        if (idx === 0) return false; // la ronda 0 ya tiene su propio botón de "Resortear"
-        const ms = porRonda[idx];
-        const completa = ms.every((m) => m.team1_id && m.team2_id);
-        const sinJugar = ms.every((m) => !m.winner_id && m.score_a === 0 && m.score_b === 0);
-        return completa && sinJugar;
-      })
-      .sort((a, b) => a - b)
-      .map((idx) => ({ idx, cantidad: porRonda[idx].length }));
+    return resultado;
   }
 
-  async function resortearFase(idx) {
+  async function resortearFase(bracket, idx) {
     if (!window.confirm(`¿Volver a sortear los cruces de esta fase? Nadie jugó nada todavía ahí, así que es seguro.`)) return;
     setError("");
     const { error: err } = await supabase.rpc("resortear_fase", {
       p_tournament_id: id,
-      p_bracket: "main",
+      p_bracket: bracket,
       p_round_index: idx,
     });
     if (err) {
@@ -1286,11 +1297,11 @@ export default function AdminPage({ params }) {
   function bracketsDelCuadro() {
     if (tournament.formato === "grupos") {
       return [
-        { etiqueta: "Copa de Oro", ms: oroMatches },
-        { etiqueta: "Copa de Plata", ms: plataMatches },
+        { bracket: "oro", etiqueta: "Copa de Oro", ms: oroMatches },
+        { bracket: "plata", etiqueta: "Copa de Plata", ms: plataMatches },
       ].filter((b) => b.ms.length > 0);
     }
-    return [{ etiqueta: null, ms: mainMatches }];
+    return [{ bracket: "main", etiqueta: null, ms: mainMatches }];
   }
 
   function crucesPendientesDe(ms) {
@@ -2249,14 +2260,15 @@ export default function AdminPage({ params }) {
                         className="absolute top-12 left-0 w-[min(90vw,320px)] max-h-[70vh] overflow-y-auto rounded-2xl border shadow-lg p-3.5 z-30"
                         style={{ background: T.panel, borderColor: T.line }}
                       >
-                        {fasesListasParaResortear().map(({ idx, cantidad }) => (
+                        {fasesListasParaResortear().map(({ bracket, etiqueta, idx, cantidad }) => (
                           <button
-                            key={idx}
-                            onClick={() => resortearFase(idx)}
+                            key={`${bracket}-${idx}`}
+                            onClick={() => resortearFase(bracket, idx)}
                             className="w-full py-2 rounded-2xl font-bold text-xs mb-3 transition-all duration-200 hover:scale-105 active:scale-95"
                             style={{ background: "transparent", color: T.goldBright, border: `1px solid ${T.gold}` }}
                           >
-                            Resortear {roundLabel(cantidad)} (todavía no se jugó nada ahí)
+                            Resortear {etiqueta ? `${etiqueta} — ` : ""}
+                            {roundLabel(cantidad)} (todavía no se jugó nada ahí)
                           </button>
                         ))}
 
