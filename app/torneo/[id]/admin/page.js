@@ -244,6 +244,42 @@ export default function AdminPage({ params }) {
   async function removeTeam(teamId) {
     if (tournament.started) return;
     setError("");
+
+    // Equipo de la fase de grupos: acá no existe el concepto de "esperando
+    // rival" que tiene la clasificatoria de abajo — todos los cruces del
+    // grupo ya están armados de entrada, con los dos equipos puestos. Sacar
+    // un equipo es simplemente borrar los partidos donde jugaba, nada más
+    // (la tabla de posiciones se recalcula sola con lo que quede). Usar la
+    // lógica de "espera rival" de abajo acá corrompía la fecha del equipo
+    // sacado en vez de borrarla.
+    if (tournament.formato === "grupos") {
+      const { data: enGrupo } = await supabase
+        .from("matches")
+        .select("id, winner_id")
+        .eq("tournament_id", id)
+        .eq("bracket", "grupos")
+        .or(`team1_id.eq.${teamId},team2_id.eq.${teamId}`);
+      const yaJugoGrupo = (enGrupo || []).some((m) => m.winner_id);
+      if (yaJugoGrupo) {
+        setError("Este equipo ya jugó un partido de grupos — no se puede sacar. Reabrí ese partido primero si hace falta.");
+        return;
+      }
+      await supabase
+        .from("matches")
+        .delete()
+        .eq("tournament_id", id)
+        .eq("bracket", "grupos")
+        .or(`team1_id.eq.${teamId},team2_id.eq.${teamId}`);
+      const { error: errDel } = await supabase.from("teams").delete().eq("id", teamId);
+      if (errDel) {
+        setError("No se pudo sacar el equipo. Probá de nuevo.");
+        console.error(errDel);
+        return;
+      }
+      load();
+      return;
+    }
+
     // Si ya está anotado en algún cruce sin jugar (clasificatoria, antes
     // de cerrar esa fase), hay que soltarlo de ahí primero — si no, la
     // base rechaza el borrado porque el partido todavía lo referencia.
