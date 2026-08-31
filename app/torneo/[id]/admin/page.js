@@ -2996,11 +2996,22 @@ function FaseDeGruposPanel({
           porFecha[m.round_index].push(m);
         });
         const fechas = Object.keys(porFecha).map(Number).sort((a, b) => a - b);
+        const textoGrupoCompleto = `Grupo ${num}\n\n${fechas
+          .map(
+            (fecha) =>
+              `Fecha ${fecha + 1}\n${porFecha[fecha]
+                .map((m) => `${teamsById[m.team1_id]?.name || "?"} vs ${teamsById[m.team2_id]?.name || "?"}`)
+                .join("\n")}`
+          )
+          .join("\n\n")}`;
         return (
           <div key={num} className="rounded-2xl p-3 border shadow-sm mb-3" style={{ background: T.panel, borderColor: T.line }}>
-            <h2 className="font-bold text-sm mb-2" style={{ color: T.gold }}>
-              Grupo {num}
-            </h2>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <h2 className="font-bold text-sm" style={{ color: T.gold }}>
+                Grupo {num}
+              </h2>
+              <BotonCopiarFecha T={T} texto={textoGrupoCompleto} etiqueta="Copiar grupo" />
+            </div>
 
             <div className="overflow-x-auto mb-3">
               <table className="w-full text-xs" style={{ color: T.ink }}>
@@ -3138,7 +3149,7 @@ function FaseDeGruposPanel({
 // Copia el texto de una fecha (sin pasar por WhatsApp, a diferencia de
 // compartirCruces de más arriba) — para pegarlo donde el organizador
 // quiera.
-function BotonCopiarFecha({ T, texto }) {
+function BotonCopiarFecha({ T, texto, etiqueta = "Copiar" }) {
   const [copiado, setCopiado] = useState(false);
 
   async function copiar() {
@@ -3157,7 +3168,7 @@ function BotonCopiarFecha({ T, texto }) {
       className="flex-shrink-0 text-[10px] font-bold px-2 py-1 rounded-lg"
       style={{ color: copiado ? T.goldBright : T.inkDim, background: T.panel }}
     >
-      {copiado ? "Copiado ✓" : "Copiar"}
+      {copiado ? "Copiado ✓" : etiqueta}
     </button>
   );
 }
