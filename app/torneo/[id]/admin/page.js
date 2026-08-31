@@ -16,9 +16,9 @@ import { repartirEnGrupos, armarFixtureGrupo, rankearGrupo, rankearGlobal } from
 
 // Firma al pie de todo texto que se comparte/copia para WhatsApp — ahí
 // donde el organizador ya está por pegarlo, es el mejor lugar para que
-// quede la marca. WhatsApp no tiene subrayado; sí negrita (*texto*) e
-// itálica (_texto_), que es lo que se usa en los títulos de estos textos.
-const FIRMA_ENVIDITO = "_Sorteo hecho con Envidito.com_";
+// quede la marca. WhatsApp no tiene subrayado; sí negrita (*texto*) para
+// los títulos de estos textos, y monoespaciado (```texto```) para la firma.
+const FIRMA_ENVIDITO = "```Sorteo hecho por Envidito.com```";
 
 export default function AdminPage({ params }) {
   const { id } = params;
