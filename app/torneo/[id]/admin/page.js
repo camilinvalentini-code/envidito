@@ -405,6 +405,25 @@ export default function AdminPage({ params }) {
     return n > 0 && (n & (n - 1)) === 0;
   }
 
+  // Sugerencia para el organizador que no sabe cuántos grupos armar: el
+  // tamaño de grupo más manejable en la práctica es 4 (da 3 fechas, ni
+  // muy corto ni eterno) — busca, entre las cantidades de grupos que
+  // ofrece el selector, la que deja el promedio de equipos por grupo
+  // más cerca de 4.
+  function cantidadGruposRecomendada(n, opciones) {
+    let mejor = opciones[0];
+    let mejorDist = Infinity;
+    for (const k of opciones) {
+      if (n < k * 2) continue; // esa opción ni siquiera entra (mínimo 2 por grupo)
+      const dist = Math.abs(n / k - 4);
+      if (dist < mejorDist) {
+        mejorDist = dist;
+        mejor = k;
+      }
+    }
+    return mejor;
+  }
+
   async function generarClasificatoria() {
     if (teamsAprobados.length < 3) {
       setError("Necesitás al menos 3 equipos anotados para armar la clasificatoria.");
@@ -2149,22 +2168,46 @@ export default function AdminPage({ params }) {
                     <label className="text-xs font-bold block mb-1.5" style={{ color: T.inkDim }}>
                       ¿Cuántos grupos?
                     </label>
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      {[2, 3, 4, 6, 8].map((n) => (
-                        <button
-                          key={n}
-                          onClick={() => setCantidadGruposInput(n)}
-                          disabled={teamsAprobados.length < n * 2}
-                          className="px-3.5 py-1.5 rounded-full text-xs font-bold disabled:opacity-30"
-                          style={{
-                            background: cantidadGruposInput === n ? T.gold : T.panelLight,
-                            color: cantidadGruposInput === n ? T.ink : T.inkDim,
-                          }}
-                        >
-                          {n}
-                        </button>
-                      ))}
-                    </div>
+                    {(() => {
+                      const opciones = [2, 3, 4, 6, 8];
+                      const recomendado = cantidadGruposRecomendada(teamsAprobados.length, opciones);
+                      return (
+                        <>
+                          <p className="text-[11px] mb-1.5" style={{ color: T.goldBright }}>
+                            ¿No sabés cuál elegir? Con {teamsAprobados.length} equipos, lo más manejable es{" "}
+                            <b>{recomendado}</b> ({(teamsAprobados.length / recomendado).toFixed(1)} equipos por
+                            grupo, en promedio) — grupos de alrededor de 4 equipos son los que mejor funcionan.
+                          </p>
+                          <div className="flex flex-wrap gap-1.5 mb-3">
+                            {opciones.map((n) => (
+                              <button
+                                key={n}
+                                onClick={() => setCantidadGruposInput(n)}
+                                disabled={teamsAprobados.length < n * 2}
+                                className="px-3.5 py-1.5 rounded-full text-xs font-bold disabled:opacity-30 flex items-center gap-1"
+                                style={{
+                                  background: cantidadGruposInput === n ? T.gold : T.panelLight,
+                                  color: cantidadGruposInput === n ? T.ink : T.inkDim,
+                                }}
+                              >
+                                {n}
+                                {n === recomendado && teamsAprobados.length >= n * 2 && (
+                                  <span
+                                    className="text-[9px] font-black px-1.5 py-0.5 rounded-full"
+                                    style={{
+                                      background: cantidadGruposInput === n ? T.ink : T.gold,
+                                      color: cantidadGruposInput === n ? T.gold : T.ink,
+                                    }}
+                                  >
+                                    ★
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      );
+                    })()}
                     <button
                       onClick={generarFaseDeGrupos}
                       disabled={teamsAprobados.length < cantidadGruposInput * 2}
