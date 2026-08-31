@@ -3247,7 +3247,22 @@ function PartidoGrupoCard({ T, m, teamsById, tope, onCargarResultado, onReabrir 
         style={{ color: jugado && m.winner_id !== m.team1_id ? T.inkDim : T.ink }}
       >
         <span className="truncate">{nombre1}</span>
-        {jugado && <span className="font-black flex-shrink-0" style={{ color: T.goldBright }}>{m.score_a}</span>}
+        {jugado ? (
+          <span className="font-black flex-shrink-0" style={{ color: T.goldBright }}>
+            {m.score_a}
+          </span>
+        ) : (
+          <input
+            value={scoreA}
+            onChange={(e) => setScoreA(limpiarScore(e.target.value))}
+            placeholder="0"
+            inputMode="numeric"
+            maxLength={2}
+            aria-label={`Puntos de ${nombre1}`}
+            className="w-9 flex-shrink-0 px-1 py-0.5 rounded text-xs text-center font-bold"
+            style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
+          />
+        )}
       </div>
       <div className="h-px my-0.5" style={{ background: T.line }} />
       <div
@@ -3255,7 +3270,22 @@ function PartidoGrupoCard({ T, m, teamsById, tope, onCargarResultado, onReabrir 
         style={{ color: jugado && m.winner_id !== m.team2_id ? T.inkDim : T.ink }}
       >
         <span className="truncate">{nombre2}</span>
-        {jugado && <span className="font-black flex-shrink-0" style={{ color: T.goldBright }}>{m.score_b}</span>}
+        {jugado ? (
+          <span className="font-black flex-shrink-0" style={{ color: T.goldBright }}>
+            {m.score_b}
+          </span>
+        ) : (
+          <input
+            value={scoreB}
+            onChange={(e) => setScoreB(limpiarScore(e.target.value))}
+            placeholder="0"
+            inputMode="numeric"
+            maxLength={2}
+            aria-label={`Puntos de ${nombre2}`}
+            className="w-9 flex-shrink-0 px-1 py-0.5 rounded text-xs text-center font-bold"
+            style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
+          />
+        )}
       </div>
 
       {jugado ? (
@@ -3277,44 +3307,21 @@ function PartidoGrupoCard({ T, m, teamsById, tope, onCargarResultado, onReabrir 
           >
             Abrir anotador →
           </a>
-          <div className="flex items-center gap-1 mt-1">
-            <input
-              value={scoreA}
-              onChange={(e) => setScoreA(limpiarScore(e.target.value))}
-              placeholder="0"
-              inputMode="numeric"
-              maxLength={2}
-              className="w-full px-2 py-1.5 rounded-lg text-xs text-center"
-              style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
-            />
-            <span className="text-xs" style={{ color: T.inkDim }}>
-              —
-            </span>
-            <input
-              value={scoreB}
-              onChange={(e) => setScoreB(limpiarScore(e.target.value))}
-              placeholder="0"
-              inputMode="numeric"
-              maxLength={2}
-              className="w-full px-2 py-1.5 rounded-lg text-xs text-center"
-              style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
-            />
-            <button
-              onClick={handleCargar}
-              disabled={
-                cargando ||
-                scoreA === "" ||
-                scoreB === "" ||
-                Math.max(parseInt(scoreA, 10) || 0, parseInt(scoreB, 10) || 0) !== tope ||
-                parseInt(scoreA, 10) === parseInt(scoreB, 10)
-              }
-              title={`El ganador tiene que obtener todos los puntos del tanteador, en este caso ${tope}`}
-              className="flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40"
-              style={{ background: T.gold, color: T.ink }}
-            >
-              Cargar
-            </button>
-          </div>
+          <button
+            onClick={handleCargar}
+            disabled={
+              cargando ||
+              scoreA === "" ||
+              scoreB === "" ||
+              Math.max(parseInt(scoreA, 10) || 0, parseInt(scoreB, 10) || 0) !== tope ||
+              parseInt(scoreA, 10) === parseInt(scoreB, 10)
+            }
+            title={`El ganador tiene que obtener todos los puntos del tanteador, en este caso ${tope}`}
+            className="block w-full mt-1 py-1 rounded-lg text-xs font-bold disabled:opacity-40"
+            style={{ background: T.gold, color: T.ink }}
+          >
+            Cargar
+          </button>
           {errorLocal && (
             <p className="text-[11px] text-center mt-1" style={{ color: T.goldBright }}>
               {errorLocal}
