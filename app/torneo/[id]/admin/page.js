@@ -3203,7 +3203,13 @@ function PartidoGrupoCard({ T, m, teamsById, tope, onCargarResultado, onReabrir 
             />
             <button
               onClick={() => onCargarResultado(m.id, parseInt(scoreA, 10) || 0, parseInt(scoreB, 10) || 0)}
-              disabled={scoreA === "" || scoreB === ""}
+              disabled={
+                scoreA === "" ||
+                scoreB === "" ||
+                Math.max(parseInt(scoreA, 10) || 0, parseInt(scoreB, 10) || 0) !== tope ||
+                parseInt(scoreA, 10) === parseInt(scoreB, 10)
+              }
+              title={`El ganador tiene que llegar justo a ${tope}`}
               className="flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40"
               style={{ background: T.gold, color: T.ink }}
             >
