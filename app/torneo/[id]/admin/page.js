@@ -3025,6 +3025,7 @@ function FaseDeGruposPanel({
         </div>
       )}
 
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3">
       {tablasPorGrupo.map(({ num, ms, tabla }) => {
         const porFecha = {};
         ms.forEach((m) => {
@@ -3041,7 +3042,7 @@ function FaseDeGruposPanel({
           )
           .join("\n\n")}`;
         return (
-          <div key={num} className="rounded-2xl p-3 border shadow-sm mb-3" style={{ background: T.panel, borderColor: T.line }}>
+          <div key={num} className="rounded-2xl p-3 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
             <div className="flex items-center justify-between gap-2 mb-2">
               <h2 className="font-bold text-sm" style={{ color: T.gold }}>
                 Grupo {num}
@@ -3104,6 +3105,7 @@ function FaseDeGruposPanel({
           </div>
         );
       })}
+      </div>
 
       {todosJugados && (
         <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
@@ -3201,8 +3203,12 @@ function BotonCopiarFecha({ T, texto, etiqueta = "Copiar" }) {
   return (
     <button
       onClick={copiar}
-      className="flex-shrink-0 text-[10px] font-bold px-2 py-1 rounded-lg"
-      style={{ color: copiado ? T.goldBright : T.inkDim, background: T.panel }}
+      className="flex-shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full border"
+      style={{
+        color: copiado ? T.ink : T.goldBright,
+        background: copiado ? T.gold : T.panelLight,
+        borderColor: copiado ? T.gold : T.line,
+      }}
     >
       {copiado ? "Copiado ✓" : etiqueta}
     </button>
