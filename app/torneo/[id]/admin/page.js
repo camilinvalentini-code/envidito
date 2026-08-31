@@ -537,19 +537,22 @@ export default function AdminPage({ params }) {
     load();
   }
 
+  // Devuelve el mensaje de error (o null si salió bien) en vez de tirarlo
+  // arriba de todo con setError — con muchos grupos en pantalla, un error
+  // de un partido puntual tiene que verse pegado a esa mesa, no perdido
+  // arriba de todos los grupos.
   async function cargarResultadoGrupo(matchId, scoreA, scoreB) {
-    setError("");
     const { error: err } = await supabase.rpc("cargar_resultado_grupo", {
       p_match_id: matchId,
       p_score_a: scoreA,
       p_score_b: scoreB,
     });
     if (err) {
-      setError(err.message || "No se pudo cargar el resultado. Probá de nuevo.");
       console.error(err);
-      return;
+      return err.message || "No se pudo cargar el resultado. Probá de nuevo.";
     }
     load();
+    return null;
   }
 
   async function reabrirPartidoGrupo(match) {
@@ -2959,32 +2962,30 @@ function FaseDeGruposPanel({
       </div>
 
       {!todosJugados && (
-        <div className="rounded-2xl p-3 border mb-4" style={{ background: T.panel, borderColor: T.line }}>
-          <p className="text-xs mb-2" style={{ color: T.inkDim }}>
-            ¿Se anotó un equipo tarde? Se suma al grupo con menos equipos, sin tocar los cruces ya armados.
+        <div className="rounded-xl px-3 py-2 border mb-3 flex flex-wrap items-center gap-2" style={{ background: T.panel, borderColor: T.line }}>
+          <p className="text-[11px] flex-shrink-0" style={{ color: T.inkDim }}>
+            ¿Equipo tardío?
           </p>
-          <div className="flex gap-2">
-            <input
-              value={nombreTardio}
-              onChange={(e) => onNombreTardioChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  onAgregarTardio();
-                }
-              }}
-              placeholder="Nombre del equipo nuevo"
-              className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm"
-              style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
-            />
-            <button
-              onClick={onAgregarTardio}
-              className="flex-shrink-0 px-4 py-2 rounded-xl font-bold text-sm"
-              style={{ background: T.gold, color: T.ink }}
-            >
-              + Agregar
-            </button>
-          </div>
+          <input
+            value={nombreTardio}
+            onChange={(e) => onNombreTardioChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onAgregarTardio();
+              }
+            }}
+            placeholder="Nombre del equipo nuevo"
+            className="flex-1 min-w-[140px] px-2.5 py-1.5 rounded-lg text-xs"
+            style={{ background: T.bg, color: T.ink, border: `1px solid ${T.line}` }}
+          />
+          <button
+            onClick={onAgregarTardio}
+            className="flex-shrink-0 px-3 py-1.5 rounded-lg font-bold text-xs"
+            style={{ background: T.gold, color: T.ink }}
+          >
+            + Agregar
+          </button>
         </div>
       )}
 
@@ -2996,47 +2997,55 @@ function FaseDeGruposPanel({
         });
         const fechas = Object.keys(porFecha).map(Number).sort((a, b) => a - b);
         return (
-          <div key={num} className="rounded-2xl p-4 border shadow-sm mb-4" style={{ background: T.panel, borderColor: T.line }}>
-            <h2 className="font-bold text-sm mb-3" style={{ color: T.gold }}>
+          <div key={num} className="rounded-2xl p-3 border shadow-sm mb-3" style={{ background: T.panel, borderColor: T.line }}>
+            <h2 className="font-bold text-sm mb-2" style={{ color: T.gold }}>
               Grupo {num}
             </h2>
 
-            <div className="overflow-x-auto mb-4">
+            <div className="overflow-x-auto mb-3">
               <table className="w-full text-xs" style={{ color: T.ink }}>
                 <thead>
                   <tr style={{ color: T.inkDim }}>
-                    <th className="text-left font-bold pb-1.5">Equipo</th>
-                    <th className="text-center font-bold pb-1.5">PJ</th>
-                    <th className="text-center font-bold pb-1.5">PG</th>
-                    <th className="text-center font-bold pb-1.5">Dif</th>
-                    <th className="text-center font-bold pb-1.5">Pts.Favor</th>
+                    <th className="text-left font-bold pb-1">Equipo</th>
+                    <th className="text-center font-bold pb-1">PJ</th>
+                    <th className="text-center font-bold pb-1">PG</th>
+                    <th className="text-center font-bold pb-1">Dif</th>
+                    <th className="text-center font-bold pb-1">Pts.Favor</th>
                   </tr>
                 </thead>
                 <tbody>
                   {tabla.map((e) => (
                     <tr key={e.id} style={{ borderTop: `1px solid ${T.line}` }}>
-                      <td className="py-1.5 font-semibold truncate max-w-[160px]">
+                      <td className="py-1 font-semibold truncate max-w-[160px]">
                         {e.posicion}. {teamsById[e.id]?.name}
                       </td>
-                      <td className="text-center py-1.5">{e.pj}</td>
-                      <td className="text-center py-1.5">{e.pg}</td>
-                      <td className="text-center py-1.5">{e.dif > 0 ? `+${e.dif}` : e.dif}</td>
-                      <td className="text-center py-1.5">{e.pf}</td>
+                      <td className="text-center py-1">{e.pj}</td>
+                      <td className="text-center py-1">{e.pg}</td>
+                      <td className="text-center py-1">{e.dif > 0 ? `+${e.dif}` : e.dif}</td>
+                      <td className="text-center py-1">{e.pf}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            <div className="flex items-start gap-4 overflow-x-auto pb-1">
+            <div className="flex items-start gap-3 overflow-x-auto pb-1">
               {fechas.map((fecha, i) => (
                 <React.Fragment key={fecha}>
                   {i > 0 && <div className="self-stretch w-px flex-shrink-0" style={{ background: T.line }} />}
-                  <div className="flex-shrink-0" style={{ width: 220 }}>
-                    <div className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: T.inkDim }}>
-                      Fecha {fecha + 1}
+                  <div className="flex-shrink-0" style={{ width: 190 }}>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <div className="text-[11px] font-bold uppercase tracking-wide" style={{ color: T.inkDim }}>
+                        Fecha {fecha + 1}
+                      </div>
+                      <BotonCopiarFecha
+                        T={T}
+                        texto={`Grupo ${num} — Fecha ${fecha + 1}\n${porFecha[fecha]
+                          .map((m) => `${teamsById[m.team1_id]?.name || "?"} vs ${teamsById[m.team2_id]?.name || "?"}`)
+                          .join("\n")}`}
+                      />
                     </div>
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-1.5">
                       {porFecha[fecha].map((m) => (
                         <PartidoGrupoCard key={m.id} T={T} m={m} teamsById={teamsById} tope={tope} onCargarResultado={onCargarResultado} onReabrir={onReabrir} />
                       ))}
@@ -3126,9 +3135,38 @@ function FaseDeGruposPanel({
 // Una mesa de la fase de grupos: si todavía no tiene resultado, deja
 // cargar el puntaje real a mano (hace falta para la diferencia de
 // tantos) además del link al anotador en vivo de siempre.
+// Copia el texto de una fecha (sin pasar por WhatsApp, a diferencia de
+// compartirCruces de más arriba) — para pegarlo donde el organizador
+// quiera.
+function BotonCopiarFecha({ T, texto }) {
+  const [copiado, setCopiado] = useState(false);
+
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch (e) {
+      alert("No se pudo copiar. Probá de nuevo.");
+    }
+  }
+
+  return (
+    <button
+      onClick={copiar}
+      className="flex-shrink-0 text-[10px] font-bold px-2 py-1 rounded-lg"
+      style={{ color: copiado ? T.goldBright : T.inkDim, background: T.panel }}
+    >
+      {copiado ? "Copiado ✓" : "Copiar"}
+    </button>
+  );
+}
+
 function PartidoGrupoCard({ T, m, teamsById, tope, onCargarResultado, onReabrir }) {
   const [scoreA, setScoreA] = useState("");
   const [scoreB, setScoreB] = useState("");
+  const [errorLocal, setErrorLocal] = useState("");
+  const [cargando, setCargando] = useState(false);
   const jugado = !!m.winner_id;
   const nombre1 = teamsById[m.team1_id]?.name || "?";
   const nombre2 = teamsById[m.team2_id]?.name || "?";
@@ -3142,18 +3180,25 @@ function PartidoGrupoCard({ T, m, teamsById, tope, onCargarResultado, onReabrir 
     return String(Math.min(parseInt(soloDigitos, 10), tope));
   }
 
+  async function handleCargar() {
+    setCargando(true);
+    const err = await onCargarResultado(m.id, parseInt(scoreA, 10) || 0, parseInt(scoreB, 10) || 0);
+    setCargando(false);
+    setErrorLocal(err || "");
+  }
+
   return (
-    <div className="rounded-2xl border p-2" style={{ background: T.panelLight, borderColor: T.line }}>
+    <div className="rounded-xl border p-1.5" style={{ background: T.panelLight, borderColor: T.line }}>
       <div
-        className="px-3 py-1.5 rounded-xl text-sm font-semibold flex items-center justify-between gap-2"
+        className="px-2 py-1 rounded-lg text-xs font-semibold flex items-center justify-between gap-2"
         style={{ color: jugado && m.winner_id !== m.team1_id ? T.inkDim : T.ink }}
       >
         <span className="truncate">{nombre1}</span>
         {jugado && <span className="font-black flex-shrink-0" style={{ color: T.goldBright }}>{m.score_a}</span>}
       </div>
-      <div className="h-px my-1" style={{ background: T.line }} />
+      <div className="h-px my-0.5" style={{ background: T.line }} />
       <div
-        className="px-3 py-1.5 rounded-xl text-sm font-semibold flex items-center justify-between gap-2"
+        className="px-2 py-1 rounded-lg text-xs font-semibold flex items-center justify-between gap-2"
         style={{ color: jugado && m.winner_id !== m.team2_id ? T.inkDim : T.ink }}
       >
         <span className="truncate">{nombre2}</span>
@@ -3163,7 +3208,7 @@ function PartidoGrupoCard({ T, m, teamsById, tope, onCargarResultado, onReabrir 
       {jugado ? (
         <button
           onClick={() => onReabrir(m)}
-          className="block w-full text-center text-xs mt-2 py-1.5 rounded-lg font-semibold"
+          className="block w-full text-center text-[11px] mt-1 py-1 rounded-lg font-semibold"
           style={{ color: T.inkDim, background: T.panel }}
         >
           Reabrir
@@ -3174,12 +3219,12 @@ function PartidoGrupoCard({ T, m, teamsById, tope, onCargarResultado, onReabrir 
             href={`/partido/${m.match_token}`}
             target="_blank"
             rel="noreferrer"
-            className="block text-center text-xs mt-2 py-1.5 rounded-lg font-semibold"
+            className="block text-center text-[11px] mt-1 py-1 rounded-lg font-semibold"
             style={{ color: T.goldBright, background: T.panel }}
           >
-            Abrir anotador de esta mesa →
+            Abrir anotador →
           </a>
-          <div className="flex items-center gap-1.5 mt-1.5">
+          <div className="flex items-center gap-1 mt-1">
             <input
               value={scoreA}
               onChange={(e) => setScoreA(limpiarScore(e.target.value))}
@@ -3202,20 +3247,26 @@ function PartidoGrupoCard({ T, m, teamsById, tope, onCargarResultado, onReabrir 
               style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
             />
             <button
-              onClick={() => onCargarResultado(m.id, parseInt(scoreA, 10) || 0, parseInt(scoreB, 10) || 0)}
+              onClick={handleCargar}
               disabled={
+                cargando ||
                 scoreA === "" ||
                 scoreB === "" ||
                 Math.max(parseInt(scoreA, 10) || 0, parseInt(scoreB, 10) || 0) !== tope ||
                 parseInt(scoreA, 10) === parseInt(scoreB, 10)
               }
-              title={`El ganador tiene que llegar justo a ${tope}`}
+              title={`El ganador tiene que obtener todos los puntos del tanteador, en este caso ${tope}`}
               className="flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40"
               style={{ background: T.gold, color: T.ink }}
             >
               Cargar
             </button>
           </div>
+          {errorLocal && (
+            <p className="text-[11px] text-center mt-1" style={{ color: T.goldBright }}>
+              {errorLocal}
+            </p>
+          )}
         </>
       )}
     </div>

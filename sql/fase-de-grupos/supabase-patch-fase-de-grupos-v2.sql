@@ -311,13 +311,13 @@ begin
     raise exception 'los puntos van de 0 a %', tope;
   end if;
   if p_score_a = p_score_b then
-    raise exception 'en truco no hay empates';
+    raise exception 'En el truco no hay empates';
   end if;
   -- El ganador tiene que llegar justo al tope del anotador (30, o el que
   -- tenga configurado el torneo) — un 25 a 29 no es un partido terminado,
   -- por más que no estén empatados.
   if greatest(p_score_a, p_score_b) <> tope then
-    raise exception 'el ganador tiene que llegar justo a % puntos', tope;
+    raise exception 'El ganador tiene que obtener todos los puntos del tanteador, en este caso %', tope;
   end if;
 
   ganador := case when p_score_a > p_score_b then m.team1_id else m.team2_id end;
