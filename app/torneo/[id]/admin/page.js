@@ -65,6 +65,7 @@ export default function AdminPage({ params }) {
   const [cerrandoGrupos, setCerrandoGrupos] = useState(false);
   const [nombreTardioGrupos, setNombreTardioGrupos] = useState("");
   const gruposRef = useRef(null);
+  const equiposAnotadosRef = useRef(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") setOrigin(window.location.origin);
@@ -970,6 +971,20 @@ export default function AdminPage({ params }) {
     setJugadoresEditando((prev) => prev.map((j) => (j.id === playerId ? { ...j, [campo]: valor } : j)));
   }
 
+  // Un equipo cargado a mano no tiene nada que este editor sepa corregir
+  // (DNI/teléfono/fecha) — para cambiarle el nombre o los jugadores, el
+  // lugar es "Equipos anotados" (lápiz/basurero), no acá. Cierra este
+  // popup y lo lleva directo ahí.
+  function irAEquiposAnotados() {
+    setEditandoJugadoresDe(null);
+    setMostrarEquipos(true);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        equiposAnotadosRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  }
+
   async function guardarJugadoresEditados() {
     setGuardandoJugadores(true);
     for (const j of jugadoresEditando) {
@@ -1849,10 +1864,20 @@ export default function AdminPage({ params }) {
                     Editar jugadores
                   </h3>
                   {jugadoresEditando.length === 0 ? (
-                    <p className="text-sm" style={{ color: T.inkDim }}>
-                      Este equipo se anotó a mano (sin formulario de inscripción), así que no tiene DNI, teléfono
-                      ni fecha de nacimiento cargados — no hay nada que corregir acá.
-                    </p>
+                    <div>
+                      <p className="text-sm mb-3" style={{ color: T.inkDim }}>
+                        Este equipo se anotó a mano (sin formulario de inscripción), así que no tiene DNI, teléfono
+                        ni fecha de nacimiento cargados — no hay nada de eso para corregir acá. Para cambiarle el
+                        nombre o los jugadores, andá a "Equipos anotados" (✎ y 🗑).
+                      </p>
+                      <button
+                        onClick={irAEquiposAnotados}
+                        className="w-full py-2.5 rounded-xl font-black text-sm"
+                        style={{ background: `linear-gradient(180deg, ${T.goldBright}, ${T.gold})`, color: T.ink }}
+                      >
+                        Ir a Equipos anotados →
+                      </button>
+                    </div>
                   ) : (
                     <div className="flex flex-col gap-3">
                       {jugadoresEditando.map((j) => (
@@ -2011,7 +2036,7 @@ export default function AdminPage({ params }) {
               </div>
 
               {teamsAprobados.length > 0 && (
-                <div className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
+                <div ref={equiposAnotadosRef} className="rounded-2xl p-4 border shadow-sm" style={{ background: T.panel, borderColor: T.line }}>
                   <button
                     onClick={() => setMostrarEquipos((v) => !v)}
                     className="w-full flex items-center justify-between font-bold"
