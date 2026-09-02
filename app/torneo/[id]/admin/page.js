@@ -3467,7 +3467,8 @@ const LIMITE_RESORTEOS = 3;
 function BotonResortearFase({ T, bracket, etiqueta, siguiente, usados, onResortear }) {
   const limiteAlcanzado = usados >= LIMITE_RESORTEOS;
   const disabled = !siguiente || limiteAlcanzado;
-  const label = etiqueta ? `↻ Resortear ${etiqueta}` : "↻ Resortear";
+  const base = etiqueta ? `↻ Resortear ${etiqueta}` : "↻ Resortear";
+  const label = `${base} (${usados}/${LIMITE_RESORTEOS})`;
   const title = !siguiente
     ? "No hay ninguna fase lista para resortear ahora (falta que estén todos los cruces armados, o ya se jugó algo ahí)"
     : limiteAlcanzado
