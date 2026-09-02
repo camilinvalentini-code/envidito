@@ -2094,6 +2094,7 @@ export default function AdminPage({ params }) {
                 onCompartir={() => compartirCrucesClasificatoria(clasifMatches)}
                 onCopiar={() => copiarCrucesClasificatoria(clasifMatches)}
                 onResortear={resortearClasificatoria}
+                usadosResorteo={tournament.resorteos?.["clasificatoria:0"] || 0}
                 perdedoresElegidos={perdedoresElegidos}
                 onToggleLoser={toggleLoserElegido}
                 onSortearLosers={sortearPerdedoresClasificatoria}
@@ -2116,6 +2117,7 @@ export default function AdminPage({ params }) {
                 onReabrir={reabrirPartidoGrupo}
                 onBorrarFecha={borrarFechaGrupo}
                 onResortear={resortearFaseDeGrupos}
+                usadosResorteo={tournament.resorteos?.["grupos:armado"] || 0}
                 onVolver={volverDeFaseDeGrupos}
                 onCerrar={cerrarFaseDeGrupos}
                 cerrando={cerrandoGrupos}
@@ -2546,6 +2548,7 @@ export default function AdminPage({ params }) {
                 onReabrir={reabrirPartidoGrupo}
                 onBorrarFecha={borrarFechaGrupo}
                 onResortear={resortearFaseDeGrupos}
+                usadosResorteo={tournament.resorteos?.["grupos:armado"] || 0}
                 onVolver={volverDeFaseDeGrupos}
                 onCerrar={cerrarFaseDeGrupos}
                 cerrando={cerrandoGrupos}
@@ -2710,6 +2713,7 @@ function ClasificatoriaPanel({
   cerrando,
   onVolver,
   error,
+  usadosResorteo,
 }) {
   const [busquedaPerdedores, setBusquedaPerdedores] = useState("");
   const ordenados = [...clasifMatches].sort((a, b) => a.match_index - b.match_index);
@@ -2750,15 +2754,15 @@ function ClasificatoriaPanel({
             Clasificatoria — {ordenados.length} partido{ordenados.length === 1 ? "" : "s"}
           </h2>
           <div className="flex gap-2">
-            {nadieJugoNada && (
-              <button
-                onClick={onResortear}
-                title="Resortear (todavía no se jugó nada)"
-                className="h-9 px-3 rounded-xl font-bold text-xs"
-                style={{ background: T.panel, color: T.inkDim, border: `1px solid ${T.line}` }}
-              >
-                ↻ Resortear
-              </button>
+            {nadieJugoNada && ordenados.length > 0 && (
+              <BotonResortearFase
+                T={T}
+                bracket="clasificatoria"
+                etiqueta="Clasificatoria"
+                siguiente={{ idx: 0, cantidad: ordenados.length }}
+                usados={usadosResorteo}
+                onResortear={onResortear}
+              />
             )}
             <button
               onClick={onCompartir}
@@ -3142,6 +3146,7 @@ function FaseDeGruposPanel({
   onNombreTardioChange,
   onAgregarTardio,
   error,
+  usadosResorteo,
 }) {
   const [oroCantidad, setOroCantidad] = useState(null);
   const [agregarPlata, setAgregarPlata] = useState(false);
@@ -3221,14 +3226,15 @@ function FaseDeGruposPanel({
         ) : (
           <span />
         )}
-        {nadieJugoNada && (
-          <button
-            onClick={onResortear}
-            className="h-9 px-3 rounded-xl font-bold text-xs"
-            style={{ background: T.panel, color: T.inkDim, border: `1px solid ${T.line}` }}
-          >
-            ↻ Resortear grupos
-          </button>
+        {nadieJugoNada && grupoMatches.length > 0 && (
+          <BotonResortearFase
+            T={T}
+            bracket="grupos"
+            etiqueta="grupos"
+            siguiente={{ idx: 0, cantidad: grupoMatches.length }}
+            usados={usadosResorteo}
+            onResortear={onResortear}
+          />
         )}
       </div>
 
@@ -3459,20 +3465,28 @@ function FaseDeGruposPanel({
 // esto solo evita el click inútil.
 const LIMITE_RESORTEOS = 3;
 function BotonResortearFase({ T, bracket, etiqueta, siguiente, usados, onResortear }) {
-  const disabled = !siguiente || usados >= LIMITE_RESORTEOS;
+  const limiteAlcanzado = usados >= LIMITE_RESORTEOS;
+  const disabled = !siguiente || limiteAlcanzado;
   const label = etiqueta ? `↻ Resortear ${etiqueta}` : "↻ Resortear";
   const title = !siguiente
     ? "No hay ninguna fase lista para resortear ahora (falta que estén todos los cruces armados, o ya se jugó algo ahí)"
-    : usados >= LIMITE_RESORTEOS
+    : limiteAlcanzado
     ? `Ya se resorteó esta fase ${LIMITE_RESORTEOS} veces — es el máximo`
     : `${roundLabel(siguiente.cantidad)} — usado ${usados}/${LIMITE_RESORTEOS}`;
+  // Disponible: borde punteado dorado, invita a tocarlo. Límite
+  // alcanzado: se ve "hundido" (relleno, con sombra hacia adentro) en
+  // vez de solo atenuado — para que sea obvio que no es que todavía no
+  // hay nada para resortear, sino que ya se usaron los 3 y no vuelve.
+  const estilo = limiteAlcanzado
+    ? { background: T.panelLight, color: T.inkDim, border: `1px solid ${T.line}`, boxShadow: "inset 0 2px 5px rgba(0,0,0,0.35)" }
+    : { background: "transparent", color: siguiente ? T.goldBright : T.inkDim, border: `1px dashed ${siguiente ? T.gold : T.line}` };
   return (
     <button
       onClick={() => siguiente && onResortear(bracket, siguiente.idx)}
       disabled={disabled}
       title={title}
-      className="h-11 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
-      style={{ background: T.panel, color: T.ink, border: `1px solid ${T.line}` }}
+      className="h-11 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-105 active:scale-95 disabled:hover:scale-100"
+      style={estilo}
     >
       {label}
     </button>
